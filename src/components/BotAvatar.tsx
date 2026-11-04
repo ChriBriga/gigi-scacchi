@@ -9,6 +9,14 @@ const BG: Record<number, [string, string]> = {
   6: ['#ff8a5c', '#d1303f'],
   7: ['#b9a2ff', '#5b3fc0'],
   8: ['#f6d56a', '#b97a12'],
+  9: ['#ffd36b', '#e07a1f'],
+  10: ['#7fe3d0', '#1f9c8e'],
+  11: ['#d1ad74', '#6e4a26'],
+  12: ['#7f9bff', '#2a2f8a'],
+  13: ['#c3a3ff', '#4a2fb0'],
+  14: ['#8fd3ff', '#2a7a9c'],
+  15: ['#b9bccd', '#44475f'],
+  16: ['#ffe39a', '#c0881a'],
 }
 
 /** Avatar illustrati dei bot: personaggi semplici su disco colorato. */
@@ -163,6 +171,152 @@ const FACES: Record<number, React.ReactNode> = {
       <path d="M12 62 Q22 68 30 64" stroke="#b9791f" strokeWidth="2.6" fill="none" strokeLinecap="round" />
       <path d="M20 36 L20 20 L28 26 L34 14 L40 26 L48 20 L48 36 Z" fill="#ffd23f" stroke="#c98512" strokeWidth="2" strokeLinejoin="round" />
       <circle cx="34" cy="31" r="2.6" fill="#ff4d6a" />
+    </g>
+  ),
+  // Cuoco Cosimo: cappello da chef e baffoni
+  9: (
+    <g>
+      <path d="M12 100 C12 80 28 74 50 74 C72 74 88 80 88 100 Z" fill="#f6f6fb" />
+      <circle cx="50" cy="86" r="2.2" fill="#c9cde0" />
+      <circle cx="50" cy="95" r="2.2" fill="#c9cde0" />
+      <circle cx="50" cy="57" r="22" fill={SKIN} />
+      <path d="M29 42 C24 28 34 22 40 24 C42 12 58 12 60 24 C66 22 76 28 71 42 Z" fill="#fff" stroke="#dfe3f2" strokeWidth="2" strokeLinejoin="round" />
+      <rect x="29" y="39" width="42" height="9" rx="3" fill="#fff" stroke="#dfe3f2" strokeWidth="2" />
+      <circle cx="41" cy="57" r="3" fill={INK} />
+      <circle cx="59" cy="57" r="3" fill={INK} />
+      <path d="M35 51 L46 53 M65 51 L54 53" stroke="#5a3a22" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="33" cy="66" r="4.2" fill="#ff8fb4" opacity=".55" />
+      <circle cx="67" cy="66" r="4.2" fill="#ff8fb4" opacity=".55" />
+      <path d="M33 67 Q41 60 50 66 Q59 60 67 67 Q60 74 50 69 Q40 74 33 67 Z" fill="#5a3a22" />
+      <path d="M44 74 Q50 78 56 74" stroke="#b03a5a" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+    </g>
+  ),
+  // Skater Sasha: cappellino rosso e sorrisone
+  10: (
+    <g>
+      <path d="M12 100 C12 80 28 74 50 74 C72 74 88 80 88 100 Z" fill="#26c6a8" />
+      <path d="M40 76 V92 M60 76 V92" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M25 52 C20 56 22 66 26 68 C26 62 28 56 28 54 Z M75 52 C80 56 78 66 74 68 C74 62 72 56 72 54 Z" fill="#4a2b17" />
+      <circle cx="50" cy="56" r="22" fill={SKIN} />
+      <path d="M26 50 C26 28 40 20 52 20 C66 20 75 32 74 50 Q50 41 26 50 Z" fill="#ff4d6a" />
+      <path d="M26 50 Q50 41 74 50" fill="none" stroke="#b3123a" strokeWidth="4" strokeLinecap="round" />
+      <circle cx="51" cy="20" r="2.8" fill="#ffc83d" />
+      <circle cx="40" cy="58" r="3.2" fill={INK} />
+      <circle cx="41" cy="57" r="1" fill="#fff" />
+      <path d="M54 58 Q60 53 66 58" stroke={INK} strokeWidth="3.2" fill="none" strokeLinecap="round" />
+      <path d="M37 67 Q50 82 63 67 Z" fill="#fff" stroke="#b03a5a" strokeWidth="2.4" strokeLinejoin="round" />
+      <circle cx="31" cy="66" r="3.6" fill="#ff8fb4" opacity=".55" />
+    </g>
+  ),
+  // Detective Dino: cappello, trench e lente
+  11: (
+    <g>
+      <path d="M12 100 C12 80 28 74 50 74 C72 74 88 80 88 100 Z" fill="#8a6a3b" />
+      <path d="M34 76 L50 94 L38 100 Z M66 76 L50 94 L62 100 Z" fill="#a98450" />
+      <circle cx="50" cy="58" r="21" fill={SKIN} />
+      <ellipse cx="50" cy="42" rx="34" ry="8" fill="#5a3b1e" />
+      <path d="M31 42 C31 22 42 15 50 15 C58 15 69 22 69 42 Z" fill="#6e4a26" />
+      <path d="M31 37 H69 V43 H31 Z" fill="#2c1b0c" />
+      <path d="M38 58 H46 M54 56 H62" stroke={INK} strokeWidth="3" strokeLinecap="round" />
+      <path d="M36 52 L47 54 M54 50 L65 47" stroke="#3b2414" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M43 71 H57" stroke="#b03a5a" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="76" cy="78" r="11" fill="#cfe9ff" fillOpacity=".55" stroke="#c98512" strokeWidth="4" />
+      <path d="M84 86 L95 97" stroke="#8a5a1a" strokeWidth="6" strokeLinecap="round" />
+    </g>
+  ),
+  // Astronauta Ada: casco con visiera
+  12: (
+    <g>
+      <circle cx="14" cy="18" r="1.6" fill="#fff" opacity=".8" />
+      <circle cx="86" cy="26" r="1.2" fill="#fff" opacity=".8" />
+      <circle cx="20" cy="44" r="1" fill="#fff" opacity=".7" />
+      <path d="M14 100 C14 82 30 78 50 78 C70 78 86 82 86 100 Z" fill="#f2f4ff" />
+      <rect x="41" y="88" width="18" height="8" rx="2" fill="#ff4d6a" />
+      <circle cx="50" cy="48" r="34" fill="#f7f8ff" stroke="#c5cbe6" strokeWidth="3" />
+      <circle cx="50" cy="48" r="26" fill="#1f2f6b" />
+      <circle cx="50" cy="51" r="17" fill={SKIN} />
+      <path d="M33 47 C34 36 44 33 50 34 C58 33 67 38 67 47 C60 42 42 42 33 47 Z" fill="#3a2a20" />
+      <circle cx="44" cy="52" r="2.4" fill={INK} />
+      <circle cx="56" cy="52" r="2.4" fill={INK} />
+      <path d="M44 59 Q50 64 56 59" stroke="#b03a5a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <path d="M31 40 Q36 29 47 27" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" opacity=".7" />
+      <path d="M50 15 V6" stroke="#c5cbe6" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="50" cy="5" r="3.2" fill="#ff4d6a" />
+    </g>
+  ),
+  // Mago Merlo: cappello a punta e barbona
+  13: (
+    <g>
+      <path d="M12 100 C12 82 28 76 50 76 C72 76 88 82 88 100 Z" fill="#5b3fc0" />
+      <circle cx="50" cy="52" r="19" fill={SKIN} />
+      <path d="M30 58 Q32 92 50 98 Q68 92 70 58 Q60 72 50 70 Q40 72 30 58 Z" fill="#f4f4fb" />
+      <circle cx="50" cy="59" r="4.4" fill="#f0b996" />
+      <path d="M36 49 Q42 44 47 48 M64 49 Q58 44 53 48" stroke="#f4f4fb" strokeWidth="4.5" fill="none" strokeLinecap="round" />
+      <circle cx="42" cy="52" r="2.4" fill={INK} />
+      <circle cx="58" cy="52" r="2.4" fill={INK} />
+      <ellipse cx="50" cy="40" rx="33" ry="7.5" fill="#4a30b0" />
+      <path d="M27 40 L53 -2 L73 40 Z" fill="#6b4fe0" />
+      <path d="M27 36 Q50 42 73 36 L73 40 Q50 46 27 40 Z" fill="#ffd23f" />
+      <path d="M50 14 l2 5 5 .6 -3.8 3.4 1.2 5 -4.4 -2.7 -4.4 2.7 1.2 -5 -3.8 -3.4 5 -.6 z" fill="#ffd23f" />
+      <circle cx="60" cy="30" r="1.6" fill="#fff" />
+    </g>
+  ),
+  // Vichinga Vera: elmo con le corna e trecce
+  14: (
+    <g>
+      <path d="M12 100 C12 82 28 76 50 76 C72 76 88 82 88 100 Z" fill="#2a6fb5" />
+      <path d="M30 80 Q36 90 42 80 Q48 90 54 80 Q60 90 66 80 L70 84 Q50 98 30 84 Z" fill="#f4f4fb" />
+      <path d="M28 58 Q20 76 29 94 M72 58 Q80 76 71 94" stroke="#f3c74b" strokeWidth="9" fill="none" strokeLinecap="round" />
+      <circle cx="50" cy="57" r="22" fill={SKIN} />
+      <path d="M28 40 C12 36 8 22 13 10 C19 22 28 26 33 30 Z" fill="#fff" stroke="#cfd4e3" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M72 40 C88 36 92 22 87 10 C81 22 72 26 67 30 Z" fill="#fff" stroke="#cfd4e3" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M26 50 C26 28 38 21 50 21 C62 21 74 28 74 50 Q50 42 26 50 Z" fill="#aab4c8" stroke="#7b869f" strokeWidth="2" />
+      <rect x="47" y="30" width="6" height="22" rx="2.5" fill="#8c97b0" />
+      <circle cx="40" cy="58" r="3.2" fill={INK} />
+      <circle cx="60" cy="58" r="3.2" fill={INK} />
+      <path d="M33 52 L46 55 M67 52 L54 55" stroke="#b07a1c" strokeWidth="3" strokeLinecap="round" />
+      <path d="M42 69 Q52 76 61 67" stroke="#b03a5a" strokeWidth="2.8" fill="none" strokeLinecap="round" />
+      <circle cx="32" cy="66" r="1.2" fill="#c9774a" />
+      <circle cx="35" cy="69" r="1.2" fill="#c9774a" />
+      <circle cx="68" cy="66" r="1.2" fill="#c9774a" />
+    </g>
+  ),
+  // Barone Von Scacco: cilindro, monocolo, baffi
+  15: (
+    <g>
+      <path d="M12 100 C12 82 28 76 50 76 C72 76 88 82 88 100 Z" fill="#20202e" />
+      <path d="M40 78 L50 100 L60 78 Z" fill="#f4f4fb" />
+      <path d="M50 82 L41 78 L41 87 Z M50 82 L59 78 L59 87 Z" fill="#c9254a" />
+      <circle cx="50" cy="82" r="3" fill="#a3163a" />
+      <circle cx="50" cy="57" r="21" fill={SKIN} />
+      <ellipse cx="50" cy="39" rx="31" ry="6.5" fill="#14141f" />
+      <rect x="34" y="12" width="32" height="27" rx="3" fill="#1c1c2b" />
+      <rect x="34" y="30" width="32" height="6" fill="#8a1f3a" />
+      <circle cx="41" cy="54" r="2.8" fill={INK} />
+      <circle cx="59" cy="54" r="2.8" fill={INK} />
+      <circle cx="59" cy="54" r="8.5" fill="#fff" fillOpacity=".2" stroke="#e9a91c" strokeWidth="2.6" />
+      <path d="M67 60 Q74 72 70 90" stroke="#e9a91c" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeDasharray="2 2" />
+      <path d="M34 50 L47 52" stroke="#3a3a4a" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M35 68 Q41 62 50 67 Q59 62 65 68 Q60 72 50 69 Q40 72 35 68 Z" fill="#3a3a4a" />
+      <path d="M35 68 q-5 -1 -4 -7 M65 68 q5 -1 4 -7" stroke="#3a3a4a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+    </g>
+  ),
+  // Sfinge Serafina: copricapo faraonico e occhi bistrati
+  16: (
+    <g>
+      <path d="M16 100 C16 82 32 78 50 78 C68 78 84 82 84 100 Z" fill="#ffcf3a" stroke="#c98512" strokeWidth="2" />
+      <path d="M28 86 Q50 96 72 86" stroke="#2b6fd6" strokeWidth="4" fill="none" />
+      <path d="M24 60 C20 34 32 16 50 16 C68 16 80 34 76 60 L73 88 L60 80 L40 80 L27 88 Z" fill="#2b6fd6" />
+      <path d="M25 30 Q50 22 75 30 M23 42 Q50 34 77 42 M23 54 Q50 46 77 54 M24 66 Q50 58 76 66" stroke="#ffcf3a" strokeWidth="3.2" fill="none" strokeLinecap="round" />
+      <circle cx="50" cy="58" r="19" fill="#f2c28f" />
+      <path d="M32 46 Q50 38 68 46 Q50 42 32 46 Z" fill="#2b6fd6" />
+      <ellipse cx="42" cy="56" rx="5.4" ry="3.4" fill="#fff" />
+      <ellipse cx="58" cy="56" rx="5.4" ry="3.4" fill="#fff" />
+      <circle cx="42" cy="56" r="2.4" fill={INK} />
+      <circle cx="58" cy="56" r="2.4" fill={INK} />
+      <path d="M33 56 L25 51 M67 56 L75 51 M36 52 Q42 49 48 52 M52 52 Q58 49 64 52" stroke={INK} strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <path d="M44 68 Q50 72 56 68" stroke="#b03a5a" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+      <path d="M50 14 l3 6 -3 5 -3 -5 z" fill="#ffcf3a" stroke="#c98512" strokeWidth="1.2" strokeLinejoin="round" />
     </g>
   ),
 }

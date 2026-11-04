@@ -27,13 +27,15 @@ export interface BoardProps {
   showRange?: boolean
   /** casa che ha appena "ricevuto" una mossa sbagliata (shake) */
   shake?: boolean
+  /** modalità "indica una casa": ogni tocco su una casa viene riportato qui e nessun pezzo si muove */
+  onPick?: (sq: Square) => void
 }
 
 const PIECE_URL = (color: Color, type: PieceSymbol) =>
   `${import.meta.env.BASE_URL}pieces/${color}${type.toUpperCase()}.svg`
 
 export function Board(props: BoardProps) {
-  const { fen, orientation = 'w', movable, onMove, lastMove, lastBy, slowMove, tints, rings, marks, hint, arrows, badge, showRange, shake } = props
+  const { fen, orientation = 'w', movable, onMove, lastMove, lastBy, slowMove, tints, rings, marks, hint, arrows, badge, showRange, shake, onPick } = props
   const sprites = useBoardPieces(fen)
   const ghosts = useGhosts(sprites)
   const boardRef = useRef<HTMLDivElement>(null)
@@ -97,6 +99,11 @@ export function Board(props: BoardProps) {
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
+    if (onPick) {
+      const picked = fromPoint(e.clientX, e.clientY)
+      if (picked) onPick(picked)
+      return
+    }
     if (promo) return
     const sq = fromPoint(e.clientX, e.clientY)
     if (!sq) return

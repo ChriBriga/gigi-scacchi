@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { Tone } from './coach/lines'
 import type { ThemeId } from './themes'
 import type { Outfit } from './coach/outfits'
+import type { Quality } from './engine/analysis'
 import { mergeProgress } from './sync/merge'
 
 export type DangerMode = 'off' | 'threats' | 'full'
@@ -20,6 +21,29 @@ export interface Settings {
   nickname: string
   /** avatar scelto: 'gigi', 'google', 'piece:wN', 'bot:3' */
   avatar: string
+}
+
+/** Un errore tuo segnato sul quaderno: torna come esercizio a intervalli crescenti finché non lo hai imparato. */
+export interface NotebookItem {
+  /** la posizione (senza contatori delle mosse): un errore per posizione */
+  id: string
+  /** posizione prima della mossa sbagliata, tocca a `color` */
+  fen: string
+  color: 'w' | 'b'
+  best: string
+  played: string
+  playedSan: string
+  tag: string
+  added: string
+  /** livello di apprendimento 0-4; superato il 4 l'errore esce dal quaderno */
+  box: number
+  /** giorno da cui torna da ripassare */
+  due: string
+  ok: number
+  fail: number
+  /** ultima modifica (ms), serve alla sincronizzazione */
+  upd: number
+  j: { quality: Quality; loss: number; cpAfter: number; missedMate?: boolean }
 }
 
 /** Cosa Gigi si ricorda di te: serve per saluti e battute personalizzate. */
@@ -56,6 +80,12 @@ export interface Progress {
   mistakeTags: Record<string, number>
   /** quante volte i puzzle sono stati "azzerati" dopo averli visti tutti (serve alla sincronizzazione) */
   puzzleCycle?: number
+  /** partite giocate senza ritirare nessuna mossa */
+  cleanGames?: number
+  /** il quaderno degli errori */
+  notebook?: NotebookItem[]
+  /** errori del quaderno ormai imparati (servono perché la sincronizzazione non li faccia tornare) */
+  notebookGone?: string[]
   gigi?: GigiMemory
   today: DayLog
   /** ultima modifica locale (ms): serve alla sincronizzazione per capire chi è più recente */
@@ -236,6 +266,70 @@ if (typeof document !== 'undefined') {
     if (document.visibilityState === 'visible') rolloverDay()
   })
 }
+
+/* ---------------------------------------------------------------
+   Quaderno degli errori
+   --------------------------------------------------------------- */
+const NOTEBOOK_STEPS = [1, 3, 7, 14, 30]
+const NOTEBOOK_MAX = 100
+
+const addDays = (day: string, n: number) => {
+  const d = new Date(day + 'T12:00:00')
+  d.setDate(d.getDate() + n)
+  return d.toLocaleDateString('sv-SE')
+}
+
+export const notebookId = (fen: string) => fen.split(' ').slice(0, 4).join(' ')
+
+export type NotebookDraft = Pick<NotebookItem, 'fen' | 'color' | 'best' | 'played' | 'playedSan' | 'tag' | 'j'>
+
+/** Segna degli errori sul quaderno (uno per posizione). Restituisce quanti sono davvero nuovi. */
+export function addToNotebook(drafts: NotebookDraft[]): number {
+  let added = 0
+  update((s) => {
+    const p = s.progress
+    const list = (p.notebook ??= [])
+    const gone = p.notebookGone ?? []
+    for (const d of drafts) {
+      const id = notebookId(d.fen)
+      if (list.some((x) => x.id === id) || gone.includes(id)) continue
+      list.push({ ...d, id, added: todayStr(), box: 0, due: addDays(todayStr(), NOTEBOOK_STEPS[0]), ok: 0, fail: 0, upd: Date.now() })
+      added += 1
+    }
+    if (list.length > NOTEBOOK_MAX) list.splice(0, list.length - NOTEBOOK_MAX)
+  })
+  return added
+}
+
+/** Registra com'è andato il ripasso di un errore: giusto = sale di livello, sbagliato = riparte da capo. */
+export function resolveNotebook(id: string, ok: boolean) {
+  update((s) => {
+    const p = s.progress
+    touchDay(p)
+    const list = p.notebook ?? []
+    const it = list.find((x) => x.id === id)
+    if (!it) return
+    it.upd = Date.now()
+    if (ok) {
+      it.ok += 1
+      it.box += 1
+      p.xp += 4
+      if (it.box >= NOTEBOOK_STEPS.length) {
+        p.notebook = list.filter((x) => x.id !== id)
+        p.notebookGone = [...(p.notebookGone ?? []), id].slice(-300)
+        return
+      }
+      it.due = addDays(todayStr(), NOTEBOOK_STEPS[it.box])
+    } else {
+      it.fail += 1
+      it.box = 0
+      p.xp += 1
+      it.due = addDays(todayStr(), NOTEBOOK_STEPS[0])
+    }
+  })
+}
+
+export const dueNotebook = (p: Progress): NotebookItem[] => (p.notebook ?? []).filter((i) => i.due <= todayStr())
 
 /** Aggiorna la memoria di Gigi a fine partita. */
 export function rememberGame(botId: number, outcome: 'win' | 'lose' | 'draw', retracts: number, blunders: number, first?: string) {

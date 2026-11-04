@@ -1,12 +1,16 @@
 // Genera puzzle tattici per principianti analizzando partite "deboli" con Stockfish.
-// Uso: node scripts/gen-puzzles.mjs  ->  scrive src/data/puzzles.json
+// Uso: node scripts/gen-puzzles.mjs          ->  rigenera da zero src/data/puzzles.json
+//      node scripts/gen-puzzles.mjs --add    ->  AGGIUNGE puzzle nuovi a quelli esistenti (id e progressi restano validi)
 import { createRequire } from 'node:module'
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
 import { Chess } from 'chess.js'
 
 const require = createRequire(import.meta.url)
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 }
-const TARGET = { mate1: 40, mate2: 30, free: 40, fork: 40, tactic: 40 }
+const ADD = process.argv.includes('--add')
+// con --add sono i puzzle da AGGIUNGERE per tema, altrimenti il totale da generare
+const TARGET = ADD ? { mate1: 30, mate2: 30, free: 30, fork: 20, tactic: 30 } : { mate1: 40, mate2: 30, free: 40, fork: 40, tactic: 40 }
+const OLD = ADD && existsSync('src/data/puzzles.json') ? JSON.parse(readFileSync('src/data/puzzles.json', 'utf8')) : []
 
 let pending = null
 let lines = new Map()
@@ -139,12 +143,14 @@ function classify(fen, best, second) {
 }
 
 const found = { mate1: [], mate2: [], free: [], fork: [], tactic: [] }
-const seen = new Set()
+// le posizioni già presenti non vengono ripetute
+const seen = new Set(OLD.map((o) => o.fen.split(' ').slice(0, 2).join(' ')))
+const lastNum = (theme) => Math.max(0, ...OLD.filter((o) => o.theme === theme).map((o) => Number(o.id.split('-')[1])))
 const done = () => Object.keys(TARGET).every((k) => found[k].length >= TARGET[k])
 
 let games = 0
 const started = Date.now()
-while (!done() && games < 400) {
+while (!done() && games < 700) {
   games++
   const fens = await weakGame()
   const perTheme = {}
@@ -158,14 +164,14 @@ while (!done() && games < 400) {
     if (!p || found[p.theme].length >= TARGET[p.theme]) continue
     if ((perTheme[p.theme] ?? 0) >= 2) continue
     perTheme[p.theme] = (perTheme[p.theme] ?? 0) + 1
-    const id = `${p.theme}-${found[p.theme].length + 1}`
+    const id = `${p.theme}-${lastNum(p.theme) + found[p.theme].length + 1}`
     found[p.theme].push({ id, fen, ...p })
   }
   const prog = Object.keys(TARGET).map((k) => `${k}:${found[k].length}/${TARGET[k]}`).join(' ')
   console.log(`partita ${games} (${Math.round((Date.now() - started) / 1000)}s) ${prog}`)
 }
 
-const all = Object.values(found).flat()
+const all = [...OLD, ...Object.values(found).flat()]
 mkdirSync('src/data', { recursive: true })
 writeFileSync('src/data/puzzles.json', JSON.stringify(all))
 console.log('scritti', all.length, 'puzzle')

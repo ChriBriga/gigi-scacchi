@@ -31,6 +31,13 @@ export type CoachEvent =
   | 'thinking'
   | 'firstWin'
   | 'botBeaten'
+  // "Dov'è il guaio?", partita pulita e quaderno degli errori
+  | 'quizAsk'
+  | 'quizOk'
+  | 'quizMiss'
+  | 'quizReveal'
+  | 'cleanGame'
+  | 'notebookSaved'
   // Gigi punzecchiato nella Home
   | 'poke'
   | 'pokeMany'
@@ -74,6 +81,12 @@ export const EVENT_MOOD: Record<CoachEvent, Mood> = {
   thinking: 'thinking',
   firstWin: 'happy',
   botBeaten: 'happy',
+  quizAsk: 'thinking',
+  quizOk: 'happy',
+  quizMiss: 'confused',
+  quizReveal: 'smug',
+  cleanGame: 'cool',
+  notebookSaved: 'smug',
   poke: 'happy',
   pokeMany: 'angry',
   greetNew: 'cool',
@@ -161,5 +174,6 @@ export function sayLine(event: CoachEvent, tone: Tone, vars: LineVars = {}): str
     .replaceAll('{pezzo}', the)
     .replaceAll('{sq}', vars.sq ?? '')
     .replaceAll('{bot}', vars.bot ?? 'il bot')
+    .replaceAll('{errori}', vars.n === 1 ? '1 errore' : `${vars.n ?? ''} errori`)
     .replaceAll('{n}', String(vars.n ?? ''))
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Color } from 'chess.js'
-import { Check, Shuffle, Star } from '@phosphor-icons/react'
-import { BOTS, type Bot } from '../engine/bots'
+import { Check, Shuffle, Star, StarHalf } from '@phosphor-icons/react'
+import { BOTS, recommendedBot, starsOf, type Bot } from '../engine/bots'
 import { BotAvatar } from '../components/BotAvatar'
 import { useApp } from '../store'
 
@@ -13,7 +13,7 @@ export function PlaySetup({ onStart, suggested }: { onStart: (bot: Bot, color: C
   const app = useApp()
   const [colorPick, setColorPick] = useState<'w' | 'b' | 'r'>('w')
   const skill = app.progress.skill
-  const rec = suggested ?? Math.max(1, Math.min(8, Math.round(skill / 12) + 1))
+  const rec = suggested ?? recommendedBot(skill).id
   const beaten = app.progress.botsBeaten
 
   return (
@@ -44,10 +44,11 @@ export function PlaySetup({ onStart, suggested }: { onStart: (bot: Bot, color: C
               <small>{b.tagline}</small>
             </span>
             <span className="bot-meta">
-              <span className="stars">
-                {Array.from({ length: Math.ceil(b.id / 2) }, (_, i) => (
-                  <Star key={i} size={14} weight="fill" />
+              <span className="stars" title={`${starsOf(b)} stelle`}>
+                {Array.from({ length: Math.floor(starsOf(b)) }, (_, i) => (
+                  <Star key={i} size={13} weight="fill" />
                 ))}
+                {starsOf(b) % 1 !== 0 && <StarHalf size={13} weight="fill" />}
               </span>
               {beaten.includes(b.id) ? (
                 <span className="badge-pill ok">

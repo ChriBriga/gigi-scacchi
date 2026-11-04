@@ -16,6 +16,10 @@ export interface ReviewItem {
   uci: string
   fenBefore: string
   judgement: Judgement
+  /** chi ha mosso (per il quaderno, dove gli errori vengono da partite giocate con colori diversi) */
+  color?: Color
+  /** che tipo di errore era, per il quaderno */
+  tag?: string
 }
 
 type Stage = 'try' | 'shown'
@@ -69,9 +73,27 @@ export function pickReviewItems(
     .sort((a, b) => a.moveNo - b.moveNo)
 }
 
-export function GameReview({ items, color, tone, geminiKey, onClose }: { items: ReviewItem[]; color: Color; tone: Tone; geminiKey: string; onClose: () => void }) {
+export function GameReview({
+  items,
+  color,
+  tone,
+  geminiKey,
+  onClose,
+  mode = 'game',
+  onResolved,
+}: {
+  items: ReviewItem[]
+  color: Color
+  tone: Tone
+  geminiKey: string
+  onClose: () => void
+  /** 'notebook': ripasso degli errori del quaderno, ognuno con il suo colore e il suo risultato registrato */
+  mode?: 'game' | 'notebook'
+  onResolved?: (item: ReviewItem, ok: boolean) => void
+}) {
   const [idx, setIdx] = useState(0)
   const item = items[idx]
+  const side: Color = item?.color ?? color
   const [stage, setStage] = useState<Stage>('try')
   const [view, setView] = useState<View>('played')
   const [tries, setTries] = useState(0)
@@ -113,7 +135,7 @@ export function GameReview({ items, color, tone, geminiKey, onClose }: { items: 
           /* niente confutazione */
         }
         const after = new Chess(fenAfter)
-        const h = hangingPieces(after, color)
+        const h = hangingPieces(after, side)
         if (h.length) facts.push(`Il tuo ${PIECE_NAME[h[0].piece as PieceSymbol]} in ${h[0].square} resta attaccato e non protetto.`)
       }
       const winAfter = winPct(j.cpAfter)
@@ -130,7 +152,7 @@ export function GameReview({ items, color, tone, geminiKey, onClose }: { items: 
     return () => {
       alive = false
     }
-  }, [item, color])
+  }, [item, side])
 
   const bestFen = useMemo(() => (item?.judgement.bestUci ? playUci(item.fenBefore, item.judgement.bestUci) : undefined), [item])
   const playedFen = useMemo(() => (item ? playUci(item.fenBefore, item.uci) : undefined), [item])
@@ -163,6 +185,7 @@ export function GameReview({ items, color, tone, geminiKey, onClose }: { items: 
     }
     setChecking(false)
     if (ok) {
+      onResolved?.(item, true)
       setSolvedFen(playUci(item.fenBefore, uci) ?? null)
       setStage('shown')
       setView('best')
@@ -176,6 +199,7 @@ export function GameReview({ items, color, tone, geminiKey, onClose }: { items: 
   }
 
   const reveal = () => {
+    onResolved?.(item, false)
     setStage('shown')
     setView('best')
     setSolvedFen(null)
@@ -216,19 +240,21 @@ export function GameReview({ items, color, tone, geminiKey, onClose }: { items: 
 
   const headline =
     stage === 'try'
-      ? `Alla mossa ${item.moveNo} hai giocato ${item.san} (${q.label.toLowerCase()}). Sapresti trovare di meglio?`
+      ? mode === 'notebook'
+        ? `Un tuo vecchio errore: qui avevi giocato ${item.san} (${q.label.toLowerCase()}). Stavolta sai trovare di meglio?`
+        : `Alla mossa ${item.moveNo} hai giocato ${item.san} (${q.label.toLowerCase()}). Sapresti trovare di meglio?`
       : view === 'best'
         ? `${solvedFen ? 'Una mossa giusta. ' : ''}La mossa migliore era ${detail?.bestSan ?? best.from + best.to}${item.judgement.missedMate ? ': ti dava il matto!' : '.'}`
         : `Con ${item.san} ${detail ? `la tua probabilità di vincere è scesa dal ${Math.round(detail.winBefore)}% al ${Math.round(detail.winAfter)}%.` : 'hai buttato via il vantaggio.'}${detail?.refuteSan ? ` L’avversario ora ha ${detail.refuteSan}.` : ''}${detail?.facts[0] ? ' ' + detail.facts[0] : ''}`
 
   return (
-    <div className="review-overlay" role="dialog" aria-modal="true" aria-label="Rivedi i tuoi errori">
+    <div className="review-overlay" role="dialog" aria-modal="true" aria-label={mode === 'notebook' ? 'Quaderno degli errori' : 'Rivedi i tuoi errori'}>
       <div className="review-sheet">
         <div className="review-head">
           <div>
-            <strong>Rivedi i tuoi errori</strong>
+            <strong>{mode === 'notebook' ? 'Quaderno degli errori' : 'Rivedi i tuoi errori'}</strong>
             <small>
-              {idx + 1} di {items.length} · solo quelli che contano
+              {idx + 1} di {items.length} · {mode === 'notebook' ? (item.tag ?? 'ripasso') : 'solo quelli che contano'}
             </small>
           </div>
           <button className="ghost" onClick={onClose} aria-label="Chiudi">
@@ -237,7 +263,7 @@ export function GameReview({ items, color, tone, geminiKey, onClose }: { items: 
         </div>
 
         <div className="review-board">
-          <Board fen={fen} orientation={color} movable={stage === 'try' && !checking ? color : null} onMove={onTry} arrows={arrows} hint={hint} shake={shake} />
+          <Board fen={fen} orientation={side} movable={stage === 'try' && !checking ? side : null} onMove={onTry} arrows={arrows} hint={hint} shake={shake} />
           <div className="review-legend">
             {stage === 'shown' && view === 'played' && (
               <>

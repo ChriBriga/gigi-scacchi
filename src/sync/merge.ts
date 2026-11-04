@@ -1,4 +1,4 @@
-import type { GigiMemory, Progress, SyncedSettings } from '../store'
+import type { GigiMemory, NotebookItem, Progress, SyncedSettings } from '../store'
 
 export interface CloudDoc {
   progress: Progress
@@ -11,6 +11,18 @@ function maxByKey<V>(a: Record<string, V> = {}, b: Record<string, V> = {}, pick:
   const out: Record<string, V> = { ...a }
   for (const [k, v] of Object.entries(b)) out[k] = k in out ? pick(out[k], v) : v
   return out
+}
+
+/** Il quaderno: unione per posizione (vince la versione modificata più di recente); gli errori imparati restano fuori. */
+function mergeNotebook(a: Progress, b: Progress): Pick<Progress, 'notebook' | 'notebookGone'> {
+  const gone = union(a.notebookGone, b.notebookGone)
+  const byId = new Map<string, NotebookItem>()
+  for (const it of [...(a.notebook ?? []), ...(b.notebook ?? [])]) {
+    if (gone.includes(it.id)) continue
+    const cur = byId.get(it.id)
+    if (!cur || it.upd > cur.upd) byId.set(it.id, it)
+  }
+  return { notebook: [...byId.values()].sort((x, y) => x.added.localeCompare(y.added)).slice(-100), notebookGone: gone.slice(-300) }
 }
 
 /** La memoria di Gigi: i contatori più alti vincono, la "ultima partita" è la più recente. */
@@ -54,6 +66,8 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     puzzleCycle: Math.max(a.puzzleCycle ?? 0, b.puzzleCycle ?? 0),
     puzzleSeen:
       (a.puzzleCycle ?? 0) === (b.puzzleCycle ?? 0) ? union(a.puzzleSeen, b.puzzleSeen) : (a.puzzleCycle ?? 0) > (b.puzzleCycle ?? 0) ? a.puzzleSeen : b.puzzleSeen,
+    cleanGames: Math.max(a.cleanGames ?? 0, b.cleanGames ?? 0),
+    ...mergeNotebook(a, b),
     gigi: mergeGigi(a.gigi, b.gigi),
     games: Math.max(a.games, b.games),
     wins: Math.max(a.wins, b.wins),

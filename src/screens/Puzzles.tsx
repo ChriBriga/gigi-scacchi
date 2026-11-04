@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type PieceSymbol, type Square } from 'chess.js'
-import { ArrowLeft, ArrowRight, Check, Lightbulb, PuzzlePiece } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowRight, Check, Lightbulb, Notebook, PuzzlePiece } from '@phosphor-icons/react'
 import { Board } from '../components/Board'
 import { Confetti } from '../components/GameParts'
 import { ThemeIcon } from '../components/icons'
@@ -8,7 +8,7 @@ import { CoachBubble } from '../components/CoachBubble'
 import puzzlesData from '../data/puzzles.json'
 import { parseUci } from '../chess/util'
 import { EVENT_MOOD, pieceWithArticle, sayLine, type CoachEvent, type Mood } from '../coach/lines'
-import { addXp, getState, nudgeSkill, touchDay, update, useApp, type Progress } from '../store'
+import { addXp, dueNotebook, getState, nudgeSkill, touchDay, update, useApp, type Progress } from '../store'
 import { sfx } from '../sound'
 
 export interface Puzzle {
@@ -269,8 +269,11 @@ export function PuzzleRunner({
   )
 }
 
-export function Puzzles({ onExit }: { onExit: () => void }) {
+export function Puzzles({ onExit, onNotebook }: { onExit: () => void; onNotebook: () => void }) {
   const { progress } = useApp()
+  const notebookSize = progress.notebook?.length ?? 0
+  const notebookDue = dueNotebook(progress).length
+  const learned = progress.notebookGone?.length ?? 0
   const [started, setStarted] = useState(false)
   const stats = progress.puzzleStats
 
@@ -290,6 +293,29 @@ export function Puzzles({ onExit }: { onExit: () => void }) {
       <button className="btn primary big" style={{ maxWidth: 460 }} onClick={() => setStarted(true)}>
         <PuzzlePiece size={24} weight="fill" /> Inizia ad allenarti
       </button>
+      <div className="card" style={{ maxWidth: 640 }}>
+        <h3>
+          <Notebook size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
+          Quaderno degli errori
+        </h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Gli errori che fai in partita tornano come esercizio dopo 1, 3, 7, 14 e 30 giorni, finché non li hai imparati.
+        </p>
+        <div className="stats">
+          <div className="stat">
+            <b>{notebookSize}</b> sul quaderno
+          </div>
+          <div className="stat">
+            <b>{notebookDue}</b> da ripassare
+          </div>
+          <div className="stat">
+            <b>{learned}</b> imparati
+          </div>
+        </div>
+        <button className="btn" style={{ marginTop: 12 }} onClick={onNotebook} disabled={notebookSize === 0}>
+          <Notebook size={20} weight="bold" /> {notebookDue > 0 ? 'Ripassa ora' : notebookSize ? 'Niente da ripassare oggi' : 'Ancora vuoto'}
+        </button>
+      </div>
       <div className="card" style={{ maxWidth: 640 }}>
         <h3>I tuoi temi</h3>
         {(Object.keys(THEME_INFO) as Puzzle['theme'][]).map((t) => {

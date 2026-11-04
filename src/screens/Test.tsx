@@ -4,7 +4,7 @@ import { Checkerboard } from '@phosphor-icons/react'
 import { PUZZLES, PuzzleRunner, THEME_INFO, type Puzzle, type PuzzleResult } from './Puzzles'
 import { CoachBubble } from '../components/CoachBubble'
 import { BotAvatar } from '../components/BotAvatar'
-import { BOTS, type Bot } from '../engine/bots'
+import { botByRank, recommendedBot, type Bot } from '../engine/bots'
 import { update } from '../store'
 
 /** Test iniziale: 5 puzzle a difficoltà crescente per stimare il livello di partenza. */
@@ -29,7 +29,8 @@ export function PlacementTest({ onExit, startGame }: { onExit: () => void; start
       s.progress.xp += 30
     })
     // la partita di prova non deve mai essere contro un avversario troppo forte
-    const bot = BOTS[Math.max(0, Math.min(3, Math.round(skill / 12)))]
+    const rec = recommendedBot(skill)
+    const bot = rec.rank > 6 ? botByRank(6) : rec
     setResult({ score, bot })
   }
 

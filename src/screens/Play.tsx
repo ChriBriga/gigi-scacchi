@@ -12,7 +12,7 @@ import { dangerTints, hangingPieces } from '../chess/danger'
 import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
 import { explainWithGemini } from '../coach/gemini'
-import { addXp, bumpMistake, getState, nudgeSkill, rememberGame, touchDay, update, useApp, type DangerMode } from '../store'
+import { addToNotebook, addXp, bumpMistake, getState, nudgeSkill, rememberGame, touchDay, update, useApp, type DangerMode, type NotebookDraft } from '../store'
 import { sfx } from '../sound'
 
 interface MoveRec {
@@ -21,6 +21,28 @@ interface MoveRec {
   fenBefore: string
   color: Color
   judgement?: Judgement
+}
+
+/** "Dov'è il guaio?": le case che valgono come risposta, e la mossa con cui l'avversario ti punisce */
+interface Quiz {
+  targets: Square[]
+  refute?: [Square, Square]
+  tries: number
+  done: boolean
+}
+
+function draftFrom(rec: MoveRec, tag: string): NotebookDraft | null {
+  const j = rec.judgement
+  if (!j?.bestUci) return null
+  return {
+    fen: rec.fenBefore,
+    color: rec.color,
+    best: j.bestUci,
+    played: rec.uci,
+    playedSan: rec.san,
+    tag,
+    j: { quality: j.quality, loss: j.loss, cpAfter: j.cpAfter, missedMate: j.missedMate },
+  }
 }
 
 type Phase = 'player' | 'thinking' | 'reply' | 'decide' | 'over'
@@ -52,11 +74,17 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   const [coach, setCoach] = useState<{ text: string; mood: Mood }>({ text: sayLine('start', settings.tone), mood: 'cool' })
   const [hintLevel, setHintLevel] = useState(0)
   const [hint, setHint] = useState<{ from?: Square; to?: Square } | null>(null)
-  const [takeback, setTakeback] = useState<{ botUci: string; rec: MoveRec } | null>(null)
+  const [takeback, setTakeback] = useState<{ botUci: string; rec: MoveRec; tag: string } | null>(null)
+  const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [result, setResult] = useState<{ outcome: 'win' | 'lose' | 'draw'; reason: string } | null>(null)
   const [shake, setShake] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [analysing, setAnalysing] = useState(false)
+  const [analysisReady, setAnalysisReady] = useState(false)
+  const [cleanNote, setCleanNote] = useState<string | null>(null)
+  const [notebookNote, setNotebookNote] = useState<string | null>(null)
+  const notebookSaved = useRef(false)
+  const ownMoves = useRef(0)
   const started = useRef(false)
   /** false dopo l'uscita dalla partita: i timer e le risposte del motore arrivati in ritardo non devono più fare nulla */
   const alive = useRef(true)
@@ -86,6 +114,14 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     if (outcome === 'win') sfx.win()
     else if (outcome === 'lose') sfx.lose()
     rememberGame(bot.id, outcome, retracts.current, badMoves.current, isFirstWin ? 'firstWin' : undefined)
+    // partita pulita: giocata davvero (almeno 8 mosse tue), con il giudizio acceso e senza nessun ritiro
+    if (reason !== 'resa' && retracts.current === 0 && ownMoves.current >= 8 && settings.liveJudging) {
+      update((s) => {
+        s.progress.cleanGames = (s.progress.cleanGames ?? 0) + 1
+        s.progress.xp += 15
+      })
+      setCleanNote(sayLine('cleanGame', settings.tone))
+    }
     update((s) => {
       const p = s.progress
       touchDay(p)
@@ -95,9 +131,9 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
         p.wins += 1
         if (!p.botsBeaten.includes(bot.id)) p.botsBeaten.push(bot.id)
       }
-      p.xp += outcome === 'win' ? 40 + bot.id * 5 : outcome === 'draw' ? 20 : 10
+      p.xp += outcome === 'win' ? 40 + Math.round(bot.rank * 2.5) : outcome === 'draw' ? 20 : 10
     })
-    const diff = bot.id * 10 - 5 - before.skill
+    const diff = bot.rank * 5 - 2.5 - before.skill
     if (outcome === 'win') nudgeSkill(diff > 10 ? 4 : diff > -10 ? 2.5 : 1)
     else if (outcome === 'lose') nudgeSkill(diff < -10 ? -3 : diff < 10 ? -1.5 : -0.5)
   }
@@ -161,6 +197,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     }
     const uci = from + to + (promotion ?? '')
     const rec: MoveRec = { san: mv.san, uci, fenBefore, color }
+    ownMoves.current += 1
     setFen(g.fen())
     setLast([from, to])
     setLastBy('me')
@@ -197,7 +234,8 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
             mood: EVENT_MOOD[j.quality === 'blunder' ? 'blunder' : 'mistake'],
           })
         } else say(j.quality === 'blunder' ? 'blunder' : 'mistake')
-        setTakeback({ botUci, rec })
+        setTakeback({ botUci, rec, tag: hang.length ? 'Pezzi lasciati in presa' : 'Mosse distratte' })
+        setQuiz(null)
         setPhase('decide')
         setShake(true)
         setTimeout(() => setShake(false), 500)
@@ -237,15 +275,69 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     setLast(null)
     setLastBy('me')
     setBadge(null)
+    // l'errore ritirato non sparisce: finisce sul quaderno e torna a trovarti nei prossimi giorni
+    const draft = draftFrom(takeback.rec, takeback.tag)
+    if (draft) addToNotebook([draft])
     setTakeback(null)
+    setQuiz(null)
     setPhase('player')
     retracts.current += 1
+    ownMoves.current -= 1
     say('retract')
   }
+
+  /** Prima di ritirare: "dov'è il guaio?". Si accetta il pezzo che attacca, quello attaccato o uno lasciato in presa. */
+  const startQuiz = async () => {
+    if (!takeback) return
+    const g = game.current
+    const targets = new Set<Square>(hangingPieces(g, color).map((h) => h.square))
+    let refute: [Square, Square] | undefined
+    try {
+      const ev = await evaluate(g.fen())
+      if (ev.best) {
+        const p = parseUci(ev.best)
+        refute = [p.from, p.to]
+        targets.add(p.from)
+        targets.add(p.to)
+      }
+    } catch {
+      /* senza motore si usano solo i pezzi in presa */
+    }
+    if (!alive.current) return
+    if (targets.size === 0) {
+      doTakeback()
+      return
+    }
+    setQuiz({ targets: [...targets], refute, tries: 0, done: false })
+    say('quizAsk')
+  }
+  const onQuizPick = (sq: Square) => {
+    if (!quiz || quiz.done) return
+    if (quiz.targets.includes(sq)) {
+      sfx.good()
+      setQuiz({ ...quiz, done: true })
+      addXp(3)
+      say('quizOk')
+      return
+    }
+    sfx.bad()
+    setShake(true)
+    setTimeout(() => setShake(false), 450)
+    const tries = quiz.tries + 1
+    if (tries >= 2) {
+      setQuiz({ ...quiz, tries, done: true })
+      say('quizReveal')
+    } else {
+      setQuiz({ ...quiz, tries })
+      say('quizMiss')
+    }
+  }
+
   const keepMove = () => {
     if (!takeback) return
     const { botUci } = takeback
     setTakeback(null)
+    setQuiz(null)
     setBadge(null)
     setPhase('thinking')
     sleep(450).then(() => {
@@ -330,7 +422,10 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   useEffect(() => {
     if (phase !== 'over') return
     const todo = moves.filter((m) => m.color === color && !m.judgement).slice(0, 50)
-    if (todo.length === 0) return
+    if (todo.length === 0) {
+      setAnalysisReady(true)
+      return
+    }
     let alive = true
     setAnalysing(true)
     ;(async () => {
@@ -343,7 +438,10 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
           /* mossa non analizzabile: pazienza */
         }
       }
-      if (alive) setAnalysing(false)
+      if (alive) {
+        setAnalysing(false)
+        setAnalysisReady(true)
+      }
     })()
     return () => {
       alive = false
@@ -363,6 +461,25 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   }, [phase, fen])
 
   const reviewItems = useMemo(() => (phase === 'over' ? pickReviewItems(moves, color) : []), [moves, color, phase])
+
+  // gli errori peggiori della partita finiscono sul quaderno (una volta sola, a giudizio completato)
+  useEffect(() => {
+    if (phase !== 'over' || !analysisReady || notebookSaved.current) return
+    notebookSaved.current = true
+    const drafts: NotebookDraft[] = reviewItems.map((it) => ({
+      fen: it.fenBefore,
+      color,
+      best: it.judgement.bestUci!,
+      played: it.uci,
+      playedSan: it.san,
+      tag: it.judgement.missedMate ? 'Matti lasciati scappare' : 'Errori in partita',
+      j: { quality: it.judgement.quality, loss: it.judgement.loss, cpAfter: it.judgement.cpAfter, missedMate: it.judgement.missedMate },
+    }))
+    if (drafts.length === 0) return
+    const n = addToNotebook(drafts)
+    if (n > 0) setNotebookNote(sayLine('notebookSaved', settings.tone, { n }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, analysisReady, reviewItems])
 
   const lastUserMove = useMemo(() => [...moves].reverse().find((m) => m.color === color), [moves, color])
 
@@ -417,8 +534,10 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
             lastMove={last}
             lastBy={lastBy}
             slowMove={lastBy === 'opp'}
-            tints={tints}
-            rings={rings}
+            tints={quiz && !quiz.done ? undefined : tints}
+            rings={quiz ? (quiz.done ? quiz.targets : []) : rings}
+            arrows={quiz?.done && quiz.refute ? [[quiz.refute[0], quiz.refute[1], '#ffb347']] : undefined}
+            onPick={quiz && !quiz.done ? onQuizPick : undefined}
             hint={hint}
             badge={badge}
             shake={shake}
@@ -430,9 +549,21 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
           <CoachBubble text={coach.text} mood={coach.mood}>
             {phase === 'decide' && takeback && (
               <div className="row">
-                <button className="btn primary" onClick={doTakeback}>
-                  <ArrowCounterClockwise size={18} weight="bold" /> Ritira la mossa
-                </button>
+                {!quiz && (
+                  <button className="btn primary" onClick={startQuiz}>
+                    <ArrowCounterClockwise size={18} weight="bold" /> Ritira la mossa
+                  </button>
+                )}
+                {quiz && !quiz.done && (
+                  <button className="btn" onClick={doTakeback}>
+                    <ArrowCounterClockwise size={18} weight="bold" /> Salta e ritira
+                  </button>
+                )}
+                {quiz?.done && (
+                  <button className="btn primary" onClick={doTakeback}>
+                    <ArrowCounterClockwise size={18} weight="bold" /> Ritira ora
+                  </button>
+                )}
                 <button className="btn" onClick={keepMove}>
                   Lascia stare
                 </button>
@@ -447,6 +578,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
                     </span>
                   ))}
                 </div>
+                {cleanNote && <p className="review-note clean">✨ Partita pulita: nessuna mossa ritirata, +15 XP. {cleanNote}</p>}
                 {analysing && <p className="review-note">Gigi sta riguardando la partita…</p>}
                 {!analysing && reviewItems.length > 0 && (
                   <button className="btn primary" onClick={() => setReviewOpen(true)}>
@@ -454,6 +586,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
                   </button>
                 )}
                 {!analysing && reviewItems.length === 0 && moves.some((m) => m.judgement) && <p className="review-note">Nessun errore grave da rivedere. Niente male!</p>}
+                {notebookNote && <p className="review-note">{notebookNote}</p>}
                 <div className="row">
                   <button className="btn primary" onClick={onExit}>
                     Continua <ArrowRight size={18} weight="bold" />

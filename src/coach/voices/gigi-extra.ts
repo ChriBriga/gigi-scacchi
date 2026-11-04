@@ -209,6 +209,102 @@ export const GIGI_EXTRA: Omit<Voice, CoreEvent> = {
       '{bot} è ko. Non pensavo ce l’avresti fatta. Ma ecco.',
     ],
   },
+  quizAsk: {
+    gentle: [
+      'Prima di ritirare: dov’è il guaio? Tocca il pezzo che c’entra!',
+      'Fermiamoci un attimo: dove sta il problema? Tocca la scacchiera.',
+      'Sai dire dov’è il pericolo? Tocca il pezzo coinvolto.',
+      'Un indovinello veloce: da dove arriva la minaccia?',
+    ],
+    spicy: [
+      'Prima di ritirare: dov’è il guaio? Indovina, e che sia una cosa seria.',
+      'Dove hai combinato il disastro? Tocca il pezzo giusto.',
+      'Gioco a “trova il guaio”. Tocca il pezzo e dimostra di aver capito.',
+      'Se sai dov’è il problema, tocca il pezzo. Se non lo sai, tocca lo stesso.',
+    ],
+    ruthless: [
+      'Vuoi ritirare? Prima dimostra di sapere cosa hai combinato. Tocca il guaio.',
+      'Dov’è l’errore? Tocca il pezzo. Non sceglierlo a caso come al solito.',
+      'Il ritiro costa: prima trova il guaio. Tocca il pezzo giusto.',
+      'Indica il problema. Se lo trovi ti lascio ritirare. Se no, ti guardo.',
+    ],
+  },
+  quizOk: {
+    gentle: [
+      'Esatto! Hai visto il guaio. Ora puoi ritirare con la coscienza a posto.',
+      'Bravo! Quello è proprio il punto. Vedere il pericolo è già metà del lavoro.',
+      'Giusto! Vedi che ci arrivi? Ora ritira e riprova.',
+    ],
+    spicy: [
+      'Giusto! L’occhio funziona. Ora usalo PRIMA di muovere.',
+      'Esatto. Vedi? Sapevi già dov’era il problema. Il guaio è non guardare prima.',
+      'Preso! Ora ritira e prometti di guardare meglio.',
+    ],
+    ruthless: [
+      'Giusto. Il che significa che potevi accorgertene prima. Ritira.',
+      'Esatto. Una vittoria piccola, ma tua. Ora ritira e comportati bene.',
+      'Bene. Hai trovato l’errore che hai fatto tu. Un classico.',
+    ],
+  },
+  quizMiss: {
+    gentle: [
+      'Non è lì. Riguarda con calma: cosa può prendere l’avversario?',
+      'Quasi! Pensa a quale pezzo può muovere l’avversario adesso.',
+      'Non proprio. Guarda chi attacca chi.',
+    ],
+    spicy: [
+      'Nope. Guarda meglio cosa può fare l’avversario.',
+      'Non è quello! Riprova, ti concedo un altro tentativo.',
+      'Fuori bersaglio. Pensa: chi minaccia cosa?',
+    ],
+    ruthless: [
+      'No. Neanche vicino. Guarda cosa può prendere l’avversario.',
+      'Sbagliato. L’avversario ride. Riprova.',
+      'No. Se fosse un esame saresti rimandato. Un’altra possibilità.',
+    ],
+  },
+  quizReveal: {
+    gentle: [
+      'Te lo mostro io: ecco il guaio. La prossima volta lo vedi da solo!',
+      'Ecco dov’era il problema. Succede, ora lo sai.',
+    ],
+    spicy: [
+      'Era qui, il guaio. L’ho segnato per te: la prossima volta cerca meglio.',
+      'Eccolo. Te lo regalo, ma la prossima volta lo trovi tu.',
+    ],
+    ruthless: [
+      'Eccolo, il guaio. Era lì tutto il tempo. Ora ritira e vergognati un pochino.',
+      'Te lo dico io, visto che non ci arrivi: il guaio è qui.',
+    ],
+  },
+  cleanGame: {
+    gentle: [
+      'Partita pulita! Nemmeno una mossa ritirata. Sono fierissimo di te!',
+      'Zero ritiri! Hai giocato tutto da solo. Questa vale un premio.',
+    ],
+    spicy: [
+      'Partita pulita! Zero ritiri: ora sì che ragioniamo da giocatore.',
+      'Nemmeno un ritiro! Il tasto “ritira” si è sentito inutile. Bravo.',
+    ],
+    ruthless: [
+      'Zero ritiri. Hai giocato come i grandi, senza paracadute. Mi hai stupito.',
+      'Partita pulita. Non sembri nemmeno tu. Continua così.',
+    ],
+  },
+  notebookSaved: {
+    gentle: [
+      'Ho segnato {errori} sul quaderno: li rivediamo con calma nei prossimi giorni.',
+      'Sul quaderno ho aggiunto {errori} da riprendere. Poco alla volta si impara!',
+    ],
+    spicy: [
+      'Ho scritto {errori} sul quaderno. Tornano a trovarti nei prossimi giorni, tipo parenti.',
+      'Sul quaderno: {errori}. Li rivediamo presto, e stavolta li azzecchi.',
+    ],
+    ruthless: [
+      'Quaderno aggiornato con {errori}. Verranno a cercarti, uno alla volta.',
+      '{errori} segnati. Li rivedrai finché non li azzecchi. Anche un cavallo imparerebbe prima.',
+    ],
+  },
   poke: {
     gentle: [
       'Ehi! Mi hai fatto il solletico!',

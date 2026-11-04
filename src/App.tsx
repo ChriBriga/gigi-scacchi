@@ -8,6 +8,7 @@ import { Home } from './screens/Home'
 import { Learn, LessonPlayer } from './screens/Learn'
 import { PuzzleRunner, Puzzles, pickPuzzle } from './screens/Puzzles'
 import { PlacementTest } from './screens/Test'
+import { NotebookSession } from './screens/Notebook'
 import { Logo } from './components/Logo'
 import { Avatar, useProfile } from './components/Avatar'
 import type { Bot } from './engine/bots'
@@ -30,6 +31,7 @@ type Overlay =
   | { kind: 'lesson'; lesson: Lesson }
   | { kind: 'puzzles5'; key: number }
   | { kind: 'test' }
+  | { kind: 'notebook' }
 
 export function App() {
   const [tab, setTab] = useState<Tab>('home')
@@ -68,18 +70,20 @@ export function App() {
       />
     )
   else if (overlay?.kind === 'test') content = <PlacementTest onExit={close} startGame={startGame} />
+  else if (overlay?.kind === 'notebook') content = <NotebookSession onExit={close} />
   else if (tab === 'home')
     content = (
       <Home
         onLesson={openLesson}
         onPuzzles={() => setOverlay({ kind: 'puzzles5', key: Date.now() })}
         onTest={() => setOverlay({ kind: 'test' })}
+        onNotebook={() => setOverlay({ kind: 'notebook' })}
         startGame={startGame}
         go={goTab}
       />
     )
   else if (tab === 'play') content = <PlaySetup onStart={startGame} />
-  else if (tab === 'puzzles') content = <Puzzles onExit={() => setTab('home')} />
+  else if (tab === 'puzzles') content = <Puzzles onExit={() => setTab('home')} onNotebook={() => setOverlay({ kind: 'notebook' })} />
   else if (tab === 'learn') content = <Learn onOpen={openLesson} />
   else {
     content = <Settings />

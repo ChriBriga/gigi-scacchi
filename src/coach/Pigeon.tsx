@@ -7,13 +7,16 @@ const CROWN: Record<string, { top: string; mid: string; bottom: string; edge: st
   oro: { top: '#fff0a0', mid: '#ffcf3a', bottom: '#e9981a', edge: '#b8760e' },
   avorio: { top: '#ffffff', mid: '#eef0fb', bottom: '#b9bfdc', edge: '#6c7399' },
   ebano: { top: '#5b5670', mid: '#2c2838', bottom: '#14111c', edge: '#08060d' },
+  rubino: { top: '#ffc2cf', mid: '#ff4d6a', bottom: '#b3123a', edge: '#6d0a24' },
+  smeraldo: { top: '#c4ffe0', mid: '#2fd08a', bottom: '#0c8a55', edge: '#065a37' },
+  ghiaccio: { top: '#f4fdff', mid: '#9fe3ff', bottom: '#4aa8e0', edge: '#2a6aa0' },
 }
 
 /**
  * Gigi il piccione: mascotte in SVG con espressioni, accessori e animazioni idle.
  * Tutte le animazioni sono in CSS (classi pg-*), così costano pochissimo.
  */
-export function Pigeon({ mood = 'neutral', size = 96, outfit }: { mood?: Mood; size?: number; outfit?: Outfit }) {
+export function Pigeon({ mood = 'neutral', size = 96, outfit, view }: { mood?: Mood; size?: number; outfit?: Outfit; view?: string }) {
   const uid = useId().replace(/:/g, '')
   const id = (n: string) => `${n}-${uid}`
   const url = (n: string) => `url(#${id(n)})`
@@ -24,7 +27,7 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit }: { mood?: Mood; s
   const crown = CROWN[worn.crown ?? 'oro'] ?? CROWN.oro
 
   return (
-    <svg key={mood} className={`pigeon mood-${mood}`} width={size} height={size} viewBox="0 0 160 160" aria-hidden="true">
+    <svg key={mood} className={`pigeon mood-${mood}`} width={size} height={size} viewBox={view ?? '0 0 160 160'} aria-hidden="true">
       <defs>
         <linearGradient id={id('body')} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#b9c3e8" />
@@ -77,6 +80,15 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit }: { mood?: Mood; s
         {/* mantello (dietro tutto) */}
         {worn.back === 'mantello' && (
           <path d="M46 80 C16 104 14 140 28 152 L132 152 C146 140 144 104 114 80 Z" fill={url('cape')} stroke="#7a1138" strokeWidth="1.5" />
+        )}
+
+        {worn.back === 'fate' && <FairyWings />}
+        {worn.back === 'zainetto' && (
+          <g>
+            <rect x="18" y="86" width="124" height="54" rx="18" fill="#e8436a" stroke="#9b1744" strokeWidth="1.6" />
+            <rect x="22" y="112" width="30" height="20" rx="7" fill="#c92f58" />
+            <rect x="108" y="112" width="30" height="20" rx="7" fill="#c92f58" />
+          </g>
         )}
 
         {/* coda: si intravede a destra, sotto il corpo */}
@@ -162,7 +174,17 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit }: { mood?: Mood; s
 
           {/* accessori del collo */}
           {worn.neck && <NeckItem item={worn.neck} />}
+          {worn.back === 'zainetto' && (
+            <g fill="none" strokeLinecap="round">
+              <path d="M58 84 Q52 112 55 138" stroke="#9b1744" strokeWidth="6" />
+              <path d="M102 84 Q108 112 105 138" stroke="#9b1744" strokeWidth="6" />
+              <rect x="50" y="110" width="9" height="7" rx="2" fill="#ffcf3a" stroke="#b8760e" strokeWidth="1.2" />
+              <rect x="101" y="110" width="9" height="7" rx="2" fill="#ffcf3a" stroke="#b8760e" strokeWidth="1.2" />
+            </g>
+          )}
         </g>
+
+        {worn.extra && <ExtraItem item={worn.extra} gold={url('gold')} />}
 
         {/* corona da regina: stretta e alta, come il pezzo degli scacchi (oro, avorio o ebano) */}
         <g className="pg-crown">
@@ -395,7 +417,102 @@ function Eyes({ mood }: { mood: Mood }) {
   )
 }
 
+/** punti di una stella a 5 punte */
+function starPath(cx: number, cy: number, R: number, r: number): string {
+  const pts: string[] = []
+  for (let i = 0; i < 10; i++) {
+    const a = (Math.PI / 5) * i - Math.PI / 2
+    const rad = i % 2 === 0 ? R : r
+    pts.push(`${(cx + rad * Math.cos(a)).toFixed(1)} ${(cy + rad * Math.sin(a)).toFixed(1)}`)
+  }
+  return `M${pts.join(' L')} Z`
+}
+
+function FairyWings() {
+  return (
+    <g className="pg-fairy" stroke="#7bd4f0" strokeWidth="1.6" strokeLinejoin="round">
+      <path d="M52 92 C8 74 -6 32 24 22 C46 18 54 58 58 86 Z" fill="#c9f6ff" fillOpacity=".78" />
+      <path d="M54 102 C18 100 4 132 28 140 C46 144 56 120 60 106 Z" fill="#e6d4ff" fillOpacity=".78" />
+      <path d="M108 92 C152 74 166 32 136 22 C114 18 106 58 102 86 Z" fill="#c9f6ff" fillOpacity=".78" />
+      <path d="M106 102 C142 100 156 132 132 140 C114 144 104 120 100 106 Z" fill="#e6d4ff" fillOpacity=".78" />
+      <g fill="none" stroke="#fff" strokeWidth="1.4" opacity=".7">
+        <path d="M50 84 C32 62 22 44 22 30 M50 108 C36 116 26 128 28 136" />
+        <path d="M110 84 C128 62 138 44 138 30 M110 108 C124 116 134 128 132 136" />
+      </g>
+    </g>
+  )
+}
+
+function ExtraItem({ item, gold }: { item: string; gold: string }) {
+  if (item === 'caffe') {
+    return (
+      <g>
+        <g className="pg-steam-c" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" fill="none" opacity=".85">
+          <path d="M22 120 q-4 -5 0 -10 q4 -5 0 -10" />
+          <path d="M33 120 q-4 -5 0 -10 q4 -5 0 -10" />
+        </g>
+        <path d="M40 130 Q52 130 50 141 Q47 148 38 145" fill="none" stroke="#c9d0ee" strokeWidth="3.4" strokeLinecap="round" />
+        <path d="M14 124 H42 L38 148 Q28 153 18 148 Z" fill="#fff" stroke="#9aa6dd" strokeWidth="1.8" strokeLinejoin="round" />
+        <ellipse cx="28" cy="125" rx="13" ry="3" fill="#6b3d1e" />
+        <path d="M18 134 H38" stroke="#ff4d8d" strokeWidth="3" strokeLinecap="round" />
+      </g>
+    )
+  }
+  if (item === 'briciola') {
+    return (
+      <g strokeLinejoin="round">
+        <path d="M10 146 C6 130 20 120 34 122 C48 124 52 136 46 148 Z" fill="#e8b76b" stroke="#a8691e" strokeWidth="1.8" />
+        <path d="M15 141 C14 132 23 127 32 129" fill="none" stroke="#fff3cf" strokeWidth="2.4" strokeLinecap="round" opacity=".8" />
+        <g fill="#a8691e">
+          <circle cx="26" cy="138" r="1.5" />
+          <circle cx="36" cy="134" r="1.5" />
+          <circle cx="32" cy="143" r="1.5" />
+        </g>
+        <g fill="#e8b76b" stroke="#a8691e" strokeWidth="1">
+          <circle cx="52" cy="150" r="2.2" />
+          <circle cx="58" cy="146" r="1.6" />
+        </g>
+      </g>
+    )
+  }
+  if (item === 'bandierina') {
+    const sq = [0, 1, 2].flatMap((c) => [0, 1].map((r) => ({ c, r })))
+    return (
+      <g>
+        <path d="M20 150 V92" stroke="#8c97b0" strokeWidth="3.4" strokeLinecap="round" />
+        {sq.map(({ c, r }) => (
+          <rect key={`${c}${r}`} x={21.5 + c * 9} y={94 + r * 9} width="9" height="9" fill={(c + r) % 2 ? '#1b1033' : '#fff'} />
+        ))}
+        <rect x="21.5" y="94" width="27" height="18" fill="none" stroke="#8c97b0" strokeWidth="1.4" />
+        <circle cx="20" cy="91" r="3.2" fill="#ffcf3a" stroke="#b8760e" strokeWidth="1" />
+      </g>
+    )
+  }
+  if (item === 'trofeo') {
+    return (
+      <g strokeLinejoin="round">
+        <path d="M18 118 H44 V128 C44 138 38 142 31 142 C24 142 18 138 18 128 Z" fill={gold} stroke="#b8760e" strokeWidth="1.8" />
+        <path d="M18 122 H11 C9 132 15 137 20 136 M44 122 H51 C53 132 47 137 42 136" fill="none" stroke="#e9981a" strokeWidth="3.2" strokeLinecap="round" />
+        <rect x="28" y="142" width="6" height="6" fill="#e9981a" />
+        <rect x="20" y="148" width="22" height="5" rx="2" fill="#b8760e" />
+        <path d="M31 123 l1.8 3.8 4 .5 -3 2.8 .8 4 -3.6 -2 -3.6 2 .8 -4 -3 -2.8 4 -.5 z" fill="#fff6c8" />
+      </g>
+    )
+  }
+  return null
+}
+
 function FaceItem({ item }: { item: string }) {
+  if (item === 'stella') {
+    return (
+      <g strokeLinejoin="round">
+        <path d={starPath(67, 55, 15, 7)} fill="#ff4d8d" fillOpacity=".38" stroke="#c9254a" strokeWidth="2.4" />
+        <path d={starPath(93, 55, 15, 7)} fill="#ff4d8d" fillOpacity=".38" stroke="#c9254a" strokeWidth="2.4" />
+        <path d="M80 54 Q80 51.5 80 54" stroke="#c9254a" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+        <path d="M52 52 L47 49 M108 52 L113 49" stroke="#c9254a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      </g>
+    )
+  }
   if (item === 'tondi') {
     return (
       <g fill="#fff" fillOpacity=".12" stroke="#2f2150" strokeWidth="2.6">
@@ -419,6 +536,31 @@ function FaceItem({ item }: { item: string }) {
 }
 
 function NeckItem({ item }: { item: string }) {
+  if (item === 'cravatta') {
+    return (
+      <g strokeLinejoin="round">
+        <path d="M72 94 H88 L84 103 H76 Z" fill="#e8436a" stroke="#9b1744" strokeWidth="1.3" />
+        <path d="M76 103 H84 L90 130 L80 138 L70 130 Z" fill="#e8436a" stroke="#9b1744" strokeWidth="1.3" />
+        <path d="M74 112 L86 118 M73 121 L87 127" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" opacity=".55" />
+      </g>
+    )
+  }
+  if (item === 'briciole') {
+    const beads = [50, 56, 63, 70, 77, 83, 90, 97, 104, 110]
+    return (
+      <g>
+        <path d="M48 86 Q80 112 112 86" fill="none" stroke="#a8691e" strokeWidth="1.3" />
+        {beads.map((x, i) => {
+          const t = (x - 48) / 64
+          const y = 86 + 4 * 13 * t * (1 - t)
+          return <circle key={i} cx={x} cy={y} r="3.4" fill="#f3d9a3" stroke="#c99b5a" strokeWidth="1.2" />
+        })}
+        <path d="M71 111 C70 105 77 103 82 105 C88 104 91 110 88 115 C84 120 74 119 71 111 Z" fill="#e8b76b" stroke="#a8691e" strokeWidth="1.5" />
+        <circle cx="79" cy="111" r="1.2" fill="#a8691e" />
+        <circle cx="84" cy="113" r="1.2" fill="#a8691e" />
+      </g>
+    )
+  }
   if (item === 'papillon') {
     return (
       <g>

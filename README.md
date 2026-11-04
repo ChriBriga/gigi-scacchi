@@ -11,6 +11,10 @@ App web (installabile su telefono e PC) per imparare a giocare a scacchi in fret
 - **Coach**: frasi in italiano con tre toni (gentile, pepato, spietato). Spiegazioni a parole facoltative con l'API di Gemini (la chiave resta solo sul dispositivo).
 - **Gigi con 10 espressioni** (anche dubbioso con i "??", pensieroso, assonnato, triste, compiaciuto), con battute che non si ripetono e che dipendono da cosa succede (cattura della regina, arrocco, mosse avanti e indietro…), dall'ora del giorno e da cosa ricorda delle tue ultime partite. Nella Home puoi anche punzecchiarlo.
 - **Profilo**: nome e avatar nella barra laterale (foto Google, Gigi, pezzi o i bot battuti), con l'anello del livello.
+- **16 avversari** su una scala a mezze stelle (gli 8 storici più 8 intermedi, concentrati nei livelli di mezzo). Gli id dei bot originali non cambiano mai: sono salvati nei progressi.
+- **Ritiri con giudizio**: prima di ritirare una mossa sbagliata Gigi chiede "dov'è il guaio?" (tocca il pezzo giusto). Una partita senza nessun ritiro è una *partita pulita* e dà bonus XP.
+- **Quaderno degli errori**: gli errori ritirati e i peggiori di ogni partita tornano come esercizio dopo 1, 3, 7, 14 e 30 giorni (ripetizione a intervalli) finché non li hai imparati.
+- **Guardaroba** con anteprima di ogni oggetto, cinque categorie (corona, occhi, collo, schiena, in ala) e barra di avanzamento per quelli ancora da sbloccare.
 
 Le battute di Gigi stanno in `src/coach/voices/` (una voce per coach, un mazzo di frasi per evento e tono); `src/coach/lines.ts` sceglie la frase evitando le ultime usate.
 

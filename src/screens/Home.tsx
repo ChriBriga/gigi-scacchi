@@ -1,14 +1,14 @@
 import { useMemo } from 'react'
 import type { Color } from 'chess.js'
-import { BookOpen, CaretRight, Check, Fire, Lightning, PuzzlePiece, Star } from '@phosphor-icons/react'
+import { BookOpen, CaretRight, Check, Fire, Lightning, Notebook as NotebookIcon, PuzzlePiece, Star } from '@phosphor-icons/react'
 import { Avatar } from '../components/Avatar'
 import { Hero } from '../components/Hero'
 import { BotAvatar } from '../components/BotAvatar'
 import { LessonIcon } from '../components/icons'
 import { pickGreeting } from '../coach/greeting'
-import { BOTS, type Bot } from '../engine/bots'
+import { BOTS, recommendedBot, type Bot } from '../engine/bots'
 import { LESSONS, type Lesson } from '../data/lessons'
-import { currentStreak, levelName, useApp } from '../store'
+import { currentStreak, dueNotebook, levelName, useApp } from '../store'
 import { nextLesson } from './Learn'
 import type { Tab } from '../App'
 
@@ -18,24 +18,26 @@ export function Home({
   onLesson,
   onPuzzles,
   onTest,
+  onNotebook,
   startGame,
   go,
 }: {
   onLesson: (l: Lesson) => void
   onPuzzles: () => void
   onTest: () => void
+  onNotebook: () => void
   startGame: (b: Bot, c: Color) => void
   go: (tab: Tab) => void
 }) {
   const { progress, settings } = useApp()
-  const recId = Math.max(0, Math.min(7, Math.round(progress.skill / 12)))
-  const rec = BOTS[recId]
+  const rec = recommendedBot(progress.skill)
   const next = nextLesson(progress.lessonsDone)
   const t = progress.today
   const lesson = next ?? LESSONS[Math.floor(progress.xp) % LESSONS.length]
   const puzzleCount = Math.min(t.puzzles, DAILY_PUZZLES)
   const doneToday = [t.lesson, puzzleCount >= DAILY_PUZZLES, t.game].filter(Boolean).length
   const streak = currentStreak(progress)
+  const due = dueNotebook(progress).length
   // il saluto si sceglie una volta sola per visita: non cambia a ogni aggiornamento della pagina
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const greet = useMemo(() => pickGreeting(settings.tone, progress), [settings.tone])
@@ -90,6 +92,18 @@ export function Home({
               </span>
               <CaretRight className="go" size={20} weight="bold" />
             </button>
+            {due > 0 && (
+              <button className="plan-card notebook" onClick={onNotebook}>
+                <span className="tile">
+                  <NotebookIcon size={28} weight="duotone" />
+                </span>
+                <span className="plan-info">
+                  <strong>Quaderno: {due === 1 ? '1 errore' : `${due} errori`} da ripassare</strong>
+                  <small>Errori tuoi, uno alla volta: stavolta li risolvi</small>
+                </span>
+                <CaretRight className="go" size={20} weight="bold" />
+              </button>
+            )}
           </div>
           <button className="ghost" onClick={() => go('play')}>
             Scegli un altro avversario <CaretRight size={16} weight="bold" />

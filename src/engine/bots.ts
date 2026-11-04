@@ -2,7 +2,10 @@ import { Chess } from 'chess.js'
 import { UciEngine } from './uci'
 
 export interface Bot {
+  /** identità stabile: salvata nei progressi, non va mai cambiata */
   id: number
+  /** posizione nella scala di difficoltà (1 = il più facile); le stelle sono rank / 2 */
+  rank: number
   name: string
   tagline: string
   depth: number
@@ -14,16 +17,39 @@ export interface Bot {
   movetime: number
 }
 
+/**
+ * La scala degli avversari, dal più facile al più forte. I primi 8 sono quelli storici (id 1-8);
+ * gli altri (id 9-16) sono stati inseriti nei gradini intermedi, soprattutto dove si gioca di più.
+ */
 export const BOTS: Bot[] = [
-  { id: 1, name: 'Pedone Pigro', tagline: 'Muove a caso e si dimentica pure cosa sta facendo.', depth: 1, multipv: 6, temp: 500, randomChance: 0.4, movetime: 100 },
-  { id: 2, name: 'Nonna Gertrude', tagline: 'Dolce, ma ti frega con la torta e col matto.', depth: 1, multipv: 5, temp: 260, randomChance: 0.18, movetime: 100 },
-  { id: 3, name: 'Tony il Cavallo', tagline: 'Salta ovunque. A volte ha pure un piano.', depth: 2, multipv: 5, temp: 170, randomChance: 0.07, movetime: 150 },
-  { id: 4, name: 'Alfiere Ale', tagline: 'Diagonale per vocazione, prudente per sbaglio.', depth: 3, multipv: 4, temp: 110, randomChance: 0.03, movetime: 200 },
-  { id: 5, name: 'Torre di Controllo', tagline: 'Pochi errori, tanta pazienza.', depth: 5, multipv: 4, temp: 65, randomChance: 0, movetime: 300 },
-  { id: 6, name: 'Lady Matta', tagline: 'Attacca sempre. Se la fermi, ti sorride.', depth: 8, multipv: 3, temp: 38, randomChance: 0, movetime: 500 },
-  { id: 7, name: 'Il Professore', tagline: 'Ha letto tutti i libri. Anche quelli che non esistono.', depth: 11, multipv: 3, temp: 20, randomChance: 0, movetime: 800 },
-  { id: 8, name: 'Re Stoccafisso', tagline: 'Il boss finale. Non fa regali.', depth: 14, multipv: 2, temp: 8, randomChance: 0, movetime: 1200 },
+  { id: 1, rank: 1, name: 'Pedone Pigro', tagline: 'Muove a caso e si dimentica pure cosa sta facendo.', depth: 1, multipv: 6, temp: 500, randomChance: 0.4, movetime: 100 },
+  { id: 2, rank: 2, name: 'Nonna Gertrude', tagline: 'Dolce, ma ti frega con la torta e col matto.', depth: 1, multipv: 5, temp: 260, randomChance: 0.18, movetime: 100 },
+  { id: 9, rank: 3, name: 'Cuoco Cosimo', tagline: 'Cucina trappole al sugo. Ogni tanto brucia il re.', depth: 1, multipv: 5, temp: 215, randomChance: 0.12, movetime: 120 },
+  { id: 3, rank: 4, name: 'Tony il Cavallo', tagline: 'Salta ovunque. A volte ha pure un piano.', depth: 2, multipv: 5, temp: 170, randomChance: 0.07, movetime: 150 },
+  { id: 10, rank: 5, name: 'Skater Sasha', tagline: 'Fa mosse spericolate in monopattino e atterra (quasi) sempre in piedi.', depth: 2, multipv: 5, temp: 150, randomChance: 0.05, movetime: 150 },
+  { id: 11, rank: 6, name: 'Detective Dino', tagline: 'Indaga sulle tue mosse. Di solito sbaglia colpevole.', depth: 3, multipv: 4, temp: 128, randomChance: 0.04, movetime: 180 },
+  { id: 4, rank: 7, name: 'Alfiere Ale', tagline: 'Diagonale per vocazione, prudente per sbaglio.', depth: 3, multipv: 4, temp: 110, randomChance: 0.03, movetime: 200 },
+  { id: 12, rank: 8, name: 'Astronauta Ada', tagline: 'Pensa in orbita: lontanissima dalle tue idee, vicinissima al tuo re.', depth: 3, multipv: 4, temp: 95, randomChance: 0.02, movetime: 230 },
+  { id: 13, rank: 9, name: 'Mago Merlo', tagline: 'Fa sparire i pezzi. Soprattutto i suoi.', depth: 4, multipv: 4, temp: 80, randomChance: 0.01, movetime: 260 },
+  { id: 5, rank: 10, name: 'Torre di Controllo', tagline: 'Pochi errori, tanta pazienza.', depth: 5, multipv: 4, temp: 65, randomChance: 0, movetime: 300 },
+  { id: 14, rank: 11, name: 'Vichinga Vera', tagline: 'Conquista il centro e non fa prigionieri.', depth: 6, multipv: 3, temp: 52, randomChance: 0, movetime: 380 },
+  { id: 15, rank: 12, name: 'Barone Von Scacco', tagline: 'Elegante, gentile, spietato nei finali.', depth: 7, multipv: 3, temp: 45, randomChance: 0, movetime: 440 },
+  { id: 6, rank: 13, name: 'Lady Matta', tagline: 'Attacca sempre. Se la fermi, ti sorride.', depth: 8, multipv: 3, temp: 38, randomChance: 0, movetime: 500 },
+  { id: 16, rank: 14, name: 'Sfinge Serafina', tagline: 'Ti pone enigmi. La risposta è quasi sempre scacco.', depth: 9, multipv: 3, temp: 30, randomChance: 0, movetime: 600 },
+  { id: 7, rank: 15, name: 'Il Professore', tagline: 'Ha letto tutti i libri. Anche quelli che non esistono.', depth: 11, multipv: 3, temp: 20, randomChance: 0, movetime: 800 },
+  { id: 8, rank: 16, name: 'Re Stoccafisso', tagline: 'Il boss finale. Non fa regali.', depth: 14, multipv: 2, temp: 8, randomChance: 0, movetime: 1200 },
 ]
+
+export const botById = (id: number): Bot | undefined => BOTS.find((b) => b.id === id)
+export const botByRank = (rank: number): Bot => BOTS[Math.max(1, Math.min(BOTS.length, Math.round(rank))) - 1]
+export const rankOfId = (id: number): number => botById(id)?.rank ?? 0
+/** Le stelle mostrate: un gradino della scala = mezza stella. */
+export const starsOf = (b: Bot): number => b.rank / 2
+
+/** L'avversario consigliato per un certo livello di abilità (0-100). */
+export function recommendedBot(skill: number): Bot {
+  return botByRank(Math.round(skill / 6.2))
+}
 
 let botEngine: UciEngine | null = null
 export function getBotEngine(): UciEngine {
