@@ -2485,6 +2485,55 @@ main {
   background: rgba(0, 0, 0, 0.45);
   color: #fff;
 }
+.coach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 12px;
+}
+.coach-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 10px 14px;
+  border-radius: 18px;
+  border: 2px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+  font: inherit;
+}
+.coach-card strong {
+  font-family: 'Fredoka Variable', sans-serif;
+  font-weight: 500;
+  font-size: 1.02rem;
+}
+.coach-card small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+.coach-card.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.coach-card.locked {
+  cursor: default;
+}
+.coach-card.locked .coach-portrait {
+  filter: grayscale(1) brightness(0.65);
+  opacity: 0.75;
+}
+.coach-portrait {
+  display: grid;
+  place-items: center;
+  width: 118px;
+  height: 118px;
+  border-radius: 18px;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 75%), var(--surface-2, rgba(255, 255, 255, 0.05));
+}
 .item-progress {
   width: 100%;
   display: flex;

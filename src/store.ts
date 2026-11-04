@@ -3,6 +3,7 @@ import type { Tone } from './coach/lines'
 import type { ThemeId } from './themes'
 import type { Outfit } from './coach/outfits'
 import type { Quality } from './engine/analysis'
+import { activeCoach, type CoachId } from './coach/coaches'
 import { mergeProgress } from './sync/merge'
 
 export type DangerMode = 'off' | 'threats' | 'full'
@@ -19,8 +20,10 @@ export interface Settings {
   outfit: Outfit
   /** nome mostrato nel profilo (vuoto = quello dell'account Google) */
   nickname: string
-  /** avatar scelto: 'gigi', 'google', 'piece:wN', 'bot:3' */
+  /** avatar scelto: 'gigi', 'google', 'piece:wN', 'bot:3', 'coach:gufo' */
   avatar: string
+  /** il coach che ti parla (se non è sbloccato si usa Gigi) */
+  coach: CoachId
 }
 
 /** Un errore tuo segnato sul quaderno: torna come esercizio a intervalli crescenti finché non lo hai imparato. */
@@ -93,7 +96,7 @@ export interface Progress {
 }
 
 /** Impostazioni che viaggiano con la sincronizzazione (la chiave Gemini no, resta solo sul dispositivo). */
-export type SyncedSettings = Pick<Settings, 'theme' | 'tone' | 'danger' | 'sound' | 'liveJudging' | 'outfit' | 'nickname' | 'avatar'>
+export type SyncedSettings = Pick<Settings, 'theme' | 'tone' | 'danger' | 'sound' | 'liveJudging' | 'outfit' | 'nickname' | 'avatar' | 'coach'>
 export const pickSynced = (s: Settings): SyncedSettings => ({
   theme: s.theme,
   tone: s.tone,
@@ -103,7 +106,11 @@ export const pickSynced = (s: Settings): SyncedSettings => ({
   outfit: s.outfit,
   nickname: s.nickname,
   avatar: s.avatar,
+  coach: s.coach,
 })
+
+/** Il coach attivo adesso (leggibile anche fuori da React, per scegliere le battute). */
+export const currentCoach = (): CoachId => activeCoach(state.settings, state.progress)
 
 export interface AppState {
   settings: Settings
@@ -117,7 +124,7 @@ export const todayStr = () => new Date().toLocaleDateString('sv-SE')
 const emptyDay = (): DayLog => ({ day: todayStr(), lesson: false, puzzles: 0, game: false })
 
 const defaults = (): AppState => ({
-  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {}, nickname: '', avatar: 'gigi' },
+  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {}, nickname: '', avatar: 'gigi', coach: 'gigi' },
   progress: {
     placementDone: false,
     skill: 10,

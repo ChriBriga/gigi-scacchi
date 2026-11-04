@@ -1,4 +1,9 @@
 import { GIGI } from './voices/gigi'
+import { GABBIANO } from './voices/gabbiano'
+import { GUFO } from './voices/gufo'
+import { GALLINA } from './voices/gallina'
+import type { CoachId } from './coaches'
+import { currentCoach } from '../store'
 
 export type Tone = 'gentle' | 'spicy' | 'ruthless'
 
@@ -166,8 +171,13 @@ function pick(key: string, pool: string[]): string {
   return pool[idx]
 }
 
+/** Le voci dei coach: Gigi ha tutto, gli altri solo gli eventi scritti per loro (il resto ripiega su Gigi). */
+const VOICES: Record<CoachId, Partial<Voice>> = { gigi: GIGI, gabbiano: GABBIANO, gufo: GUFO, gallina: GALLINA }
+
 export function sayLine(event: CoachEvent, tone: Tone, vars: LineVars = {}): string {
-  const line = pick(`${event}:${tone}`, GIGI[event]?.[tone] ?? [])
+  const coach = currentCoach()
+  const pool = VOICES[coach][event]?.[tone] ?? GIGI[event]?.[tone] ?? []
+  const line = pick(`${coach}:${event}:${tone}`, pool)
   const the = vars.piece ? pieceWithArticle(vars.piece) : 'il pezzo'
   return line
     .replaceAll('{Pezzo}', the.charAt(0).toUpperCase() + the.slice(1))

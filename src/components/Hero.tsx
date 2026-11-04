@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { CloudSun, MoonStars, Sun, SunHorizon, type Icon } from '@phosphor-icons/react'
 import { Pigeon } from '../coach/Pigeon'
+import { activeCoach, coachInfo } from '../coach/coaches'
 import { sayLine, type Mood } from '../coach/lines'
 import type { TimeOfDay } from '../coach/greeting'
 import { useTypewriter } from './CoachBubble'
@@ -14,7 +15,8 @@ const POKE_MOODS: Mood[] = ['happy', 'shocked', 'confused', 'smug', 'cool', 'hap
  * e se lo tocchi reagisce (se esageri, si arrabbia).
  */
 export function Hero({ greeting, tod }: { greeting: { text: string; mood: Mood }; tod: TimeOfDay }) {
-  const { settings } = useApp()
+  const { settings, progress } = useApp()
+  const coachName = coachInfo(activeCoach(settings, progress)).name
   const [say, setSay] = useState(greeting)
   const pokes = useRef<number[]>([])
   const shown = useTypewriter(say.text)
@@ -36,12 +38,12 @@ export function Hero({ greeting, tod }: { greeting: { text: string; mood: Mood }
       <span className="hero-sky" aria-hidden="true">
         <TodIcon size={26} weight="fill" />
       </span>
-      <button className="hero-gigi" onClick={poke} aria-label="Gigi il piccione: toccalo per farlo parlare">
+      <button className="hero-gigi" onClick={poke} aria-label={`${coachName}: toccalo per farlo parlare`}>
         <Pigeon mood={say.mood} size={240} />
         <span className="hero-floor" />
       </button>
       <div className="hero-bubble">
-        <span className="coach-name">Gigi</span>
+        <span className="coach-name">{coachName}</span>
         <div className="coach-text">
           <span className="ghost-text" aria-hidden="true">
             {say.text}

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Pigeon } from '../coach/Pigeon'
+import { activeCoach, coachInfo } from '../coach/coaches'
+import { useApp } from '../store'
 import type { Mood } from '../coach/lines'
 
 /** Mostra il testo come se Gigi lo stesse scrivendo (accorciato se l'utente preferisce meno animazioni). */
@@ -31,7 +33,7 @@ export function CoachBubble({
   mood,
   size = 76,
   children,
-  name = 'Gigi',
+  name,
 }: {
   text: string
   mood: Mood
@@ -40,13 +42,15 @@ export function CoachBubble({
   name?: string
 }) {
   const shown = useTypewriter(text)
+  const app = useApp()
+  const label = name ?? coachInfo(activeCoach(app.settings, app.progress)).name
   return (
     <div className="coach">
       <div className="coach-avatar">
         <Pigeon mood={mood} size={size} />
       </div>
       <div className="coach-bubble">
-        <span className="coach-name">{name}</span>
+        <span className="coach-name">{label}</span>
         <div className="coach-text">
           <span className="ghost-text" aria-hidden="true">{text}</span>
           <span className="live-text">{shown}</span>

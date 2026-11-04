@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ArrowsClockwise, Check, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, PlugsConnected, Palette, Smiley, SpeakerHigh, UserCircle } from '@phosphor-icons/react'
+import { ArrowsClockwise, ChalkboardTeacher, Check, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, Lock, PlugsConnected, Palette, Smiley, SpeakerHigh, UserCircle } from '@phosphor-icons/react'
+import { COACHES, activeCoach, coachInfo, coachUnlocked } from '../coach/coaches'
 import { exportCode, importCode, update, useApp, type DangerMode } from '../store'
 import type { Mood, Tone } from '../coach/lines'
 import { explainWithGemini, lastModelUsed } from '../coach/gemini'
@@ -27,6 +28,8 @@ const MOODS: [Mood, string][] = [
 export function Settings() {
   const { settings, progress } = useApp()
   const profile = useProfile()
+  const coachNow = activeCoach(settings, progress)
+  const coachName = coachInfo(coachNow).name
   const [code, setCode] = useState('')
   const [msg, setMsg] = useState('')
   const [keyMsg, setKeyMsg] = useState('')
@@ -74,6 +77,11 @@ export function Settings() {
           <button className={`avatar-opt${settings.avatar === 'gigi' ? ' on' : ''}`} onClick={() => set('avatar', 'gigi')} aria-label="Gigi" title="Gigi">
             <AvatarFace kind="gigi" size={54} />
           </button>
+          {COACHES.filter((c) => c.id !== 'gigi' && coachUnlocked(c, progress)).map((c) => (
+            <button key={c.id} className={`avatar-opt${settings.avatar === `coach:${c.id}` ? ' on' : ''}`} onClick={() => set('avatar', `coach:${c.id}`)} aria-label={c.name} title={c.name}>
+              <AvatarFace kind={`coach:${c.id}`} size={54} />
+            </button>
+          ))}
           {PIECE_AVATARS.map((p) => (
             <button key={p} className={`avatar-opt${settings.avatar === `piece:${p}` ? ' on' : ''}`} onClick={() => set('avatar', `piece:${p}`)} aria-label={`Pezzo ${p}`}>
               <AvatarFace kind={`piece:${p}`} size={54} />
@@ -126,13 +134,63 @@ export function Settings() {
         </div>
       </section>
 
+      <section className="card">
+        <h3>
+          <ChalkboardTeacher size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
+          Il tuo coach
+        </h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Ogni coach ha il suo modo di parlare, ma tutti ti trattano come scegli qui sotto. Gli altri si sbloccano giocando.
+        </p>
+        <div className="coach-grid">
+          {COACHES.map((c) => {
+            const ok = coachUnlocked(c, progress)
+            const on = coachNow === c.id
+            const have = Math.min(c.need, c.have(progress))
+            return (
+              <button key={c.id} className={`coach-card${on ? ' on' : ''}${ok ? '' : ' locked'}`} disabled={!ok} onClick={() => set('coach', c.id)} title={ok ? c.name : c.how}>
+                <span className="coach-portrait">
+                  <Pigeon mood={on ? 'happy' : 'cool'} coach={c.id} size={104} />
+                </span>
+                <strong>{c.name}</strong>
+                {ok ? (
+                  <small>{c.blurb}</small>
+                ) : (
+                  <>
+                    <small>{c.how}</small>
+                    <span className="item-progress">
+                      <span className="bar">
+                        <i style={{ width: `${Math.max(4, (have / c.need) * 100)}%` }} />
+                      </span>
+                      <small>
+                        {have}/{c.need}
+                      </small>
+                    </span>
+                  </>
+                )}
+                {on && (
+                  <span className="item-tick">
+                    <Check size={14} weight="bold" />
+                  </span>
+                )}
+                {!ok && (
+                  <span className="item-lock">
+                    <Lock size={14} weight="fill" />
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
       <Wardrobe />
 
       <div className="settings-grid">
         <section className="card">
           <h3>
             <Smiley size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
-            Come ti tratta Gigi
+            Come ti tratta {coachName}
           </h3>
           <div className="seg">
             {tones.map(([t, l]) => {

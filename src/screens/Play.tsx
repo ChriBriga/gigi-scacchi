@@ -12,7 +12,8 @@ import { dangerTints, hangingPieces } from '../chess/danger'
 import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
 import { explainWithGemini } from '../coach/gemini'
-import { addToNotebook, addXp, bumpMistake, getState, nudgeSkill, rememberGame, touchDay, update, useApp, type DangerMode, type NotebookDraft } from '../store'
+import { coachInfo } from '../coach/coaches'
+import { addToNotebook, addXp, bumpMistake, currentCoach, getState, nudgeSkill, rememberGame, touchDay, update, useApp, type DangerMode, type NotebookDraft } from '../store'
 import { sfx } from '../sound'
 
 interface MoveRec {
@@ -395,6 +396,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
       quality: QUALITY_INFO[j.quality].label,
       tone: settings.tone,
       facts,
+      persona: coachInfo(currentCoach()).persona,
     })
     if (!alive.current) return
     setCoach({
@@ -579,7 +581,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
                   ))}
                 </div>
                 {cleanNote && <p className="review-note clean">✨ Partita pulita: nessuna mossa ritirata, +15 XP. {cleanNote}</p>}
-                {analysing && <p className="review-note">Gigi sta riguardando la partita…</p>}
+                {analysing && <p className="review-note">{coachInfo(currentCoach()).name} sta riguardando la partita…</p>}
                 {!analysing && reviewItems.length > 0 && (
                   <button className="btn primary" onClick={() => setReviewOpen(true)}>
                     <GraduationCap size={18} weight="bold" /> Rivedi {reviewItems.length === 1 ? 'il tuo errore' : `i tuoi ${reviewItems.length} errori`}

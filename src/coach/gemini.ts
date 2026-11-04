@@ -47,6 +47,8 @@ export interface ExplainInput {
   tone: Tone
   facts: string[]
   question?: string
+  /** chi parla (il coach scelto): se manca, è Gigi */
+  persona?: string
 }
 
 const TONE_TEXT: Record<Tone, string> = {
@@ -68,7 +70,7 @@ export async function explainWithGemini(key: string, input: ExplainInput): Promi
     return null
   }
   const prompt = [
-    'Sei Gigi, un piccione allenatore di scacchi di parco, simpatico e diretto. Parla in italiano.',
+    `${input.persona ?? 'Sei Gigi, un piccione allenatore di scacchi di parco, simpatico e diretto.'} Parla in italiano.`,
     `Tono: ${TONE_TEXT[input.tone]}.`,
     'Spiega in MASSIMO 2 frasi brevi (sotto 40 parole) a un principiante perché la mossa giocata è stata così, senza gergo tecnico e senza elenchi.',
     'Usa SOLO i fatti forniti qui sotto, non inventare varianti.',

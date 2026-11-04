@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Pigeon } from '../coach/Pigeon'
+import type { CoachId } from '../coach/coaches'
 import { BotAvatar } from './BotAvatar'
 import { levelProgress, useApp } from '../store'
 import { useSyncStatus } from '../sync/cloud'
@@ -41,12 +42,22 @@ export function AvatarFace({ kind, photo, size = 48 }: { kind: string; photo?: s
       </span>
     )
   }
+  if (kind.startsWith('coach:')) {
+    // gli altri coach: si ritaglia la testa con il suo copricapo
+    return (
+      <span className="avatar-face gigi" style={box}>
+        <span className="av-gigi" style={{ left: 0, top: 0, width: size, height: size }}>
+          <Pigeon mood="cool" size={size} coach={kind.slice(6) as CoachId} view="30 -14 100 100" />
+        </span>
+      </span>
+    )
+  }
   // Gigi: si ritaglia il viso (testa e corona) dalla mascotte intera
   const s = size * 2.1
   return (
     <span className="avatar-face gigi" style={box}>
       <span className="av-gigi" style={{ left: -0.55 * size, top: -0.1 * size, width: s, height: s }}>
-        <Pigeon mood="cool" size={s} />
+        <Pigeon mood="cool" size={s} coach="gigi" />
       </span>
     </span>
   )

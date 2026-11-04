@@ -8,6 +8,8 @@ import { hangingPieces } from '../chess/danger'
 import { PIECE_NAME, parseUci } from '../chess/util'
 import { explainWithGemini } from '../coach/gemini'
 import { sayLine, type Mood, type Tone } from '../coach/lines'
+import { coachInfo } from '../coach/coaches'
+import { currentCoach } from '../store'
 
 export interface ReviewItem {
   /** numero della mossa nella partita (1, 2, 3…) */
@@ -215,6 +217,7 @@ export function GameReview({
       quality: q.label,
       tone,
       facts: detail?.facts ?? [],
+      persona: coachInfo(currentCoach()).persona,
     })
     setAiBusy(false)
     setAi(text ?? 'Non riesco a collegarmi a Gemini adesso, ma i numeri qui sopra dicono già tutto.')

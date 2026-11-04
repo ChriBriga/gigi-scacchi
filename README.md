@@ -14,6 +14,7 @@ App web (installabile su telefono e PC) per imparare a giocare a scacchi in fret
 - **16 avversari** su una scala a mezze stelle (gli 8 storici più 8 intermedi, concentrati nei livelli di mezzo). Gli id dei bot originali non cambiano mai: sono salvati nei progressi.
 - **Ritiri con giudizio**: prima di ritirare una mossa sbagliata Gigi chiede "dov'è il guaio?" (tocca il pezzo giusto). Una partita senza nessun ritiro è una *partita pulita* e dà bonus XP.
 - **Quaderno degli errori**: gli errori ritirati e i peggiori di ogni partita tornano come esercizio dopo 1, 3, 7, 14 e 30 giorni (ripetizione a intervalli) finché non li hai imparati.
+- **Quattro coach** con le stesse espressioni ma voce, aspetto e battute diversi: Gigi il piccione, Capitan Gabbiano (pirata), Professor Gufo (pomposo, finto latino) e Nonna Gallina (affettuosa e severa). Gli ultimi tre si sbloccano giocando (vedi `src/coach/coaches.ts`) e si scelgono nelle Impostazioni; i toni gentile/pepato/spietato valgono per tutti. Le battute stanno in `src/coach/voices/`: gli eventi che un coach non ha ripiegano su Gigi.
 - **Guardaroba** con anteprima di ogni oggetto, cinque categorie (corona, occhi, collo, schiena, in ala) e barra di avanzamento per quelli ancora da sbloccare.
 
 Le battute di Gigi stanno in `src/coach/voices/` (una voce per coach, un mazzo di frasi per evento e tono); `src/coach/lines.ts` sceglie la frase evitando le ultime usate.

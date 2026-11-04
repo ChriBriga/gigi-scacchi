@@ -48,7 +48,7 @@ export function Wardrobe() {
       </h3>
       <div className="wardrobe-body">
         <div className="wardrobe-preview">
-          <Pigeon mood="happy" size={190} outfit={worn} />
+          <Pigeon mood="happy" size={190} outfit={worn} coach="gigi" />
         </div>
         <div className="wardrobe-items">
           <div className="slot-tabs" role="tablist">
@@ -79,7 +79,7 @@ export function Wardrobe() {
                   title={ok ? o.name : o.how}
                 >
                   <span className="item-thumb">
-                    <Pigeon mood="neutral" size={84} outfit={{ [slot]: o.id }} view={VIEW[slot]} />
+                    <Pigeon mood="neutral" size={84} outfit={{ [slot]: o.id }} view={VIEW[slot]} coach="gigi" />
                   </span>
                   <strong>{o.name}</strong>
                   {ok ? (
