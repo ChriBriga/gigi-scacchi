@@ -41,6 +41,8 @@ export function evaluate(fen: string, depth = 12): Promise<Evaluation> {
         return { cp: l?.cp ?? 0, mate: l?.mate, best: l?.pv[0] ?? (r.bestmove === '(none)' ? undefined : r.bestmove), pv: l?.pv ?? [] }
       })
     cache.set(key, p)
+    // un errore del motore non va ricordato: la prossima richiesta riprova
+    p.catch(() => cache.delete(key))
     if (cache.size > 300) cache.delete(cache.keys().next().value!)
   }
   return p

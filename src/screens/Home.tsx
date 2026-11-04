@@ -1,28 +1,18 @@
+import { useMemo } from 'react'
 import type { Color } from 'chess.js'
-import { BookOpen, CaretRight, Check, Fire, Lightning, Medal, PuzzlePiece, Star } from '@phosphor-icons/react'
-import { CoachBubble } from '../components/CoachBubble'
+import { BookOpen, CaretRight, Check, Fire, Lightning, PuzzlePiece, Star } from '@phosphor-icons/react'
+import { Avatar } from '../components/Avatar'
+import { Hero } from '../components/Hero'
 import { BotAvatar } from '../components/BotAvatar'
 import { LessonIcon } from '../components/icons'
+import { pickGreeting } from '../coach/greeting'
 import { BOTS, type Bot } from '../engine/bots'
 import { LESSONS, type Lesson } from '../data/lessons'
-import { levelName, useApp } from '../store'
+import { currentStreak, levelName, useApp } from '../store'
 import { nextLesson } from './Learn'
 import type { Tab } from '../App'
 
 const DAILY_PUZZLES = 5
-
-function greeting(tone: 'gentle' | 'spicy' | 'ruthless', streak: number, placementDone: boolean): string {
-  if (!placementDone) {
-    return tone === 'gentle'
-      ? 'Ciao! Io sono Gigi, il tuo allenatore. Facciamo un test veloce per capire da dove partire?'
-      : 'Ciao pivello! Sono Gigi. Facciamo un test veloce così vedo quanto c’è da lavorare.'
-  }
-  const h = new Date().getHours()
-  const day = h < 12 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera'
-  if (streak >= 3) return `${day}! ${streak} giorni di fila: il piccione è fiero di te.`
-  if (tone === 'gentle') return `${day}! Ecco il piano di oggi, circa 15 minuti.`
-  return `${day}, pivello. Piano di oggi: 15 minuti, zero scuse.`
-}
 
 export function Home({
   onLesson,
@@ -45,12 +35,14 @@ export function Home({
   const lesson = next ?? LESSONS[Math.floor(progress.xp) % LESSONS.length]
   const puzzleCount = Math.min(t.puzzles, DAILY_PUZZLES)
   const doneToday = [t.lesson, puzzleCount >= DAILY_PUZZLES, t.game].filter(Boolean).length
+  const streak = currentStreak(progress)
+  // il saluto si sceglie una volta sola per visita: non cambia a ogni aggiornamento della pagina
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const greet = useMemo(() => pickGreeting(settings.tone, progress), [settings.tone])
 
   return (
     <div className="screen">
-      <div className="hero">
-        <CoachBubble text={greeting(settings.tone, progress.streak, progress.placementDone)} mood="cool" size={96} />
-      </div>
+      <Hero greeting={greet} tod={greet.tod} />
 
       {!progress.placementDone && (
         <button className="btn primary big" onClick={onTest}>
@@ -107,9 +99,7 @@ export function Home({
         <div className="screen">
           <div className="card level-card">
             <div className="level-head">
-              <span className="tile">
-                <Medal size={26} weight="duotone" />
-              </span>
+              <Avatar size={46} ring />
               <div>
                 <strong>{levelName(progress.skill)}</strong>
                 <small>Il tuo livello</small>
@@ -120,7 +110,7 @@ export function Home({
             </div>
             <div className="stats">
               <div className="stat">
-                <Fire size={18} weight="fill" /> <b>{progress.streak}</b> {progress.streak === 1 ? 'giorno' : 'giorni'}
+                <Fire size={18} weight="fill" /> <b>{streak}</b> {streak === 1 ? 'giorno' : 'giorni'}
               </div>
               <div className="stat">
                 <Star size={18} weight="fill" /> <b>{Math.round(progress.xp)}</b> XP

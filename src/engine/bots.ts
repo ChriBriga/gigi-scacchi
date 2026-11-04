@@ -42,7 +42,14 @@ export async function chooseBotMove(fen: string, bot: Bot): Promise<string> {
     return m.from + m.to + (m.promotion ?? '')
   }
 
-  const res = await getBotEngine().search(fen, { depth: bot.depth, multipv: bot.multipv, movetime: bot.movetime })
+  let res
+  try {
+    res = await getBotEngine().search(fen, { depth: bot.depth, multipv: bot.multipv, movetime: bot.movetime })
+  } catch {
+    // motore in panne: il bot gioca a caso piuttosto che bloccare la partita
+    const m = legal[Math.floor(Math.random() * legal.length)]
+    return m.from + m.to + (m.promotion ?? '')
+  }
   const lines = res.lines.filter((l) => l.pv.length > 0)
   if (lines.length === 0) return res.bestmove
   const best = lines[0].cp

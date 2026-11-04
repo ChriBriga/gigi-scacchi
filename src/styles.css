@@ -659,6 +659,108 @@ main {
   animation: pg-sway 3.6s ease-in-out infinite;
 }
 
+/* battito d'ali spontaneo: ogni tanto Gigi si stiracchia */
+.pg-wing-l {
+  animation: pg-flap-l 11s ease-in-out infinite;
+}
+.pg-wing-r {
+  animation: pg-flap-r 14s ease-in-out 3s infinite;
+}
+.mood-happy .pg-wing-r {
+  animation: pg-wave 0.45s ease-in-out infinite alternate;
+}
+.mood-angry .pg-wing-l,
+.mood-angry .pg-wing-r {
+  animation: none;
+}
+
+/* dubbioso: testa inclinata e punti interrogativi */
+.mood-confused .pg-all,
+.mood-thinking .pg-all,
+.mood-sleepy .pg-all,
+.mood-sad .pg-all,
+.mood-smug .pg-all {
+  transform-box: view-box;
+  transform-origin: 50% 94%;
+}
+.mood-confused .pg-all {
+  animation: pg-tilt 2.6s ease-in-out infinite;
+}
+.pg-q {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pg-qfloat 1.7s ease-in-out infinite;
+}
+.pg-q.q2 {
+  animation-delay: 0.55s;
+}
+.pg-q.q3 {
+  animation-delay: 1.1s;
+}
+
+/* assonnato: respira piano, ogni tanto crolla e si riprende; zzz che salgono */
+.mood-sleepy .pg-all {
+  animation: pg-doze 5s ease-in-out infinite;
+}
+.pg-z {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: pg-zfloat 3.6s ease-out infinite;
+}
+.pg-z.z2 {
+  animation-delay: 1.2s;
+}
+.pg-z.z3 {
+  animation-delay: 2.4s;
+}
+.pg-snot {
+  transform-box: fill-box;
+  transform-origin: 10% 90%;
+  animation: pg-snot 5s ease-in-out infinite;
+}
+
+/* triste: si abbassa un po' e piange */
+.mood-sad .pg-all {
+  animation: pg-droop 3.6s ease-in-out infinite;
+}
+.pg-tear {
+  transform-box: fill-box;
+  animation: pg-drip 1.8s ease-in infinite;
+}
+.pg-tear.t2 {
+  animation-delay: 0.9s;
+}
+
+/* pensieroso: testa un po' di lato e puntini che lampeggiano */
+.mood-thinking .pg-all {
+  animation: pg-tilt-soft 3.4s ease-in-out infinite;
+}
+.pg-think {
+  transform-box: fill-box;
+  transform-origin: 0 100%;
+  animation: pg-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.pg-dot {
+  animation: pg-dots 1.3s ease-in-out infinite;
+}
+.pg-dot.d2 {
+  animation-delay: 0.22s;
+}
+.pg-dot.d3 {
+  animation-delay: 0.44s;
+}
+
+/* compiaciuto: dondola piano e ogni tanto fa "ting" */
+.mood-smug .pg-all {
+  animation: pg-sway 4.4s ease-in-out infinite;
+}
+.pg-glint {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pg-glint 3.2s ease-in-out infinite;
+}
+
 /* =========================================================
    Partita / lezioni / puzzle: struttura a due colonne
    ========================================================= */
@@ -1162,6 +1264,271 @@ main {
     font-size: 1.12rem;
   }
 }
+/* ---- Hero della Home: Gigi grande ---- */
+.hero-big {
+  --sky: rgba(255, 255, 255, 0);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: radial-gradient(120% 120% at 18% 0%, var(--sky), transparent 62%),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-3) 80%, transparent), var(--surface));
+}
+.hero-big[data-tod='morning'] {
+  --sky: rgba(255, 196, 110, 0.32);
+}
+.hero-big[data-tod='afternoon'] {
+  --sky: rgba(120, 205, 255, 0.24);
+}
+.hero-big[data-tod='evening'] {
+  --sky: rgba(255, 112, 92, 0.32);
+}
+.hero-big[data-tod='night'] {
+  --sky: rgba(112, 92, 255, 0.34);
+}
+.hero-big[data-tod='night']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(1.6px 1.6px at 12% 22%, #fff, transparent), radial-gradient(1.2px 1.2px at 28% 62%, #fff, transparent),
+    radial-gradient(1.8px 1.8px at 46% 14%, #fff, transparent), radial-gradient(1.2px 1.2px at 63% 70%, #fff, transparent),
+    radial-gradient(1.6px 1.6px at 78% 28%, #fff, transparent), radial-gradient(1.2px 1.2px at 90% 56%, #fff, transparent),
+    radial-gradient(1.4px 1.4px at 8% 80%, #fff, transparent);
+  opacity: 0.65;
+  animation: hero-stars 4s ease-in-out infinite alternate;
+}
+.hero-sky {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+}
+.hero-gigi {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.hero-gigi::before {
+  content: '';
+  position: absolute;
+  inset: -8%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--glow), transparent 66%);
+  animation: hero-glow 5s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.hero-gigi svg {
+  position: relative;
+  width: 190px;
+  height: 190px;
+}
+.hero-floor {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 74%;
+  height: 20px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 30%, transparent), transparent 72%);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 30%, transparent);
+  pointer-events: none;
+}
+.hero-bubble {
+  position: relative;
+  width: 100%;
+  background: var(--bubble);
+  color: var(--bubble-ink);
+  border-radius: 22px;
+  padding: 12px 18px 16px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.22), 0 14px 30px rgba(0, 0, 0, 0.28);
+  animation: bubble-in 0.4s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+.hero-bubble::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  background: var(--bubble);
+  border-radius: 4px 0 0 0;
+  transform: translateX(-50%) rotate(45deg);
+}
+@media (min-width: 720px) {
+  .hero-big {
+    flex-direction: row;
+    gap: 14px;
+    padding: 22px 36px 22px 26px;
+  }
+  .hero-gigi svg {
+    width: 220px;
+    height: 220px;
+  }
+  .hero-bubble {
+    flex: 1;
+    width: auto;
+    font-size: 1.25rem;
+    padding: 18px 24px 22px;
+  }
+  .hero-bubble::before {
+    top: auto;
+    bottom: 46px;
+    left: -8px;
+    transform: rotate(45deg);
+    border-radius: 0 0 0 5px;
+  }
+  .hero-sky {
+    top: 16px;
+    right: 20px;
+  }
+}
+@media (min-width: 960px) {
+  .hero-gigi svg {
+    width: 250px;
+    height: 250px;
+  }
+}
+@keyframes hero-glow {
+  from {
+    transform: scale(0.92);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+@keyframes hero-stars {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.85;
+  }
+}
+
+/* ---- Avatar e profilo ---- */
+.avatar-face {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  flex: none;
+  object-fit: cover;
+  background: var(--surface-3);
+}
+.avatar-face.gigi {
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--accent) 26%, var(--surface-3)), var(--surface-2));
+}
+.avatar-face.piece {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(150deg, var(--light), var(--dark));
+}
+.avatar-face.bot {
+  background: none;
+  overflow: visible;
+}
+.av-gigi {
+  position: absolute;
+  display: block;
+}
+.av-gigi .pigeon {
+  width: 100%;
+  height: 100%;
+  filter: none;
+  animation: none;
+}
+.av-gigi .pigeon * {
+  animation: none !important;
+}
+.avatar-ring {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  flex: none;
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), color-mix(in srgb, var(--ink) 14%, transparent) 0);
+}
+.avatar-ring .avatar-face {
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 16px;
+}
+.profile-id strong {
+  display: block;
+  font-family: 'Fredoka Variable', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.profile-head:hover .profile-id strong {
+  color: var(--accent);
+}
+.profile-id small {
+  color: var(--muted);
+}
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.avatar-opt {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  padding: 3px;
+  width: fit-content;
+}
+.avatar-opt.on {
+  border-color: var(--accent);
+}
+.avatar-opt.locked {
+  opacity: 0.4;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
 .stats {
   display: flex;
   gap: 8px;
@@ -1501,7 +1868,7 @@ main {
 .moods {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  gap: 10px 6px;
   margin-top: 10px;
   text-align: center;
   font-size: 0.75rem;
@@ -1746,6 +2113,138 @@ main {
   }
   50% {
     transform: rotate(2deg);
+  }
+}
+@keyframes pg-flap-l {
+  0%,
+  88%,
+  100% {
+    transform: rotate(0deg);
+  }
+  91% {
+    transform: rotate(30deg);
+  }
+  93.5% {
+    transform: rotate(4deg);
+  }
+  96% {
+    transform: rotate(24deg);
+  }
+}
+@keyframes pg-flap-r {
+  0%,
+  90%,
+  100% {
+    transform: rotate(0deg);
+  }
+  93% {
+    transform: rotate(-30deg);
+  }
+  95.5% {
+    transform: rotate(-4deg);
+  }
+  98% {
+    transform: rotate(-22deg);
+  }
+}
+@keyframes pg-tilt {
+  0%,
+  100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+@keyframes pg-tilt-soft {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-4deg);
+  }
+}
+@keyframes pg-qfloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-8deg) scale(0.9);
+  }
+  50% {
+    transform: translateY(-7px) rotate(8deg) scale(1.1);
+  }
+}
+@keyframes pg-doze {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  55% {
+    transform: rotate(4deg) translateY(3px);
+  }
+  62% {
+    transform: rotate(-1deg) translateY(0);
+  }
+  70% {
+    transform: rotate(4deg) translateY(3px);
+  }
+}
+@keyframes pg-zfloat {
+  0% {
+    transform: translate(0, 8px) scale(0.6);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(10px, -14px) scale(1.15);
+    opacity: 0;
+  }
+}
+@keyframes pg-snot {
+  0%,
+  100% {
+    transform: scale(0.35);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+@keyframes pg-droop {
+  0%,
+  100% {
+    transform: scaleY(1) translateY(0);
+  }
+  50% {
+    transform: scaleY(0.97) translateY(2px);
+  }
+}
+@keyframes pg-dots {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-1.5px);
+  }
+}
+@keyframes pg-glint {
+  0%,
+  70%,
+  100% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  80% {
+    transform: scale(1.2) rotate(25deg);
+    opacity: 1;
+  }
+  90% {
+    transform: scale(0.7) rotate(40deg);
+    opacity: 0.8;
   }
 }
 @keyframes confetti-fall {

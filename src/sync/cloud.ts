@@ -12,15 +12,44 @@ export type SyncPhase = 'unconfigured' | 'signedOut' | 'working' | 'ok' | 'error
 export interface SyncStatus {
   phase: SyncPhase
   email?: string
+  /** nome e foto dell'account Google (servono al profilo) */
+  name?: string
+  photo?: string
   message?: string
   /** ultima sincronizzazione riuscita (ms) */
   last?: number
 }
 
 const FLAG = 'gigi-sync-on'
+const PROFILE_CACHE = 'gigi-profile'
 const PUSH_DELAY = 4000
 
-let status: SyncStatus = FIREBASE_CONFIG ? { phase: 'signedOut' } : { phase: 'unconfigured' }
+/** Ultimo profilo Google visto su questo dispositivo: così nome e foto compaiono subito, anche offline. */
+function readProfileCache(): Pick<SyncStatus, 'name' | 'photo' | 'email'> {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_CACHE) ?? '{}') as Pick<SyncStatus, 'name' | 'photo' | 'email'>
+  } catch {
+    return {}
+  }
+}
+function writeProfileCache(p: Pick<SyncStatus, 'name' | 'photo' | 'email'> | null) {
+  try {
+    if (p) localStorage.setItem(PROFILE_CACHE, JSON.stringify(p))
+    else localStorage.removeItem(PROFILE_CACHE)
+  } catch {
+    /* storage non disponibile */
+  }
+}
+
+function flagOn(): boolean {
+  try {
+    return localStorage.getItem(FLAG) === '1'
+  } catch {
+    return false
+  }
+}
+
+let status: SyncStatus = FIREBASE_CONFIG ? { phase: 'signedOut', ...(flagOn() ? readProfileCache() : {}) } : { phase: 'unconfigured' }
 const listeners = new Set<() => void>()
 function setStatus(patch: Partial<SyncStatus>) {
   status = { ...status, ...patch }
@@ -138,7 +167,10 @@ export async function syncNow(): Promise<void> {
 function schedulePush() {
   if (!FIREBASE_CONFIG || status.phase === 'signedOut' || status.phase === 'unconfigured') return
   clearTimeout(pushTimer)
-  pushTimer = setTimeout(() => void syncNow(), PUSH_DELAY)
+  pushTimer = setTimeout(() => {
+    pushTimer = undefined
+    void syncNow()
+  }, PUSH_DELAY)
 }
 
 async function start() {
@@ -147,10 +179,13 @@ async function start() {
   const f = await loadFirebase()
   f.authMod.onAuthStateChanged(f.auth, (user) => {
     if (user) {
-      setStatus({ phase: 'working', email: user.email ?? undefined })
+      const who = { email: user.email ?? undefined, name: user.displayName ?? undefined, photo: user.photoURL ?? undefined }
+      writeProfileCache(who)
+      setStatus({ phase: 'working', ...who })
       void syncNow()
     } else {
-      setStatus({ phase: 'signedOut', email: undefined, message: undefined })
+      writeProfileCache(null)
+      setStatus({ phase: 'signedOut', email: undefined, name: undefined, photo: undefined, message: undefined })
     }
   })
   f.authMod.getRedirectResult(f.auth).catch((e) => setStatus({ phase: 'error', message: friendly(e) }))
@@ -210,5 +245,6 @@ export async function signOutSync(): Promise<void> {
   } catch {
     /* già fuori */
   }
-  setStatus({ phase: 'signedOut', email: undefined, message: undefined })
+  writeProfileCache(null)
+  setStatus({ phase: 'signedOut', email: undefined, name: undefined, photo: undefined, message: undefined })
 }

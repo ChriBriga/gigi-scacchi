@@ -125,8 +125,8 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit }: { mood?: Mood; s
           {/* testa: piccola e un po' avanti, come un vero piccione */}
           <ellipse cx="80" cy="57" rx="28" ry="27" fill={url('head')} stroke="#7b88c0" strokeOpacity=".35" strokeWidth="1.5" />
           <ellipse cx="68" cy="40" rx="13" ry="7" fill={url('glow')} />
-          <circle cx="56" cy="67" r="5.5" fill="#ff8fb4" opacity={mood === 'happy' ? 0.7 : 0.4} />
-          <circle cx="104" cy="67" r="5.5" fill="#ff8fb4" opacity={mood === 'happy' ? 0.7 : 0.4} />
+          <circle cx="56" cy="67" r="5.5" fill="#ff8fb4" opacity={mood === 'happy' ? 0.7 : mood === 'sad' ? 0.15 : mood === 'smug' ? 0.55 : 0.4} />
+          <circle cx="104" cy="67" r="5.5" fill="#ff8fb4" opacity={mood === 'happy' ? 0.7 : mood === 'sad' ? 0.15 : mood === 'smug' ? 0.55 : 0.4} />
 
           {/* occhi */}
           <Eyes mood={mood} />
@@ -149,6 +149,16 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit }: { mood?: Mood; s
           )}
           {mood === 'cool' && <path d="M73 77 Q82 81 90 73" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
           {mood === 'angry' && <path d="M73 79 Q80 75 87 79" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
+          {mood === 'sad' && <path className="pg-lip" d="M73 80 Q80 75.5 87 80" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
+          {mood === 'confused' && <path d="M72 77 q3.5 -3.6 7 0 t7 0" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
+          {mood === 'thinking' && <path d="M75 76 Q82 74 91 77" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
+          {mood === 'smug' && (
+            <g stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round">
+              <path d="M73 77 Q82 82 91 73" />
+              <path d="M91 73 q2 -.5 3 -2.6" />
+            </g>
+          )}
+          {mood === 'sleepy' && <circle className="pg-snot" cx="90.5" cy="74" r="4.6" fill="#cfeaff" stroke="#fff" strokeWidth="1.4" opacity=".9" />}
 
           {/* accessori del collo */}
           {worn.neck && <NeckItem item={worn.neck} />}
@@ -197,6 +207,41 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit }: { mood?: Mood; s
         {mood === 'shocked' && (
           <path className="pg-sweat" d="M124 46 C128 54 132 58 128 64 C124 68 118 64 120 58 C121 54 123 51 124 46 Z" fill="#7fd6ff" stroke="#fff" strokeWidth="1.5" />
         )}
+        {mood === 'confused' && (
+          <g fontFamily="'Fredoka Variable', sans-serif" fontWeight="700" fill="#ffe681" stroke="#2a1230" strokeWidth="1.6" strokeLinejoin="round" paintOrder="stroke">
+            <text className="pg-q q1" x="112" y="38" fontSize="34">?</text>
+            <text className="pg-q q2" x="22" y="52" fontSize="24">?</text>
+            <text className="pg-q q3" x="134" y="72" fontSize="17">?</text>
+          </g>
+        )}
+        {mood === 'sleepy' && (
+          <g fontFamily="'Fredoka Variable', sans-serif" fontWeight="700" fill="#d9e8ff" stroke="#2a1230" strokeWidth="1.4" strokeLinejoin="round" paintOrder="stroke">
+            <text className="pg-z z1" x="108" y="40" fontSize="24">z</text>
+            <text className="pg-z z2" x="122" y="26" fontSize="19">z</text>
+            <text className="pg-z z3" x="134" y="14" fontSize="15">Z</text>
+          </g>
+        )}
+        {mood === 'sad' && (
+          <g fill="#7fd6ff" stroke="#fff" strokeWidth="1.5">
+            <path className="pg-tear t1" d="M58 66 C61 71 63 74 60 77 C57 79 54 76 55 73 C56 70 57 68 58 66 Z" />
+            <path className="pg-tear t2" d="M102 66 C105 71 107 74 104 77 C101 79 98 76 99 73 C100 70 101 68 102 66 Z" />
+          </g>
+        )}
+        {mood === 'thinking' && (
+          <g className="pg-think">
+            <circle cx="114" cy="48" r="2.6" fill="#fff" stroke="#9aa6dd" strokeWidth="1" />
+            <circle cx="122" cy="38" r="4" fill="#fff" stroke="#9aa6dd" strokeWidth="1" />
+            <ellipse cx="139" cy="22" rx="18" ry="12.5" fill="#fff" stroke="#9aa6dd" strokeWidth="1.3" />
+            <g fill="#7a4de8">
+              <circle className="pg-dot d1" cx="131" cy="22" r="2.4" />
+              <circle className="pg-dot d2" cx="139" cy="22" r="2.4" />
+              <circle className="pg-dot d3" cx="147" cy="22" r="2.4" />
+            </g>
+          </g>
+        )}
+        {mood === 'smug' && (
+          <path className="pg-glint" d="M104 50 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 z" fill="#fff" opacity=".95" />
+        )}
       </g>
     </svg>
   )
@@ -220,6 +265,94 @@ function Eyes({ mood }: { mood: Mood }) {
       <g stroke="#2a1230" strokeWidth="4.2" strokeLinecap="round" fill="none">
         <path d="M58 58 Q67 46 76 58" />
         <path d="M84 58 Q93 46 102 58" />
+      </g>
+    )
+  }
+  if (mood === 'sleepy') {
+    return (
+      <g stroke="#2a1230" strokeWidth="4.2" strokeLinecap="round" fill="none">
+        <path d="M58 56 Q67 64 76 56" />
+        <path d="M84 56 Q93 64 102 56" />
+        <path d="M56 59 l-3 2.5 M60 61 l-1.5 3.5 M104 59 l3 2.5 M100 61 l1.5 3.5" strokeWidth="2.2" opacity=".7" />
+      </g>
+    )
+  }
+  if (mood === 'confused') {
+    return (
+      <g>
+        <g className="pg-eye">
+          <circle cx="67" cy="55" r="10.5" fill="#fff" />
+          <circle cx="70" cy="56" r="6.6" fill="#ff9a1f" />
+          <circle cx="71" cy="56" r="3.4" fill="#2a1230" />
+          <circle cx="73" cy="53.5" r="2" fill="#fff" />
+        </g>
+        <g className="pg-eye">
+          <circle cx="93" cy="57" r="7.6" fill="#fff" />
+          <circle cx="91" cy="58" r="4.8" fill="#ff9a1f" />
+          <circle cx="90.6" cy="58" r="2.4" fill="#2a1230" />
+          <circle cx="92" cy="56.2" r="1.5" fill="#fff" />
+        </g>
+        <g stroke="#2a1230" strokeWidth="3.4" strokeLinecap="round" fill="none">
+          <path d="M56 37 Q67 29 78 35" />
+          <path d="M84 49 L102 42" />
+        </g>
+      </g>
+    )
+  }
+  if (mood === 'sad') {
+    return (
+      <g>
+        {eyes.map((cx) => (
+          <g key={cx} className="pg-eye">
+            <circle cx={cx} cy={56} r="10" fill="#fff" />
+            <circle cx={cx} cy={58} r="7.4" fill="#ff9a1f" />
+            <circle cx={cx} cy={58} r="4.2" fill="#2a1230" />
+            <circle cx={cx + 2.6} cy={55} r="2.8" fill="#fff" />
+            <circle cx={cx - 2.4} cy={61} r="1.3" fill="#fff" opacity=".85" />
+          </g>
+        ))}
+        <g stroke="#2a1230" strokeWidth="3.4" strokeLinecap="round" fill="none">
+          <path d="M55 46 Q66 42 77 35" />
+          <path d="M105 46 Q94 42 83 35" />
+        </g>
+      </g>
+    )
+  }
+  if (mood === 'thinking') {
+    return (
+      <g>
+        {eyes.map((cx) => (
+          <g key={cx} className="pg-eye">
+            <circle cx={cx} cy={55} r="9.5" fill="#fff" />
+            <circle cx={cx + 3.2} cy={52} r="6.2" fill="#ff9a1f" />
+            <circle cx={cx + 3.8} cy={51.4} r="3" fill="#2a1230" />
+            <circle cx={cx + 5.2} cy={49.6} r="1.8" fill="#fff" />
+          </g>
+        ))}
+        <g stroke="#2a1230" strokeWidth="3.2" strokeLinecap="round" fill="none">
+          <path d="M57 43 Q66 41 76 43" />
+          <path d="M84 39 Q93 31 104 38" />
+        </g>
+      </g>
+    )
+  }
+  if (mood === 'smug') {
+    return (
+      <g>
+        {eyes.map((cx) => (
+          <g key={cx}>
+            <circle cx={cx} cy={55} r="9.5" fill="#fff" />
+            <circle cx={cx + 2} cy={57} r="6.2" fill="#ff9a1f" />
+            <circle cx={cx + 2} cy={57} r="3.3" fill="#2a1230" />
+            <circle cx={cx + 3.4} cy={55} r="1.5" fill="#fff" />
+            <path d={`M${cx - 10.5} 55.5 A10.5 10.5 0 0 1 ${cx + 10.5} 55.5 Z`} fill="#bcc6ea" />
+            <path d={`M${cx - 10.5} 55.5 H${cx + 10.5}`} stroke="#2a1230" strokeWidth="3.2" strokeLinecap="round" />
+          </g>
+        ))}
+        <g stroke="#2a1230" strokeWidth="3.2" strokeLinecap="round" fill="none">
+          <path d="M57 43 L76 45" />
+          <path d="M84 41 Q94 33 104 39" />
+        </g>
       </g>
     )
   }

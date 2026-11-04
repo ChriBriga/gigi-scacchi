@@ -7,7 +7,7 @@ import { QUALITY_INFO, evaluate, judgeMove, winPct, type Judgement } from '../en
 import { hangingPieces } from '../chess/danger'
 import { PIECE_NAME, parseUci } from '../chess/util'
 import { explainWithGemini } from '../coach/gemini'
-import type { Mood, Tone } from '../coach/lines'
+import { sayLine, type Mood, type Tone } from '../coach/lines'
 
 export interface ReviewItem {
   /** numero della mossa nella partita (1, 2, 3…) */
@@ -151,7 +151,7 @@ export function GameReview({ items, color, tone, geminiKey, onClose }: { items: 
       return
     }
     setChecking(true)
-    setMsg({ text: 'Fammi controllare…', mood: 'neutral' })
+    setMsg({ text: sayLine('thinking', tone), mood: 'thinking' })
     let ok = uci === bestUci
     if (!ok) {
       try {

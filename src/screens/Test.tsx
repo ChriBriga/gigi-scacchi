@@ -21,13 +21,15 @@ export function PlacementTest({ onExit, startGame }: { onExit: () => void; start
 
   const finish = (res: PuzzleResult[]) => {
     const score = res.filter((r) => r.firstTry).length
-    const skill = Math.min(70, 4 + score * 13)
+    // 5 puzzle facili misurano l'occhio tattico, non la forza di gioco: si parte da un livello prudente
+    const skill = 6 + score * 9
     update((s) => {
       s.progress.placementDone = true
       s.progress.skill = skill
       s.progress.xp += 30
     })
-    const bot = BOTS[Math.max(0, Math.min(7, Math.round(skill / 12)))]
+    // la partita di prova non deve mai essere contro un avversario troppo forte
+    const bot = BOTS[Math.max(0, Math.min(3, Math.round(skill / 12)))]
     setResult({ score, bot })
   }
 

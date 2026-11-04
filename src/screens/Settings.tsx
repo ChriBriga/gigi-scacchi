@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowsClockwise, Check, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, PlugsConnected, Palette, Smiley, SpeakerHigh } from '@phosphor-icons/react'
+import { ArrowsClockwise, Check, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, PlugsConnected, Palette, Smiley, SpeakerHigh, UserCircle } from '@phosphor-icons/react'
 import { exportCode, importCode, update, useApp, type DangerMode } from '../store'
 import type { Mood, Tone } from '../coach/lines'
 import { explainWithGemini, lastModelUsed } from '../coach/gemini'
@@ -7,6 +7,8 @@ import { Pigeon } from '../coach/Pigeon'
 import { TONE_ICON } from '../components/icons'
 import { THEMES, type ThemeId } from '../themes'
 import { Wardrobe } from '../components/Wardrobe'
+import { AvatarFace, PIECE_AVATARS, useProfile } from '../components/Avatar'
+import { BOTS } from '../engine/bots'
 import { signIn, signOutSync, syncNow, useSyncStatus } from '../sync/cloud'
 
 const MOODS: [Mood, string][] = [
@@ -15,10 +17,16 @@ const MOODS: [Mood, string][] = [
   ['cool', 'Figo'],
   ['shocked', 'Sotto choc'],
   ['angry', 'Furioso'],
+  ['confused', 'Dubbioso'],
+  ['smug', 'Compiaciuto'],
+  ['thinking', 'Pensieroso'],
+  ['sad', 'Triste'],
+  ['sleepy', 'Assonnato'],
 ]
 
 export function Settings() {
-  const { settings } = useApp()
+  const { settings, progress } = useApp()
+  const profile = useProfile()
   const [code, setCode] = useState('')
   const [msg, setMsg] = useState('')
   const [keyMsg, setKeyMsg] = useState('')
@@ -40,6 +48,55 @@ export function Settings() {
   return (
     <div className="screen">
       <h2>Impostazioni</h2>
+
+      <section className="card">
+        <h3>
+          <UserCircle size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
+          Il tuo profilo
+        </h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Nome e avatar compaiono nella barra a sinistra. {profile.photo ? 'La foto di Google è disponibile come avatar.' : 'Con l’accesso Google puoi usare anche la tua foto.'}
+        </p>
+        <input
+          className="text"
+          placeholder={sync.name?.split(' ')[0] ?? 'Come ti chiami?'}
+          maxLength={18}
+          value={settings.nickname}
+          onChange={(e) => set('nickname', e.target.value)}
+          aria-label="Il tuo nome"
+        />
+        <div className="avatar-grid">
+          {profile.photo && (
+            <button className={`avatar-opt${settings.avatar === 'google' ? ' on' : ''}`} onClick={() => set('avatar', 'google')} aria-label="Foto di Google" title="La tua foto di Google">
+              <AvatarFace kind="google" photo={profile.photo} size={54} />
+            </button>
+          )}
+          <button className={`avatar-opt${settings.avatar === 'gigi' ? ' on' : ''}`} onClick={() => set('avatar', 'gigi')} aria-label="Gigi" title="Gigi">
+            <AvatarFace kind="gigi" size={54} />
+          </button>
+          {PIECE_AVATARS.map((p) => (
+            <button key={p} className={`avatar-opt${settings.avatar === `piece:${p}` ? ' on' : ''}`} onClick={() => set('avatar', `piece:${p}`)} aria-label={`Pezzo ${p}`}>
+              <AvatarFace kind={`piece:${p}`} size={54} />
+            </button>
+          ))}
+          {BOTS.map((b) => {
+            const ok = progress.botsBeaten.includes(b.id)
+            return (
+              <button
+                key={b.id}
+                className={`avatar-opt${settings.avatar === `bot:${b.id}` ? ' on' : ''}${ok ? '' : ' locked'}`}
+                disabled={!ok}
+                onClick={() => set('avatar', `bot:${b.id}`)}
+                aria-label={b.name}
+                title={ok ? b.name : `Batti ${b.name} per sbloccarlo`}
+              >
+                <AvatarFace kind={`bot:${b.id}`} size={54} />
+              </button>
+            )
+          })}
+        </div>
+        <p className="muted" style={{ marginBottom: 0 }}>Gli avversari battuti diventano avatar.</p>
+      </section>
 
       <section className="card">
         <h3>

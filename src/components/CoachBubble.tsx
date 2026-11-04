@@ -3,7 +3,7 @@ import { Pigeon } from '../coach/Pigeon'
 import type { Mood } from '../coach/lines'
 
 /** Mostra il testo come se Gigi lo stesse scrivendo (accorciato se l'utente preferisce meno animazioni). */
-function useTypewriter(text: string): string {
+export function useTypewriter(text: string): string {
   const [n, setN] = useState(0)
   useEffect(() => {
     setN(0)

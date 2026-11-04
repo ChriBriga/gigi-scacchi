@@ -1,4 +1,4 @@
-import type { Progress, SyncedSettings } from '../store'
+import type { GigiMemory, Progress, SyncedSettings } from '../store'
 
 export interface CloudDoc {
   progress: Progress
@@ -11,6 +11,16 @@ function maxByKey<V>(a: Record<string, V> = {}, b: Record<string, V> = {}, pick:
   const out: Record<string, V> = { ...a }
   for (const [k, v] of Object.entries(b)) out[k] = k in out ? pick(out[k], v) : v
   return out
+}
+
+/** La memoria di Gigi: i contatori più alti vincono, la "ultima partita" è la più recente. */
+function mergeGigi(a: GigiMemory = { record: {}, firsts: [] }, b: GigiMemory = { record: {}, firsts: [] }): GigiMemory {
+  const lastGame = !a.lastGame ? b.lastGame : !b.lastGame ? a.lastGame : a.lastGame.day >= b.lastGame.day ? a.lastGame : b.lastGame
+  return {
+    lastGame,
+    record: maxByKey(a.record, b.record, (x, y) => ({ w: Math.max(x.w, y.w), l: Math.max(x.l, y.l), d: Math.max(x.d, y.d) })),
+    firsts: union(a.firsts, b.firsts),
+  }
 }
 
 /**
@@ -40,7 +50,11 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     lessonsDone: union(a.lessonsDone, b.lessonsDone),
     puzzlesSolved: Math.max(a.puzzlesSolved, b.puzzlesSolved),
     puzzleStats: maxByKey(a.puzzleStats, b.puzzleStats, (x, y) => ({ ok: Math.max(x.ok, y.ok), fail: Math.max(x.fail, y.fail) })),
-    puzzleSeen: union(a.puzzleSeen, b.puzzleSeen),
+    // dopo un "azzeramento" dei puzzle visti vince il ciclo più recente, altrimenti l'altro dispositivo lo annullerebbe
+    puzzleCycle: Math.max(a.puzzleCycle ?? 0, b.puzzleCycle ?? 0),
+    puzzleSeen:
+      (a.puzzleCycle ?? 0) === (b.puzzleCycle ?? 0) ? union(a.puzzleSeen, b.puzzleSeen) : (a.puzzleCycle ?? 0) > (b.puzzleCycle ?? 0) ? a.puzzleSeen : b.puzzleSeen,
+    gigi: mergeGigi(a.gigi, b.gigi),
     games: Math.max(a.games, b.games),
     wins: Math.max(a.wins, b.wins),
     botsBeaten: union(a.botsBeaten, b.botsBeaten),

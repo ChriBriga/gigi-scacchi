@@ -12,7 +12,7 @@ import { dangerTints, hangingPieces } from '../chess/danger'
 import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
 import { explainWithGemini } from '../coach/gemini'
-import { addXp, bumpMistake, nudgeSkill, touchDay, update, useApp, type DangerMode } from '../store'
+import { addXp, bumpMistake, getState, nudgeSkill, rememberGame, touchDay, update, useApp, type DangerMode } from '../store'
 import { sfx } from '../sound'
 
 interface MoveRec {
@@ -54,21 +54,38 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   const [hint, setHint] = useState<{ from?: Square; to?: Square } | null>(null)
   const [takeback, setTakeback] = useState<{ botUci: string; rec: MoveRec } | null>(null)
   const [result, setResult] = useState<{ outcome: 'win' | 'lose' | 'draw'; reason: string } | null>(null)
-  const [explaining, setExplaining] = useState(false)
   const [shake, setShake] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [analysing, setAnalysing] = useState(false)
   const started = useRef(false)
+  /** false dopo l'uscita dalla partita: i timer e le risposte del motore arrivati in ritardo non devono più fare nulla */
+  const alive = useRef(true)
+  const retracts = useRef(0)
+  const badMoves = useRef(0)
+
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
 
   const say = (event: CoachEvent, vars?: { piece?: string; sq?: string }, extra?: string) =>
     setCoach({ text: sayLine(event, settings.tone, vars) + (extra ? ' ' + extra : ''), mood: EVENT_MOOD[event] })
 
   const finish = (outcome: 'win' | 'lose' | 'draw', reason: string) => {
+    if (!alive.current) return
     setPhase('over')
     setResult({ outcome, reason })
-    say(outcome)
+    const before = getState().progress
+    const isFirstWin = outcome === 'win' && before.wins === 0 && !(before.gigi?.firsts ?? []).includes('firstWin')
+    const isNewBot = outcome === 'win' && !before.botsBeaten.includes(bot.id)
+    if (isFirstWin) say('firstWin')
+    else if (isNewBot) setCoach({ text: sayLine('botBeaten', settings.tone, { bot: bot.name }), mood: EVENT_MOOD.botBeaten })
+    else say(outcome)
     if (outcome === 'win') sfx.win()
     else if (outcome === 'lose') sfx.lose()
+    rememberGame(bot.id, outcome, retracts.current, badMoves.current, isFirstWin ? 'firstWin' : undefined)
     update((s) => {
       const p = s.progress
       touchDay(p)
@@ -80,7 +97,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
       }
       p.xp += outcome === 'win' ? 40 + bot.id * 5 : outcome === 'draw' ? 20 : 10
     })
-    const diff = bot.id * 10 - 5 - app.progress.skill
+    const diff = bot.id * 10 - 5 - before.skill
     if (outcome === 'win') nudgeSkill(diff > 10 ? 4 : diff > -10 ? 2.5 : 1)
     else if (outcome === 'lose') nudgeSkill(diff < -10 ? -3 : diff < 10 ? -1.5 : -0.5)
   }
@@ -107,8 +124,11 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     setBotSan(mv.san)
     setMoves((m) => [...m, { san: mv.san, uci, fenBefore, color: opposite(color) }])
     // il suono parte quando il pezzo arriva, la partita riprende a movimento finito
-    setTimeout(() => (mv.captured ? sfx.capture() : sfx.move()), SLIDE_MS * 0.7)
     setTimeout(() => {
+      if (alive.current) mv.captured ? sfx.capture() : sfx.move()
+    }, SLIDE_MS * 0.7)
+    setTimeout(() => {
+      if (!alive.current) return
       if (!checkOver()) {
         setPhase('player')
         evaluate(g.fen()).catch(() => undefined)
@@ -122,7 +142,9 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     started.current = true
     if (color === 'b') {
       setPhase('thinking')
-      Promise.all([chooseBotMove(game.current.fen(), bot), sleep(700)]).then(([uci]) => applyBot(uci))
+      Promise.all([chooseBotMove(game.current.fen(), bot), sleep(700)]).then(([uci]) => {
+        if (alive.current) applyBot(uci)
+      })
     } else evaluate(game.current.fen()).catch(() => undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -153,6 +175,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     const botP = chooseBotMove(g.fen(), bot)
     const judgeP = settings.liveJudging ? judgeMove(fenBefore, uci).catch(() => undefined) : Promise.resolve(undefined)
     const [botUci, j] = await Promise.all([botP, judgeP, sleep(THINK_MS)]).then(([b, jj]) => [b, jj] as const)
+    if (!alive.current) return
 
     if (j) {
       rec.judgement = j
@@ -165,6 +188,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
 
       const hang = hangingPieces(g, color)
       if (isBad(j.quality)) {
+        badMoves.current += 1
         bumpMistake(hang.length ? 'Pezzi lasciati in presa' : 'Mosse distratte')
         const h = hang[0]
         if (h) {
@@ -179,9 +203,25 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
         setTimeout(() => setShake(false), 500)
         return
       }
-      if (j.quality === 'inaccuracy') say('inaccuracy')
-      else if (j.quality === 'brilliant') say('brilliant')
-      else if (j.quality === 'best' || j.quality === 'great') say('best')
+      // un momento particolare (cattura della regina, arrocco, scacco…) rimpiazza il commento generico: Gigi non parla di più, parla meglio
+      const prevOwn = [...moves].reverse().find((m) => m.color === color)
+      const shuffled = !!prevOwn && prevOwn.uci.slice(0, 2) === to && prevOwn.uci.slice(2, 4) === from
+      const best = j.quality === 'best' || j.quality === 'great'
+      const special: CoachEvent | null =
+        mv.captured === 'q'
+          ? 'queenTake'
+          : mv.promotion
+            ? 'promote'
+            : mv.flags.includes('k') || mv.flags.includes('q')
+              ? 'castle'
+              : g.inCheck()
+                ? 'check'
+                : null
+      if (j.quality === 'brilliant') say('brilliant')
+      else if (shuffled && !best) say('nonsense')
+      else if (j.quality === 'inaccuracy') say('inaccuracy')
+      else if (special) say(special)
+      else if (best) say('best')
       else say('good')
       addXp(j.quality === 'brilliant' ? 8 : j.quality === 'best' ? 3 : 1)
     }
@@ -199,7 +239,8 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     setBadge(null)
     setTakeback(null)
     setPhase('player')
-    setCoach({ text: sayLine('puzzleFail', settings.tone), mood: 'neutral' })
+    retracts.current += 1
+    say('retract')
   }
   const keepMove = () => {
     if (!takeback) return
@@ -207,7 +248,9 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     setTakeback(null)
     setBadge(null)
     setPhase('thinking')
-    sleep(450).then(() => applyBot(botUci))
+    sleep(450).then(() => {
+      if (alive.current) applyBot(botUci)
+    })
   }
 
   const showHint = async () => {
@@ -232,7 +275,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   const explain = async (rec: MoveRec) => {
     const j = rec.judgement
     if (!j) return
-    setExplaining(true)
+    setCoach({ text: sayLine('thinking', settings.tone), mood: 'thinking' })
     const base = new Chess(rec.fenBefore)
     let bestSan: string | undefined
     if (j.bestUci) {
@@ -261,7 +304,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
       tone: settings.tone,
       facts,
     })
-    setExplaining(false)
+    if (!alive.current) return
     setCoach({
       text: ai ?? `${QUALITY_INFO[j.quality].label}.${bestSan ? ` La mossa migliore era ${bestSan}.` : ''}${facts[0] ? ' ' + facts[0] : ''}`,
       mood: isBad(j.quality) ? 'angry' : 'cool',
@@ -308,6 +351,16 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
+
+  // se resti fermo a lungo, Gigi si appisola (solo se tocca a te e la partita è in corso)
+  useEffect(() => {
+    if (phase !== 'player') return
+    const t = setTimeout(() => {
+      if (alive.current) setCoach({ text: sayLine('idleNap', settings.tone), mood: 'sleepy' })
+    }, 100_000)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, fen])
 
   const reviewItems = useMemo(() => (phase === 'over' ? pickReviewItems(moves, color) : []), [moves, color, phase])
 
@@ -374,7 +427,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
         </div>
 
         <div className="game-side">
-          <CoachBubble text={explaining ? 'Fammi pensare…' : coach.text} mood={coach.mood}>
+          <CoachBubble text={coach.text} mood={coach.mood}>
             {phase === 'decide' && takeback && (
               <div className="row">
                 <button className="btn primary" onClick={doTakeback}>

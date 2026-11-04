@@ -9,9 +9,10 @@ import { Learn, LessonPlayer } from './screens/Learn'
 import { PuzzleRunner, Puzzles, pickPuzzle } from './screens/Puzzles'
 import { PlacementTest } from './screens/Test'
 import { Logo } from './components/Logo'
+import { Avatar, useProfile } from './components/Avatar'
 import type { Bot } from './engine/bots'
 import type { Lesson } from './data/lessons'
-import { getState, levelName, useApp } from './store'
+import { currentStreak, getState, levelName, useApp } from './store'
 import { THEMES } from './themes'
 
 export type Tab = 'home' | 'play' | 'puzzles' | 'learn' | 'settings'
@@ -34,6 +35,8 @@ export function App() {
   const [tab, setTab] = useState<Tab>('home')
   const [overlay, setOverlay] = useState<Overlay | null>(null)
   const { settings, progress } = useApp()
+  const profile = useProfile()
+  const streak = currentStreak(progress)
 
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme
@@ -95,18 +98,22 @@ export function App() {
             </button>
           ))}
         </nav>
-        <div className="side-foot card">
+        <div className="side-foot card profile">
+          <button className="profile-head" onClick={() => goTab('settings')} title="Cambia nome e avatar">
+            <Avatar size={46} ring />
+            <span className="profile-id">
+              <strong>{profile.name}</strong>
+              <small>{levelName(progress.skill)}</small>
+            </span>
+          </button>
           <div className="stats">
             <div className="stat">
-              <Fire size={18} weight="fill" /> <b>{progress.streak}</b> {progress.streak === 1 ? 'giorno' : 'giorni'}
+              <Fire size={18} weight="fill" /> <b>{streak}</b> {streak === 1 ? 'giorno' : 'giorni'}
             </div>
             <div className="stat">
               <Star size={18} weight="fill" /> <b>{Math.round(progress.xp)}</b> XP
             </div>
           </div>
-          <p className="muted" style={{ margin: '10px 0 0' }}>
-            {levelName(progress.skill)}
-          </p>
         </div>
       </aside>
 

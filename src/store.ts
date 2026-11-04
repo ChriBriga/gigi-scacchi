@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { Tone } from './coach/lines'
 import type { ThemeId } from './themes'
 import type { Outfit } from './coach/outfits'
+import { mergeProgress } from './sync/merge'
 
 export type DangerMode = 'off' | 'threats' | 'full'
 
@@ -15,6 +16,19 @@ export interface Settings {
   liveJudging: boolean
   /** accessori indossati da Gigi */
   outfit: Outfit
+  /** nome mostrato nel profilo (vuoto = quello dell'account Google) */
+  nickname: string
+  /** avatar scelto: 'gigi', 'google', 'piece:wN', 'bot:3' */
+  avatar: string
+}
+
+/** Cosa Gigi si ricorda di te: serve per saluti e battute personalizzate. */
+export interface GigiMemory {
+  lastGame?: { day: string; bot: number; outcome: 'win' | 'lose' | 'draw'; retracts: number; blunders: number }
+  /** vittorie, sconfitte e patte contro ogni bot (chiave = id del bot) */
+  record: Record<string, { w: number; l: number; d: number }>
+  /** prime volte già celebrate (es. 'firstWin') */
+  firsts: string[]
 }
 
 export interface DayLog {
@@ -40,14 +54,26 @@ export interface Progress {
   botsBeaten: number[]
   /** conteggio errori per categoria (es. "pezzo in presa") */
   mistakeTags: Record<string, number>
+  /** quante volte i puzzle sono stati "azzerati" dopo averli visti tutti (serve alla sincronizzazione) */
+  puzzleCycle?: number
+  gigi?: GigiMemory
   today: DayLog
   /** ultima modifica locale (ms): serve alla sincronizzazione per capire chi è più recente */
   modified?: number
 }
 
 /** Impostazioni che viaggiano con la sincronizzazione (la chiave Gemini no, resta solo sul dispositivo). */
-export type SyncedSettings = Pick<Settings, 'theme' | 'tone' | 'danger' | 'sound' | 'liveJudging' | 'outfit'>
-export const pickSynced = (s: Settings): SyncedSettings => ({ theme: s.theme, tone: s.tone, danger: s.danger, sound: s.sound, liveJudging: s.liveJudging, outfit: s.outfit })
+export type SyncedSettings = Pick<Settings, 'theme' | 'tone' | 'danger' | 'sound' | 'liveJudging' | 'outfit' | 'nickname' | 'avatar'>
+export const pickSynced = (s: Settings): SyncedSettings => ({
+  theme: s.theme,
+  tone: s.tone,
+  danger: s.danger,
+  sound: s.sound,
+  liveJudging: s.liveJudging,
+  outfit: s.outfit,
+  nickname: s.nickname,
+  avatar: s.avatar,
+})
 
 export interface AppState {
   settings: Settings
@@ -61,7 +87,7 @@ export const todayStr = () => new Date().toLocaleDateString('sv-SE')
 const emptyDay = (): DayLog => ({ day: todayStr(), lesson: false, puzzles: 0, game: false })
 
 const defaults = (): AppState => ({
-  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {} },
+  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {}, nickname: '', avatar: 'gigi' },
   progress: {
     placementDone: false,
     skill: 10,
@@ -76,6 +102,8 @@ const defaults = (): AppState => ({
     wins: 0,
     botsBeaten: [],
     mistakeTags: {},
+    puzzleCycle: 0,
+    gigi: { record: {}, firsts: [] },
     today: emptyDay(),
   },
 })
@@ -175,16 +203,76 @@ export function nudgeSkill(delta: number) {
   })
 }
 
-export function exportCode(): string {
-  return btoa(unescape(encodeURIComponent(JSON.stringify({ progress: state.progress }))))
+/** La serie di giorni che vale davvero oggi: se hai saltato ieri e oggi, è già finita. */
+export function currentStreak(p: Progress): number {
+  const t = todayStr()
+  if (p.lastActiveDay === t) return p.streak
+  const y = new Date()
+  y.setDate(y.getDate() - 1)
+  return p.lastActiveDay === y.toLocaleDateString('sv-SE') ? p.streak : 0
 }
 
+/** Giorni passati dall'ultima volta che hai fatto qualcosa (0 = oggi). */
+export function daysAway(p: Progress): number {
+  if (!p.lastActiveDay) return 0
+  const a = new Date(p.lastActiveDay + 'T12:00:00').getTime()
+  const b = new Date(todayStr() + 'T12:00:00').getTime()
+  return Math.max(0, Math.round((b - a) / 86_400_000))
+}
+
+/**
+ * Se l'app resta aperta a cavallo della mezzanotte, il "piano di oggi" riparte da zero.
+ * Non conta come modifica dell'utente: non spinge nulla verso il cloud.
+ */
+function rolloverDay() {
+  if (state.progress.today.day === todayStr()) return
+  state = { ...state, progress: { ...state.progress, today: emptyDay() } }
+  persist()
+  listeners.forEach((l) => l())
+}
+if (typeof document !== 'undefined') {
+  setInterval(rolloverDay, 60_000)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') rolloverDay()
+  })
+}
+
+/** Aggiorna la memoria di Gigi a fine partita. */
+export function rememberGame(botId: number, outcome: 'win' | 'lose' | 'draw', retracts: number, blunders: number, first?: string) {
+  update((s) => {
+    const g = (s.progress.gigi ??= { record: {}, firsts: [] })
+    const r = (g.record[String(botId)] ??= { w: 0, l: 0, d: 0 })
+    if (outcome === 'win') r.w += 1
+    else if (outcome === 'lose') r.l += 1
+    else r.d += 1
+    g.lastGame = { day: todayStr(), bot: botId, outcome, retracts, blunders }
+    if (first && !g.firsts.includes(first)) g.firsts.push(first)
+  })
+}
+
+const toB64 = (s: string) => {
+  const bytes = new TextEncoder().encode(s)
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin)
+}
+const fromB64 = (b64: string) => {
+  const bin = atob(b64)
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
+}
+
+export function exportCode(): string {
+  return toB64(JSON.stringify({ progress: state.progress }))
+}
+
+/** Importa un codice unendolo ai progressi di questo dispositivo (non perde nulla di più recente). */
 export function importCode(code: string): boolean {
   try {
-    const parsed = JSON.parse(decodeURIComponent(escape(atob(code.trim())))) as { progress: Progress }
-    if (!parsed.progress) return false
+    const parsed = JSON.parse(fromB64(code.trim())) as { progress?: Progress }
+    if (!parsed.progress || typeof parsed.progress !== 'object') return false
+    const incoming = { ...defaults().progress, ...parsed.progress }
     update((s) => {
-      s.progress = { ...s.progress, ...parsed.progress }
+      s.progress = mergeProgress(s.progress, incoming)
     })
     return true
   } catch {
@@ -199,4 +287,13 @@ export function levelName(skill: number): string {
   if (skill < 70) return 'Tattico in erba'
   if (skill < 88) return 'Stratega'
   return 'Maestro del piccione'
+}
+
+/** Quanto manca al prossimo titolo di livello, da 0 a 100. */
+export function levelProgress(skill: number): number {
+  const edges = [0, 15, 30, 50, 70, 88, 100]
+  for (let i = 0; i < edges.length - 1; i++) {
+    if (skill < edges[i + 1]) return Math.round(((skill - edges[i]) / (edges[i + 1] - edges[i])) * 100)
+  }
+  return 100
 }

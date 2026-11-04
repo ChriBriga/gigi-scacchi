@@ -114,7 +114,10 @@ export function PuzzleRunner({
       const p = s.progress
       touchDay(p)
       if (!p.puzzleSeen.includes(puzzle.id)) p.puzzleSeen.push(puzzle.id)
-      if (p.puzzleSeen.length >= PUZZLES.length) p.puzzleSeen = []
+      if (p.puzzleSeen.length >= PUZZLES.length) {
+        p.puzzleSeen = []
+        p.puzzleCycle = (p.puzzleCycle ?? 0) + 1
+      }
       const st = (p.puzzleStats[puzzle.theme] ??= { ok: 0, fail: 0 })
       if (ok) st.ok += 1
       else st.fail += 1
