@@ -17,4 +17,11 @@ export interface FirebaseWebConfig {
   messagingSenderId?: string
 }
 
-export const FIREBASE_CONFIG: FirebaseWebConfig | null = null
+export const FIREBASE_CONFIG: FirebaseWebConfig | null = {
+  apiKey: 'AIzaSyDnKgkb8gU3ylm4M66BNx_sOgNUdRlFyEc',
+  authDomain: 'gigiscacchi-b8cbf.firebaseapp.com',
+  projectId: 'gigiscacchi-b8cbf',
+  storageBucket: 'gigiscacchi-b8cbf.firebasestorage.app',
+  messagingSenderId: '92281344268',
+  appId: '1:92281344268:web:141e41dd24587e5a487929',
+}
