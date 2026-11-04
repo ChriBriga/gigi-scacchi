@@ -41,7 +41,13 @@ export interface Progress {
   /** conteggio errori per categoria (es. "pezzo in presa") */
   mistakeTags: Record<string, number>
   today: DayLog
+  /** ultima modifica locale (ms): serve alla sincronizzazione per capire chi è più recente */
+  modified?: number
 }
+
+/** Impostazioni che viaggiano con la sincronizzazione (la chiave Gemini no, resta solo sul dispositivo). */
+export type SyncedSettings = Pick<Settings, 'theme' | 'tone' | 'danger' | 'sound' | 'liveJudging' | 'outfit'>
+export const pickSynced = (s: Settings): SyncedSettings => ({ theme: s.theme, tone: s.tone, danger: s.danger, sound: s.sound, liveJudging: s.liveJudging, outfit: s.outfit })
 
 export interface AppState {
   settings: Settings
@@ -106,6 +112,21 @@ export function update(fn: (s: AppState) => AppState | void) {
   const next = structuredClone(state)
   const r = fn(next)
   state = r ?? next
+  state.progress.modified = Date.now()
+  persist()
+  listeners.forEach((l) => l())
+}
+
+export function subscribe(fn: () => void): () => void {
+  listeners.add(fn)
+  return () => listeners.delete(fn)
+}
+
+/** Applica i dati arrivati dal cloud senza segnarli come modifica locale. */
+export function applySynced(progress: Progress, settings: SyncedSettings) {
+  const p = { ...progress }
+  if (p.today.day !== todayStr()) p.today = emptyDay()
+  state = { settings: { ...state.settings, ...settings }, progress: p }
   persist()
   listeners.forEach((l) => l())
 }

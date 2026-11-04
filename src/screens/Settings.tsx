@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Download, Eye, EyeSlash, Export, Key, PlugsConnected, Palette, Smiley, SpeakerHigh } from '@phosphor-icons/react'
+import { ArrowsClockwise, Check, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, PlugsConnected, Palette, Smiley, SpeakerHigh } from '@phosphor-icons/react'
 import { exportCode, importCode, update, useApp, type DangerMode } from '../store'
 import type { Mood, Tone } from '../coach/lines'
 import { explainWithGemini, lastModelUsed } from '../coach/gemini'
@@ -7,6 +7,7 @@ import { Pigeon } from '../coach/Pigeon'
 import { TONE_ICON } from '../components/icons'
 import { THEMES, type ThemeId } from '../themes'
 import { Wardrobe } from '../components/Wardrobe'
+import { signIn, signOutSync, syncNow, useSyncStatus } from '../sync/cloud'
 
 const MOODS: [Mood, string][] = [
   ['neutral', 'Normale'],
@@ -23,6 +24,7 @@ export function Settings() {
   const [keyMsg, setKeyMsg] = useState('')
   const [testing, setTesting] = useState(false)
   const [showKey, setShowKey] = useState(false)
+  const sync = useSyncStatus()
 
   const set = <K extends keyof typeof settings>(k: K, v: (typeof settings)[K]) =>
     update((s) => {
@@ -178,8 +180,49 @@ export function Settings() {
         </section>
 
         <section className="card">
-          <h3>Progressi tra PC e telefono</h3>
-          <p className="muted">Copia il codice da un dispositivo e incollalo nell’altro.</p>
+          <h3>
+            {sync.phase === 'unconfigured' ? (
+              <CloudSlash size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
+            ) : (
+              <CloudCheck size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
+            )}
+            Sincronizzazione con Google
+          </h3>
+          {sync.phase === 'unconfigured' && (
+            <p className="muted">Non è ancora attiva su questa versione dell’app. Nel frattempo puoi usare il codice qui sotto.</p>
+          )}
+          {sync.phase === 'signedOut' && (
+            <>
+              <p className="muted">Accedi con Google e i progressi (lezioni, puzzle, XP, tema, accessori) restano uguali su PC e telefono, in automatico. La chiave Gemini non viene mai inviata.</p>
+              <button className="btn primary" onClick={() => void signIn()}>
+                <GoogleLogo size={20} weight="bold" /> Accedi con Google
+              </button>
+            </>
+          )}
+          {(sync.phase === 'working' || sync.phase === 'ok' || sync.phase === 'error') && (
+            <>
+              <p className="muted" style={{ marginTop: 0 }}>
+                {sync.email ? `Collegato come ${sync.email}. ` : ''}
+                {sync.phase === 'working' && 'Sincronizzo…'}
+                {sync.phase === 'ok' && sync.last && `Aggiornato alle ${new Date(sync.last).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}. I cambiamenti si salvano da soli.`}
+                {sync.phase === 'error' && (sync.message ?? 'Qualcosa non va.')}
+              </p>
+              <div className="row">
+                <button className="btn" onClick={() => void syncNow()} disabled={sync.phase === 'working'}>
+                  <ArrowsClockwise size={20} weight="bold" /> Sincronizza ora
+                </button>
+                <button className="btn" onClick={() => void signOutSync()}>
+                  Esci
+                </button>
+              </div>
+            </>
+          )}
+          {sync.phase === 'signedOut' && sync.message && <p className="muted">{sync.message}</p>}
+        </section>
+
+        <section className="card">
+          <h3>Progressi con un codice</h3>
+          <p className="muted">Alternativa manuale: copia il codice da un dispositivo e incollalo nell’altro.</p>
           <div className="row">
             <button
               className="btn"

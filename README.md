@@ -40,6 +40,29 @@ npm i --no-save --legacy-peer-deps @resvg/resvg-js
 node scripts/build-icons.mjs
 ```
 
+## Sincronizzazione con Google (facoltativa)
+
+Con Firebase (piano gratuito) i progressi si sincronizzano da soli tra PC e telefono. Prima di tutto va creato un progetto Firebase:
+
+1. Su <https://console.firebase.google.com> crea un progetto (senza Analytics).
+2. **Build → Authentication → Get started → Google**: abilita il provider e scegli la tua email come email di supporto.
+3. **Authentication → Settings → Authorized domains**: aggiungi `chribriga.github.io` (`localhost` c'è già).
+4. **Build → Firestore Database → Create database** (modalità produzione, regione europea), poi nella scheda **Rules** incolla:
+
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{db}/documents {
+       match /users/{uid} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+       }
+     }
+   }
+   ```
+5. **Project settings → Your apps → Web (</>)**: registra l'app e copia l'oggetto `firebaseConfig` in `src/sync/config.ts`.
+
+La configurazione Firebase non è un segreto: i dati sono protetti dalle regole qui sopra. Cosa viene sincronizzato: progressi, tema, tono, accessori. La chiave Gemini no, resta solo sul dispositivo.
+
 ## Pubblicazione
 
 Il workflow `.github/workflows/deploy.yml` pubblica su GitHub Pages a ogni push su `main`
