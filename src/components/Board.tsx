@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
 import { ALL_SQUARES, coordsToSq, sqToCoords } from '../chess/util'
-import { useBoardPieces } from './useBoardPieces'
+import { useBoardPieces, type PieceSprite } from './useBoardPieces'
 
 export type Tint = { kind: 'danger' | 'safe' | 'both'; n: number }
 
@@ -12,11 +12,16 @@ export interface BoardProps {
   movable: Color | null
   onMove?: (from: Square, to: Square, promotion?: PieceSymbol) => void
   lastMove?: [Square, Square] | null
+  /** chi ha fatto l'ultima mossa: quella dell'avversario viene evidenziata di più */
+  lastBy?: 'me' | 'opp'
+  /** anima gli spostamenti in modo lento e ben visibile (mosse dell'avversario) */
+  slowMove?: boolean
   tints?: Partial<Record<Square, Tint>>
   rings?: Square[]
   marks?: Square[]
   hint?: { from?: Square; to?: Square } | null
-  arrows?: [Square, Square][]
+  /** frecce da disegnare; il terzo valore opzionale è il colore (default giallo) */
+  arrows?: ([Square, Square] | [Square, Square, string])[]
   badge?: { square: Square; icon: string; color: string } | null
   /** mostra a ogni tocco il raggio d'azione del pezzo (anche del nemico) */
   showRange?: boolean
@@ -28,8 +33,9 @@ const PIECE_URL = (color: Color, type: PieceSymbol) =>
   `${import.meta.env.BASE_URL}pieces/${color}${type.toUpperCase()}.svg`
 
 export function Board(props: BoardProps) {
-  const { fen, orientation = 'w', movable, onMove, lastMove, tints, rings, marks, hint, arrows, badge, showRange, shake } = props
+  const { fen, orientation = 'w', movable, onMove, lastMove, lastBy, slowMove, tints, rings, marks, hint, arrows, badge, showRange, shake } = props
   const sprites = useBoardPieces(fen)
+  const ghosts = useGhosts(sprites)
   const boardRef = useRef<HTMLDivElement>(null)
   const [selected, setSelected] = useState<Square | null>(null)
   const [drag, setDrag] = useState<{ sq: Square; x: number; y: number; moved: boolean; wasSel: boolean } | null>(null)
@@ -133,7 +139,7 @@ export function Board(props: BoardProps) {
     <div className={`board-wrap${shake ? ' shake' : ''}`}>
       <div
         ref={boardRef}
-        className="board"
+        className={`board${slowMove ? ' slow' : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -147,7 +153,7 @@ export function Board(props: BoardProps) {
           return (
             <div
               key={sq}
-              className={`sq ${dark ? 'dark' : 'light'}${isLast ? ' last' : ''}${selected === sq ? ' sel' : ''}${kingInCheck === sq ? ' check' : ''}${marks?.includes(sq) ? ' mark' : ''}`}
+              className={`sq ${dark ? 'dark' : 'light'}${isLast ? (lastBy === 'opp' ? (lastMove![1] === sq ? ' last-opp to' : ' last-opp from') : ' last') : ''}${selected === sq ? ' sel' : ''}${kingInCheck === sq ? ' check' : ''}${marks?.includes(sq) ? ' mark' : ''}`}
               style={{ left: `${col * 12.5}%`, top: `${row * 12.5}%` }}
             >
               {tint && <div className={`tint ${tint.kind}`} style={{ opacity: Math.min(0.8, 0.3 + tint.n * 0.12) }} />}
@@ -173,20 +179,53 @@ export function Board(props: BoardProps) {
           return (
             <div
               key={p.id}
-              className={`piece${dragging ? ' dragging' : ''}`}
+              className={`piece${dragging ? ' dragging' : ''}${lastMove && lastMove[1] === p.square && !dragging ? ' mover' : ''}`}
               style={{ ...style, backgroundImage: `url(${PIECE_URL(p.color, p.type)})` }}
             />
           )
         })}
 
+        {ghosts.map((g) => {
+          const { col, row } = toView(g.square)
+          return (
+            <div
+              key={`ghost-${g.id}`}
+              className="piece ghost"
+              style={{ ...posStyle({ col, row }), backgroundImage: `url(${PIECE_URL(g.color, g.type)})` }}
+            />
+          )
+        })}
+
+        {lastBy === 'opp' && lastMove && (
+          <svg key={lastMove.join('')} className="arrows trail" viewBox="0 0 8 8">
+            <defs>
+              <marker id="ah-opp" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
+                <path d="M0,0 L4,2 L0,4 z" fill="#ff5a36" />
+              </marker>
+            </defs>
+            <line
+              x1={toView(lastMove[0]).col + 0.5}
+              y1={toView(lastMove[0]).row + 0.5}
+              x2={toView(lastMove[1]).col + 0.5}
+              y2={toView(lastMove[1]).row + 0.5}
+              stroke="#ff5a36"
+              strokeWidth="0.15"
+              strokeLinecap="round"
+              markerEnd="url(#ah-opp)"
+            />
+          </svg>
+        )}
+
         {arrows && arrows.length > 0 && (
           <svg className="arrows" viewBox="0 0 8 8">
             <defs>
-              <marker id="ah" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
-                <path d="M0,0 L4,2 L0,4 z" fill="#ffd23f" />
-              </marker>
+              {[...new Set(arrows.map((a) => a[2] ?? '#ffd23f'))].map((c) => (
+                <marker key={c} id={`ah-${c.replace('#', '')}`} markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
+                  <path d="M0,0 L4,2 L0,4 z" fill={c} />
+                </marker>
+              ))}
             </defs>
-            {arrows.map(([a, b], i) => {
+            {arrows.map(([a, b, color = '#ffd23f'], i) => {
               const va = toView(a)
               const vb = toView(b)
               return (
@@ -196,10 +235,10 @@ export function Board(props: BoardProps) {
                   y1={va.row + 0.5}
                   x2={vb.col + 0.5}
                   y2={vb.row + 0.5}
-                  stroke="#ffd23f"
+                  stroke={color}
                   strokeWidth="0.16"
                   strokeLinecap="round"
-                  markerEnd="url(#ah)"
+                  markerEnd={`url(#ah-${color.replace('#', '')})`}
                   opacity="0.9"
                 />
               )
@@ -231,6 +270,25 @@ export function Board(props: BoardProps) {
       </div>
     </div>
   )
+}
+
+/** Pezzi appena catturati: restano per un attimo e poi svaniscono, così la presa si vede. */
+function useGhosts(sprites: PieceSprite[]): PieceSprite[] {
+  const [ghosts, setGhosts] = useState<PieceSprite[]>([])
+  const prev = useRef<PieceSprite[]>(sprites)
+  useEffect(() => {
+    const before = prev.current
+    prev.current = sprites
+    if (before === sprites) return
+    const ids = new Set(sprites.map((s) => s.id))
+    const gone = before.filter((p) => !ids.has(p.id))
+    // cambio di posizione completo (nuovo puzzle, nuova lezione): niente fantasmi
+    if (gone.length === 0 || gone.length > 2 || before.length - sprites.length !== gone.length) return
+    setGhosts((g) => [...g, ...gone])
+    const t = setTimeout(() => setGhosts((g) => g.filter((x) => !gone.includes(x))), 900)
+    return () => clearTimeout(t)
+  }, [sprites])
+  return ghosts
 }
 
 function posStyle({ col, row }: { col: number; row: number }): React.CSSProperties {

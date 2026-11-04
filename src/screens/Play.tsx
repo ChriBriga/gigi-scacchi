@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
-import { ArrowCounterClockwise, ArrowLeft, ArrowRight, Flag, Lightbulb, MagnifyingGlass, MapTrifold } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ArrowLeft, ArrowRight, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold } from '@phosphor-icons/react'
 import { Board, type Tint } from '../components/Board'
 import { BotAvatar } from '../components/BotAvatar'
 import { Confetti, MoveList, PlayerBar, type MoveRow } from '../components/GameParts'
 import { CoachBubble } from '../components/CoachBubble'
+import { GameReview, pickReviewItems } from '../components/GameReview'
 import { chooseBotMove, type Bot } from '../engine/bots'
 import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, type Judgement, type Quality } from '../engine/analysis'
 import { dangerTints, hangingPieces } from '../chess/danger'
@@ -22,7 +23,13 @@ interface MoveRec {
   judgement?: Judgement
 }
 
-type Phase = 'player' | 'thinking' | 'decide' | 'over'
+type Phase = 'player' | 'thinking' | 'reply' | 'decide' | 'over'
+
+/** pausa minima prima della mossa dell'avversario, così la sua mossa non è istantanea */
+const THINK_MS = 900
+/** durata dell'animazione del pezzo che si muove (vedi .board.slow in styles.css) */
+const SLIDE_MS = 700
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 const DANGER_CYCLE: DangerMode[] = ['off', 'threats', 'full']
 const DANGER_LABEL: Record<DangerMode, string> = { off: 'Spenta', threats: 'Minacce', full: 'Completa' }
@@ -38,6 +45,8 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   const [fen, setFen] = useState(game.current.fen())
   const [moves, setMoves] = useState<MoveRec[]>([])
   const [last, setLast] = useState<[Square, Square] | null>(null)
+  const [lastBy, setLastBy] = useState<'me' | 'opp'>('me')
+  const [botSan, setBotSan] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('player')
   const [badge, setBadge] = useState<{ square: Square; icon: string; color: string } | null>(null)
   const [coach, setCoach] = useState<{ text: string; mood: Mood }>({ text: sayLine('start', settings.tone), mood: 'cool' })
@@ -47,6 +56,8 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   const [result, setResult] = useState<{ outcome: 'win' | 'lose' | 'draw'; reason: string } | null>(null)
   const [explaining, setExplaining] = useState(false)
   const [shake, setShake] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [analysing, setAnalysing] = useState(false)
   const started = useRef(false)
 
   const say = (event: CoachEvent, vars?: { piece?: string; sq?: string }, extra?: string) =>
@@ -89,14 +100,20 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     const fenBefore = g.fen()
     const { from, to, promotion } = parseUci(uci)
     const mv = g.move({ from, to, promotion })
+    setPhase('reply')
     setFen(g.fen())
     setLast([from, to])
+    setLastBy('opp')
+    setBotSan(mv.san)
     setMoves((m) => [...m, { san: mv.san, uci, fenBefore, color: opposite(color) }])
-    mv.captured ? sfx.capture() : sfx.move()
-    if (!checkOver()) {
-      setPhase('player')
-      evaluate(g.fen()).catch(() => undefined)
-    }
+    // il suono parte quando il pezzo arriva, la partita riprende a movimento finito
+    setTimeout(() => (mv.captured ? sfx.capture() : sfx.move()), SLIDE_MS * 0.7)
+    setTimeout(() => {
+      if (!checkOver()) {
+        setPhase('player')
+        evaluate(g.fen()).catch(() => undefined)
+      }
+    }, SLIDE_MS + 120)
   }
 
   // se il giocatore è il Nero, muove prima il bot
@@ -105,7 +122,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     started.current = true
     if (color === 'b') {
       setPhase('thinking')
-      chooseBotMove(game.current.fen(), bot).then(applyBot)
+      Promise.all([chooseBotMove(game.current.fen(), bot), sleep(700)]).then(([uci]) => applyBot(uci))
     } else evaluate(game.current.fen()).catch(() => undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -124,6 +141,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     const rec: MoveRec = { san: mv.san, uci, fenBefore, color }
     setFen(g.fen())
     setLast([from, to])
+    setLastBy('me')
     setHint(null)
     setHintLevel(0)
     setBadge(null)
@@ -134,7 +152,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
 
     const botP = chooseBotMove(g.fen(), bot)
     const judgeP = settings.liveJudging ? judgeMove(fenBefore, uci).catch(() => undefined) : Promise.resolve(undefined)
-    const [botUci, j] = await Promise.all([botP, judgeP])
+    const [botUci, j] = await Promise.all([botP, judgeP, sleep(THINK_MS)]).then(([b, jj]) => [b, jj] as const)
 
     if (j) {
       rec.judgement = j
@@ -177,6 +195,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     setFen(g.fen())
     setMoves((m) => m.slice(0, -1))
     setLast(null)
+    setLastBy('me')
     setBadge(null)
     setTakeback(null)
     setPhase('player')
@@ -187,7 +206,8 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     const { botUci } = takeback
     setTakeback(null)
     setBadge(null)
-    applyBot(botUci)
+    setPhase('thinking')
+    sleep(450).then(() => applyBot(botUci))
   }
 
   const showHint = async () => {
@@ -263,10 +283,33 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     return { tints: t, rings: r }
   }, [fen, settings.danger, color])
 
-  const worst = useMemo(() => {
-    const judged = moves.filter((m) => m.judgement && m.color === color)
-    return judged.sort((a, b) => b.judgement!.loss - a.judgement!.loss)[0]
-  }, [moves, color])
+  // a partita finita: se il giudizio live era spento, Gigi riguarda in silenzio le tue mosse
+  useEffect(() => {
+    if (phase !== 'over') return
+    const todo = moves.filter((m) => m.color === color && !m.judgement).slice(0, 50)
+    if (todo.length === 0) return
+    let alive = true
+    setAnalysing(true)
+    ;(async () => {
+      for (const m of todo) {
+        try {
+          const j = await judgeMove(m.fenBefore, m.uci)
+          if (!alive) return
+          setMoves((ms) => ms.map((x) => (x.fenBefore === m.fenBefore && x.uci === m.uci ? { ...x, judgement: j } : x)))
+        } catch {
+          /* mossa non analizzabile: pazienza */
+        }
+      }
+      if (alive) setAnalysing(false)
+    })()
+    return () => {
+      alive = false
+      setAnalysing(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+
+  const reviewItems = useMemo(() => (phase === 'over' ? pickReviewItems(moves, color) : []), [moves, color, phase])
 
   const lastUserMove = useMemo(() => [...moves].reverse().find((m) => m.color === color), [moves, color])
 
@@ -308,10 +351,10 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
           <PlayerBar
             avatar={<BotAvatar id={bot.id} size={40} />}
             name={bot.name}
-            sub={phase === 'thinking' ? 'Sta pensando…' : 'Avversario'}
+            sub={phase === 'thinking' ? 'Sta pensando…' : botSan ? `Ha giocato ${botSan}` : 'Avversario'}
             color={oppColor}
             fen={fen}
-            active={phase === 'thinking'}
+            active={phase === 'thinking' || phase === 'reply'}
           />
           <Board
             fen={fen}
@@ -319,6 +362,8 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
             movable={movable}
             onMove={onUserMove}
             lastMove={last}
+            lastBy={lastBy}
+            slowMove={lastBy === 'opp'}
             tints={tints}
             rings={rings}
             hint={hint}
@@ -349,11 +394,13 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
                     </span>
                   ))}
                 </div>
-                {worst && worst.judgement && isBad(worst.judgement.quality) && (
-                  <button className="btn" onClick={() => explain(worst)}>
-                    <MagnifyingGlass size={18} weight="bold" /> Spiegami il tuo errore peggiore
+                {analysing && <p className="review-note">Gigi sta riguardando la partita…</p>}
+                {!analysing && reviewItems.length > 0 && (
+                  <button className="btn primary" onClick={() => setReviewOpen(true)}>
+                    <GraduationCap size={18} weight="bold" /> Rivedi {reviewItems.length === 1 ? 'il tuo errore' : `i tuoi ${reviewItems.length} errori`}
                   </button>
                 )}
+                {!analysing && reviewItems.length === 0 && moves.some((m) => m.judgement) && <p className="review-note">Nessun errore grave da rivedere. Niente male!</p>}
                 <div className="row">
                   <button className="btn primary" onClick={onExit}>
                     Continua <ArrowRight size={18} weight="bold" />
@@ -412,6 +459,9 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
         </div>
       </div>
       {phase === 'over' && result?.outcome === 'win' && <Confetti />}
+      {reviewOpen && reviewItems.length > 0 && (
+        <GameReview items={reviewItems} color={color} tone={settings.tone} geminiKey={settings.geminiKey} onClose={() => setReviewOpen(false)} />
+      )}
     </div>
   )
 }

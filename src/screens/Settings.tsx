@@ -6,6 +6,7 @@ import { explainWithGemini, lastModelUsed } from '../coach/gemini'
 import { Pigeon } from '../coach/Pigeon'
 import { TONE_ICON } from '../components/icons'
 import { THEMES, type ThemeId } from '../themes'
+import { Wardrobe } from '../components/Wardrobe'
 
 const MOODS: [Mood, string][] = [
   ['neutral', 'Normale'],
@@ -65,6 +66,8 @@ export function Settings() {
           ))}
         </div>
       </section>
+
+      <Wardrobe />
 
       <div className="settings-grid">
         <section className="card">

@@ -1,0 +1,85 @@
+// Genera il logo (public/favicon.svg) e le icone PNG della PWA.
+// Serve @resvg/resvg-js:  npm i --no-save --legacy-peer-deps @resvg/resvg-js
+//   node scripts/build-icons.mjs
+import { writeFileSync } from 'node:fs'
+import { Resvg } from '@resvg/resvg-js'
+
+/** Gigi a mezzo busto con la corona da regina, disegnato nello stesso spazio 160x160 della mascotte. */
+const GIGI = `
+  <!-- corpo e ali -->
+  <path d="M63 70 C42 76 28 98 30 122 C32 142 54 149 80 149 C106 149 128 142 130 122 C132 98 118 76 97 70 Z" fill="url(#body)" stroke="#5a669f" stroke-opacity=".35" stroke-width="1.5"/>
+  <path d="M80 86 C58 88 44 106 47 126 C50 142 66 146 80 146 C94 146 110 142 113 126 C116 106 102 88 80 86 Z" fill="url(#breast)"/>
+  <path d="M42 90 C24 106 24 136 40 150 C54 144 62 120 58 98 Z" fill="url(#wing)"/>
+  <path d="M118 90 C136 106 136 136 120 150 C106 144 98 120 102 98 Z" fill="url(#wing)"/>
+  <path d="M31 118 L50 111 M33 129 L52 122 M129 118 L110 111 M127 129 L108 122" stroke="#252e5e" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+  <!-- collo cangiante -->
+  <path d="M48 80 Q80 64 112 80 C114 90 108 97 100 98 q-5 5 -10 0 q-5 5 -10 0 q-5 5 -10 0 q-5 5 -10 0 C52 97 46 90 48 80 Z" fill="url(#collar)"/>
+  <path d="M58 82 Q80 72 102 82" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none" opacity=".4"/>
+  <!-- testa -->
+  <ellipse cx="80" cy="57" rx="28" ry="27" fill="url(#head)" stroke="#7b88c0" stroke-opacity=".35" stroke-width="1.5"/>
+  <ellipse cx="68" cy="40" rx="13" ry="7" fill="#fff" opacity=".28"/>
+  <circle cx="56" cy="67" r="5.5" fill="#ff8fb4" opacity=".5"/><circle cx="104" cy="67" r="5.5" fill="#ff8fb4" opacity=".5"/>
+  <g>
+    <circle cx="67" cy="55" r="9.8" fill="#fff"/><circle cx="93" cy="55" r="9.8" fill="#fff"/>
+    <circle cx="68" cy="56" r="6.8" fill="#ff9a1f"/><circle cx="94" cy="56" r="6.8" fill="#ff9a1f"/>
+    <circle cx="68" cy="56" r="3.8" fill="#2a1230"/><circle cx="94" cy="56" r="3.8" fill="#2a1230"/>
+    <circle cx="69.6" cy="52.6" r="2.2" fill="#fff"/><circle cx="95.6" cy="52.6" r="2.2" fill="#fff"/>
+    <path d="M57 41 Q67 36 76 41 M84 41 Q93 36 103 41" stroke="#2a1230" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".75"/>
+  </g>
+  <path d="M70 66 Q80 59 90 66 Q89 78 80 81 Q71 78 70 66 Z" fill="url(#beak)"/>
+  <path d="M74 73 Q80 75.5 86 73" stroke="#b9601a" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".6"/>
+  <path d="M75.5 61.5 Q80 57.5 84.5 61.5 Q83.5 65 80 65.5 Q76.5 65 75.5 61.5 Z" fill="#efe7ff"/>
+  <!-- corona da regina: stretta e alta -->
+  <g transform="rotate(-4 80 34) translate(0 1)">
+    <path d="M65 35 L61 13 L66 27 L70 7 L75.5 26 L80 1 L84.5 26 L90 7 L94 27 L99 13 L95 35 Z" fill="url(#gold)" stroke="#b8760e" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M63 33 Q80 39 97 33 L96.5 40 Q80 46 63.5 40 Z" fill="url(#gold)" stroke="#b8760e" stroke-width="1.6" stroke-linejoin="round"/>
+    <g fill="url(#gold)" stroke="#b8760e" stroke-width="1.3">
+      <circle cx="61" cy="11.5" r="2.9"/><circle cx="70" cy="5.5" r="2.9"/><circle cx="80" cy="-.5" r="3.4"/><circle cx="90" cy="5.5" r="2.9"/><circle cx="99" cy="11.5" r="2.9"/>
+    </g>
+    <circle cx="79" cy="-1.6" r="1" fill="#fff" opacity=".9"/>
+    <circle cx="80" cy="37.5" r="2.8" fill="#ff4d6a" stroke="#fff" stroke-width="1"/>
+    <circle cx="70" cy="36.5" r="1.7" fill="#3fe0d0"/><circle cx="90" cy="36.5" r="1.7" fill="#3fe0d0"/>
+  </g>`
+
+const DEFS = `
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b2cc4"/><stop offset="1" stop-color="#1a0b3d"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".36" r=".62"><stop offset="0" stop-color="#b79bff" stop-opacity=".7"/><stop offset="1" stop-color="#b79bff" stop-opacity="0"/></radialGradient>
+    <pattern id="checker" width="128" height="128" patternUnits="userSpaceOnUse"><rect width="64" height="64" fill="#fff" fill-opacity=".07"/><rect x="64" y="64" width="64" height="64" fill="#fff" fill-opacity=".07"/></pattern>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9c3e8"/><stop offset="1" stop-color="#7c8ac2"/></linearGradient>
+    <linearGradient id="breast" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3f5ff"/><stop offset="1" stop-color="#cfd6f2"/></linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9e0fa"/><stop offset="1" stop-color="#a9b4de"/></linearGradient>
+    <linearGradient id="wing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8794c9"/><stop offset="1" stop-color="#566199"/></linearGradient>
+    <linearGradient id="collar" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2fd0a6"/><stop offset=".45" stop-color="#7b6ae6"/><stop offset="1" stop-color="#e458b8"/></linearGradient>
+    <linearGradient id="beak" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffcf86"/><stop offset="1" stop-color="#f08f3a"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a0"/><stop offset=".55" stop-color="#ffcf3a"/><stop offset="1" stop-color="#e9981a"/></linearGradient>
+  </defs>`
+
+/** zoom: 1 = tessera con bordi arrotondati; maskable: contenuto ridotto per la "safe zone" di Android */
+function icon({ rounded, scale = 1 }) {
+  const k = 3.45 * scale
+  const tx = 256 - 80 * k
+  const ty = scale < 1 ? 76 : 30
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${DEFS}
+  <clipPath id="clip"><rect width="512" height="512" rx="${rounded ? 116 : 0}"/></clipPath>
+  <g clip-path="url(#clip)">
+    <rect width="512" height="512" fill="url(#bg)"/>
+    <rect width="512" height="512" fill="url(#checker)"/>
+    <rect width="512" height="512" fill="url(#glow)"/>
+    <ellipse cx="256" cy="${scale < 1 ? 470 : 500}" rx="${230 * scale}" ry="46" fill="#000" opacity=".22"/>
+    <g transform="translate(${tx.toFixed(1)} ${ty.toFixed(1)}) scale(${k.toFixed(3)})">${GIGI}
+    </g>
+    <path d="M410 76 l8 20 l20 8 l-20 8 l-8 20 l-8 -20 l-20 -8 l20 -8 z" fill="#ffe681" opacity=".95" transform="translate(${scale < 1 ? 0 : 10} ${scale < 1 ? 10 : 0})"/>
+  </g>
+</svg>
+`
+}
+
+const render = (svg, size) => new Resvg(svg, { fitTo: { mode: 'width', value: size } }).render().asPng()
+
+writeFileSync('public/favicon.svg', icon({ rounded: true }))
+writeFileSync('public/icon-512.png', render(icon({ rounded: true }), 512))
+writeFileSync('public/icon-192.png', render(icon({ rounded: true }), 192))
+writeFileSync('public/icon-maskable-512.png', render(icon({ rounded: false, scale: 0.8 }), 512))
+writeFileSync('public/apple-touch-icon.png', render(icon({ rounded: false, scale: 0.92 }), 180))
+console.log('icone generate')

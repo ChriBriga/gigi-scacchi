@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { Tone } from './coach/lines'
 import type { ThemeId } from './themes'
+import type { Outfit } from './coach/outfits'
 
 export type DangerMode = 'off' | 'threats' | 'full'
 
@@ -12,6 +13,8 @@ export interface Settings {
   geminiKey: string
   /** giudica ogni mossa durante la partita */
   liveJudging: boolean
+  /** accessori indossati da Gigi */
+  outfit: Outfit
 }
 
 export interface DayLog {
@@ -52,7 +55,7 @@ export const todayStr = () => new Date().toLocaleDateString('sv-SE')
 const emptyDay = (): DayLog => ({ day: todayStr(), lesson: false, puzzles: 0, game: false })
 
 const defaults = (): AppState => ({
-  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true },
+  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {} },
   progress: {
     placementDone: false,
     skill: 10,

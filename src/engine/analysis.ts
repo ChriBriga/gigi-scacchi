@@ -63,6 +63,8 @@ export interface Judgement {
   bestWasPlayed: boolean
   /** la mossa ha lasciato scappare un matto o una vittoria netta */
   swing: number
+  /** c'era un matto forzato e la mossa l'ha lasciato scappare */
+  missedMate?: boolean
 }
 
 /** Giudica una mossa confrontando la valutazione prima e dopo. */
@@ -118,7 +120,8 @@ export async function judgeMove(fenBefore: string, uci: string): Promise<Judgeme
     }
   }
 
-  return { quality, loss, bestUci: before.best, playedUci: uci, cpAfter, bestWasPlayed, swing: wBefore - wAfter }
+  const missedMate = before.mate !== undefined && before.mate > 0 && !(after.mate !== undefined && after.mate < 0)
+  return { quality, loss, bestUci: before.best, playedUci: uci, cpAfter, bestWasPlayed, swing: wBefore - wAfter, missedMate }
 }
 
 export async function bestMoveFor(fen: string): Promise<string | undefined> {
