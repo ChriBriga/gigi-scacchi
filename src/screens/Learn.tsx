@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type PieceSymbol, type Square } from 'chess.js'
+import { ArrowLeft, ArrowRight, Check, Lightbulb, SkipForward } from '@phosphor-icons/react'
 import { Board } from '../components/Board'
 import { CoachBubble } from '../components/CoachBubble'
+import { Confetti } from '../components/GameParts'
+import { LessonIcon } from '../components/icons'
 import { LESSONS, type Lesson, type Step } from '../data/lessons'
 import { dangerTints } from '../chess/danger'
 import { parseUci } from '../chess/util'
-import { sayLine, type Mood } from '../coach/lines'
+import type { Mood } from '../coach/lines'
 import { addXp, touchDay, update, useApp } from '../store'
 import { sfx } from '../sound'
 
@@ -19,20 +22,18 @@ export function Learn({ onOpen }: { onOpen: (l: Lesson) => void }) {
   return (
     <div className="screen">
       <h2>Impara</h2>
-      <p className="muted">Lezioni di 1-2 minuti. Solo lo stretto necessario, dritto al punto.</p>
-      <div className="bots">
+      <p className="sub">Lezioni di 1-2 minuti. Solo lo stretto necessario, dritto al punto.</p>
+      <div className="lessons">
         {LESSONS.map((l) => {
           const done = progress.lessonsDone.includes(l.id)
           return (
-            <button key={l.id} className={`bot-card${next?.id === l.id ? ' rec' : ''}`} onClick={() => onOpen(l)}>
-              <span className="bot-emoji">{l.emoji}</span>
-              <span className="bot-info">
+            <button key={l.id} className={`lesson-card${next?.id === l.id ? ' rec' : ''}`} onClick={() => onOpen(l)}>
+              <span className={`tile${done ? ' done' : ''}`}>{done ? <Check size={26} weight="bold" /> : <LessonIcon id={l.id} size={28} />}</span>
+              <span className="plan-info">
                 <strong>{l.title}</strong>
                 <small>{l.blurb}</small>
               </span>
-              <span className="bot-meta">
-                {done ? <span className="beaten">✔ fatta</span> : next?.id === l.id ? <span className="tip">prossima</span> : null}
-              </span>
+              {next?.id === l.id && <span className="badge-pill tip">prossima</span>}
             </button>
           )
         })}
@@ -52,6 +53,7 @@ export function LessonPlayer({ lesson, onExit }: { lesson: Lesson; onExit: (comp
   const [showHint, setShowHint] = useState(false)
   const [wrongs, setWrongs] = useState(0)
   const [shake, setShake] = useState(false)
+  const [finished, setFinished] = useState(false)
   const lineRef = useRef<Chess | null>(null)
 
   useEffect(() => {
@@ -90,9 +92,8 @@ export function LessonPlayer({ lesson, onExit }: { lesson: Lesson; onExit: (comp
     if (step.kind === 'try') {
       const g = new Chess(step.fen)
       const uci = from + to + (promotion ?? '')
-      let mv
       try {
-        mv = g.move({ from, to, promotion })
+        g.move({ from, to, promotion })
       } catch {
         return
       }
@@ -108,7 +109,6 @@ export function LessonPlayer({ lesson, onExit }: { lesson: Lesson; onExit: (comp
         setFeedback({ text: step.ok, mood: 'happy' })
         addXp(5)
       } else {
-        void mv
         wrong(step.wrong)
       }
     } else if (step.kind === 'line') {
@@ -165,54 +165,83 @@ export function LessonPlayer({ lesson, onExit }: { lesson: Lesson; onExit: (comp
       }
       s.progress.today.lesson = true
     })
-    onExit(true)
+    sfx.win()
+    setFinished(true)
+    setFeedback({ text: 'Lezione completata! Gigi è orgoglioso, e non lo dice spesso.', mood: 'happy' })
   }
 
   const isLast = idx === lesson.steps.length - 1
+  const advance = () => (isLast ? complete() : setIdx(idx + 1))
 
   return (
     <div className="screen">
       <div className="topbar">
-        <button className="ghost" onClick={() => onExit(false)}>← Esci</button>
-        <div className="opp">{lesson.emoji} {lesson.title}</div>
+        <button className="ghost" onClick={() => onExit(false)}>
+          <ArrowLeft size={20} weight="bold" /> Esci
+        </button>
+        <div className="title">
+          <LessonIcon id={lesson.id} size={24} /> {lesson.title}
+        </div>
       </div>
       <div className="dots">
         {lesson.steps.map((_, i) => (
-          <span key={i} className={i < idx ? 'dot-on' : i === idx ? 'dot-cur' : ''} />
+          <span key={i} className={i < idx || finished ? 'dot-on' : i === idx ? 'dot-cur' : ''} />
         ))}
       </div>
-      <Board
-        fen={fen}
-        orientation={turn}
-        movable={interactive ? turn : null}
-        onMove={onMove}
-        showRange={step.kind === 'info' && step.range}
-        tints={tints}
-        hint={undefined}
-        arrows={hintArrow}
-        marks={step.kind === 'info' ? step.marks : undefined}
-        shake={shake}
-      />
-      <CoachBubble text={feedback.text} mood={feedback.mood}>
-        <div className="row">
-          {step.kind !== 'info' && !solved && (
-            <button className="btn" onClick={() => setShowHint(true)}>💡 Aiuto</button>
-          )}
-          {step.kind !== 'info' && !solved && wrongs >= 2 && (
-            <button className="btn" onClick={() => (isLast ? complete() : setIdx(idx + 1))}>Salta →</button>
-          )}
-          {solved && (
-            <button className="btn primary" onClick={() => (isLast ? complete() : setIdx(idx + 1))}>
-              {isLast ? 'Finito! ✔' : 'Avanti →'}
-            </button>
-          )}
+      <div className="game-shell">
+        <div className="game-main">
+          <Board
+            fen={fen}
+            orientation={turn}
+            movable={interactive ? turn : null}
+            onMove={onMove}
+            showRange={step.kind === 'info' && step.range}
+            tints={tints}
+            arrows={hintArrow}
+            marks={step.kind === 'info' ? step.marks : undefined}
+            shake={shake}
+          />
         </div>
-      </CoachBubble>
-      {app.progress.lessonsDone.includes(lesson.id) && idx === 0 && <p className="muted">Hai già completato questa lezione, ripassa pure!</p>}
+        <div className="game-side">
+          <CoachBubble text={feedback.text} mood={feedback.mood}>
+            <div className="row">
+              {finished ? (
+                <button className="btn primary" onClick={() => onExit(true)}>
+                  Continua <ArrowRight size={18} weight="bold" />
+                </button>
+              ) : (
+                <>
+                  {step.kind !== 'info' && !solved && (
+                    <button className="btn" onClick={() => setShowHint(true)}>
+                      <Lightbulb size={18} weight="fill" /> Aiuto
+                    </button>
+                  )}
+                  {step.kind !== 'info' && !solved && wrongs >= 2 && (
+                    <button className="btn" onClick={advance}>
+                      <SkipForward size={18} weight="fill" /> Salta
+                    </button>
+                  )}
+                  {solved && (
+                    <button className="btn primary" onClick={advance}>
+                      {isLast ? (
+                        <>
+                          Finito <Check size={18} weight="bold" />
+                        </>
+                      ) : (
+                        <>
+                          Avanti <ArrowRight size={18} weight="bold" />
+                        </>
+                      )}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </CoachBubble>
+          {app.progress.lessonsDone.includes(lesson.id) && idx === 0 && <p className="muted">Hai già completato questa lezione, ripassa pure!</p>}
+        </div>
+      </div>
+      {finished && <Confetti />}
     </div>
   )
-}
-
-export function lessonDoneMessage(tone: 'gentle' | 'spicy' | 'ruthless') {
-  return sayLine('lessonDone', tone)
 }

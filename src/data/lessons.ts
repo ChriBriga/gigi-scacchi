@@ -39,7 +39,6 @@ export type Step =
 export interface Lesson {
   id: string
   title: string
-  emoji: string
   blurb: string
   steps: Step[]
 }
@@ -50,7 +49,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'valori',
     title: 'Quanto vale ogni pezzo',
-    emoji: '💰',
     blurb: 'Il pedone vale 1, la regina 9. Serve per non fare scambi stupidi.',
     steps: [
       {
@@ -69,7 +67,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'raggi',
     title: 'Dove arriva ogni pezzo',
-    emoji: '🗺️',
     blurb: 'Il raggio d’azione di ogni pezzo, in modo visivo. Tocca e guarda!',
     steps: [
       { kind: 'info', range: true, fen: 'k7/8/8/8/3K4/8/8/8 w - - 0 1', text: 'Il re: una casa in ogni direzione. Tocca il pezzo e guarda dove arriva. Lento, ma prezioso.' },
@@ -83,7 +80,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'presa',
     title: 'Pezzi in presa',
-    emoji: '🎯',
     blurb: 'Prendi i pezzi regalati e salva i tuoi. Il 90% delle partite si decide qui.',
     steps: [
       {
@@ -110,7 +106,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'occhio',
     title: 'Le 3 domande prima di muovere',
-    emoji: '👀',
     blurb: 'Il trucco che ti fa smettere di regalare pezzi.',
     steps: [
       {
@@ -129,7 +124,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'matto1',
     title: 'Scacco matto in una mossa',
-    emoji: '👑',
     blurb: 'Il re non ha scampo: scacco e nessuna via di fuga.',
     steps: [
       {
@@ -155,7 +149,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'principi',
     title: 'I 3 principi dell’apertura',
-    emoji: '🚀',
     blurb: 'Tre idee semplici che valgono più di 100 varianti.',
     steps: [
       { kind: 'info', fen: START, marks: ['d4', 'e4', 'd5', 'e5'], text: '1) Occupa il CENTRO. Pedoni in e4/d4: da lì i tuoi pezzi controllano più caselle.' },
@@ -171,7 +164,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'italiana',
     title: 'La tua prima apertura: l’Italiana',
-    emoji: '🍕',
     blurb: 'Tre mosse da giocare ad occhi chiusi con il Bianco.',
     steps: [
       {
@@ -186,7 +178,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'arrocco',
     title: 'L’arrocco',
-    emoji: '🏰',
     blurb: 'La mossa con cui re e torre si mettono al sicuro insieme.',
     steps: [
       {
@@ -203,7 +194,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'barbiere',
     title: 'Come difenderti dal matto del barbiere',
-    emoji: '💈',
     blurb: 'Il tranello preferito dei principianti. Impara a spegnerlo.',
     steps: [
       {
@@ -220,7 +210,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'forchetta',
     title: 'La forchetta',
-    emoji: '🍴',
     blurb: 'Un pezzo che attacca due cose insieme: ne prendi una.',
     steps: [
       {
@@ -246,7 +235,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'inchiodatura',
     title: 'L’inchiodatura',
-    emoji: '📌',
     blurb: 'Un pezzo che non può muoversi perché dietro c’è il re.',
     steps: [
       {
@@ -269,7 +257,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'infilata',
     title: 'L’infilata',
-    emoji: '🥢',
     blurb: 'Come l’inchiodatura ma al contrario: il pezzo forte scappa, tu prendi quello dietro.',
     steps: [
       {
@@ -286,7 +273,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'promozione',
     title: 'La promozione',
-    emoji: '🎖️',
     blurb: 'Il pedone che arriva in fondo diventa un pezzo.',
     steps: [
       {
@@ -303,7 +289,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'stallo',
     title: 'Stallo: il pareggio beffa',
-    emoji: '🤝',
     blurb: 'Quando sei in vantaggio, non fregarti da solo.',
     steps: [
       {
@@ -316,7 +301,6 @@ export const LESSONS: Lesson[] = [
   {
     id: 'duetorri',
     title: 'Matto con due torri',
-    emoji: '🪜',
     blurb: 'Il matto a scala: la tecnica per chiudere le partite vinte.',
     steps: [
       {

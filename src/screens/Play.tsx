@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
+import { ArrowCounterClockwise, ArrowLeft, ArrowRight, Flag, Lightbulb, MagnifyingGlass, MapTrifold } from '@phosphor-icons/react'
 import { Board, type Tint } from '../components/Board'
+import { BotAvatar } from '../components/BotAvatar'
+import { Confetti, MoveList, PlayerBar, type MoveRow } from '../components/GameParts'
 import { CoachBubble } from '../components/CoachBubble'
 import { chooseBotMove, type Bot } from '../engine/bots'
 import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, type Judgement, type Quality } from '../engine/analysis'
@@ -22,7 +25,7 @@ interface MoveRec {
 type Phase = 'player' | 'thinking' | 'decide' | 'over'
 
 const DANGER_CYCLE: DangerMode[] = ['off', 'threats', 'full']
-const DANGER_LABEL: Record<DangerMode, string> = { off: 'Mappa: off', threats: 'Mappa: minacce', full: 'Mappa: completa' }
+const DANGER_LABEL: Record<DangerMode, string> = { off: 'Spenta', threats: 'Minacce', full: 'Completa' }
 
 function isBad(q: Quality) {
   return q === 'mistake' || q === 'blunder'
@@ -282,83 +285,133 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
 
   const movable = phase === 'player' ? color : null
 
+  const moveRows: MoveRow[] = moves.map((m) => ({ san: m.san, color: m.color, quality: m.color === color ? m.judgement?.quality : undefined }))
+  const oppColor: Color = opposite(color)
+  const myTurn = phase === 'player'
+  const meAvatar = (
+    <span className="me-avatar">
+      <img src={`${import.meta.env.BASE_URL}pieces/${color}P.svg`} width={28} height={28} alt="" />
+    </span>
+  )
+
   return (
     <div className="screen play">
       <div className="topbar">
-        <button className="ghost" onClick={onExit}>← Esci</button>
-        <div className="opp">
-          <span className="opp-emoji">{bot.emoji}</span> {bot.name}
-          {phase === 'thinking' && <span className="thinking">pensa…</span>}
-        </div>
+        <button className="ghost" onClick={onExit}>
+          <ArrowLeft size={20} weight="bold" /> Esci
+        </button>
+        <div className="title">Partita contro {bot.name}</div>
       </div>
 
-      <Board
-        fen={fen}
-        orientation={color}
-        movable={movable}
-        onMove={onUserMove}
-        lastMove={last}
-        tints={tints}
-        rings={rings}
-        hint={hint}
-        badge={badge}
-        shake={shake}
-      />
+      <div className="game-shell">
+        <div className="game-main">
+          <PlayerBar
+            avatar={<BotAvatar id={bot.id} size={40} />}
+            name={bot.name}
+            sub={phase === 'thinking' ? 'Sta pensando…' : 'Avversario'}
+            color={oppColor}
+            fen={fen}
+            active={phase === 'thinking'}
+          />
+          <Board
+            fen={fen}
+            orientation={color}
+            movable={movable}
+            onMove={onUserMove}
+            lastMove={last}
+            tints={tints}
+            rings={rings}
+            hint={hint}
+            badge={badge}
+            shake={shake}
+          />
+          <PlayerBar avatar={meAvatar} name="Tu" sub={myTurn ? 'Tocca a te' : undefined} color={color} fen={fen} active={myTurn} />
+        </div>
 
-      <CoachBubble text={explaining ? 'Fammi pensare…' : coach.text} mood={coach.mood}>
-        {phase === 'decide' && takeback && (
-          <div className="row">
-            <button className="btn primary" onClick={doTakeback}>↩ Ritira la mossa</button>
-            <button className="btn" onClick={keepMove}>Lascia stare</button>
-          </div>
-        )}
-        {phase === 'over' && result && (
-          <div className="result">
-            <div className="summary">
-              {(Object.keys(counts) as Quality[]).map((q) => (
-                <span key={q} className="chip" style={{ background: QUALITY_INFO[q].color }}>
-                  {QUALITY_INFO[q].icon} {counts[q]}
-                </span>
-              ))}
-            </div>
-            {worst && worst.judgement && isBad(worst.judgement.quality) && (
-              <button className="btn" onClick={() => explain(worst)}>🔍 Spiegami il tuo errore peggiore</button>
+        <div className="game-side">
+          <CoachBubble text={explaining ? 'Fammi pensare…' : coach.text} mood={coach.mood}>
+            {phase === 'decide' && takeback && (
+              <div className="row">
+                <button className="btn primary" onClick={doTakeback}>
+                  <ArrowCounterClockwise size={18} weight="bold" /> Ritira la mossa
+                </button>
+                <button className="btn" onClick={keepMove}>
+                  Lascia stare
+                </button>
+              </div>
             )}
-            <div className="row">
-              <button className="btn primary" onClick={onExit}>Continua</button>
-            </div>
-          </div>
-        )}
-      </CoachBubble>
+            {phase === 'over' && result && (
+              <div className="result">
+                <div className="summary">
+                  {(Object.keys(counts) as Quality[]).map((q) => (
+                    <span key={q} className="chip" style={{ background: QUALITY_INFO[q].color }}>
+                      {QUALITY_INFO[q].icon} {counts[q]}
+                    </span>
+                  ))}
+                </div>
+                {worst && worst.judgement && isBad(worst.judgement.quality) && (
+                  <button className="btn" onClick={() => explain(worst)}>
+                    <MagnifyingGlass size={18} weight="bold" /> Spiegami il tuo errore peggiore
+                  </button>
+                )}
+                <div className="row">
+                  <button className="btn primary" onClick={onExit}>
+                    Continua <ArrowRight size={18} weight="bold" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </CoachBubble>
 
-      {phase !== 'over' && (
-        <div className="row actions">
-          <button className="btn" onClick={showHint} disabled={phase !== 'player'}>💡 Aiuto{hintLevel ? ` (${hintLevel}/3)` : ''}</button>
-          {lastUserMove?.judgement && phase === 'player' && (
-            <button className="btn" onClick={() => explain(lastUserMove)}>🔍 Perché?</button>
+          {phase !== 'over' && (
+            <div className="actions">
+              <button className="btn" onClick={showHint} disabled={phase !== 'player'}>
+                <Lightbulb size={20} weight="fill" /> Aiuto{hintLevel ? ` ${hintLevel}/3` : ''}
+              </button>
+              {lastUserMove?.judgement && phase === 'player' && (
+                <button className="btn" onClick={() => explain(lastUserMove)}>
+                  <MagnifyingGlass size={20} weight="bold" /> Perché?
+                </button>
+              )}
+              <button className="btn" onClick={cycleDanger}>
+                <MapTrifold size={20} weight="duotone" /> Mappa: {DANGER_LABEL[settings.danger]}
+              </button>
+              <button
+                className="btn"
+                onClick={() => {
+                  if (confirm('Ti arrendi?')) finish('lose', 'resa')
+                }}
+              >
+                <Flag size={20} weight="fill" /> Resa
+              </button>
+            </div>
           )}
-          <button className="btn" onClick={cycleDanger}>🗺️ {DANGER_LABEL[settings.danger].replace('Mappa: ', '')}</button>
-          <button
-            className="btn"
-            onClick={() => {
-              if (confirm('Ti arrendi?')) finish('lose', 'resa')
-            }}
-          >
-            🏳️ Resa
-          </button>
-        </div>
-      )}
-      {settings.danger !== 'off' && phase !== 'over' && (
-        <div className="legend">
-          <span className="lg danger" /> casa attaccata dall’avversario
-          {settings.danger === 'full' && (
-            <>
-              <span className="lg safe" /> controllata da te
-            </>
+
+          {settings.danger !== 'off' && phase !== 'over' && (
+            <div className="legend">
+              <span>
+                <span className="lg danger" />
+                attaccata dall’avversario
+              </span>
+              {settings.danger === 'full' && (
+                <span>
+                  <span className="lg safe" />
+                  controllata da te
+                </span>
+              )}
+              <span>
+                <span className="lg ring" />
+                tuo pezzo in presa
+              </span>
+            </div>
           )}
-          <span className="lg ring" /> tuo pezzo in presa
+
+          <div className="card" style={{ padding: 12 }}>
+            <MoveList moves={moveRows} />
+          </div>
         </div>
-      )}
+      </div>
+      {phase === 'over' && result?.outcome === 'win' && <Confetti />}
     </div>
   )
 }

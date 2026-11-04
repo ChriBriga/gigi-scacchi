@@ -1,9 +1,11 @@
 import { useSyncExternalStore } from 'react'
 import type { Tone } from './coach/lines'
+import type { ThemeId } from './themes'
 
 export type DangerMode = 'off' | 'threats' | 'full'
 
 export interface Settings {
+  theme: ThemeId
   tone: Tone
   danger: DangerMode
   sound: boolean
@@ -50,7 +52,7 @@ export const todayStr = () => new Date().toLocaleDateString('sv-SE')
 const emptyDay = (): DayLog => ({ day: todayStr(), lesson: false, puzzles: 0, game: false })
 
 const defaults = (): AppState => ({
-  settings: { tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true },
+  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true },
   progress: {
     placementDone: false,
     skill: 10,

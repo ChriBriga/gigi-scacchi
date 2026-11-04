@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type PieceSymbol, type Square } from 'chess.js'
+import { ArrowLeft, ArrowRight, Check, Lightbulb, PuzzlePiece } from '@phosphor-icons/react'
 import { Board } from '../components/Board'
+import { Confetti } from '../components/GameParts'
+import { ThemeIcon } from '../components/icons'
 import { CoachBubble } from '../components/CoachBubble'
 import puzzlesData from '../data/puzzles.json'
 import { parseUci } from '../chess/util'
@@ -18,12 +21,12 @@ export interface Puzzle {
 
 export const PUZZLES = puzzlesData as Puzzle[]
 
-export const THEME_INFO: Record<Puzzle['theme'], { name: string; emoji: string; difficulty: number; tip: string }> = {
-  mate1: { name: 'Matto in 1', emoji: '👑', difficulty: 1, tip: 'Trova la mossa che dà scacco matto.' },
-  free: { name: 'Pezzo gratis', emoji: '🎁', difficulty: 1, tip: 'C’è un pezzo avversario che puoi prendere in vantaggio. Trovalo.' },
-  fork: { name: 'Forchetta', emoji: '🍴', difficulty: 2, tip: 'Una mossa attacca due pezzi insieme. Trovala.' },
-  mate2: { name: 'Matto in 2', emoji: '🪜', difficulty: 2, tip: 'Matto in due mosse: la prima è forzante, l’avversario risponde, poi dai matto.' },
-  tactic: { name: 'Vinci materiale', emoji: '💎', difficulty: 3, tip: 'C’è una mossa che vince materiale. Cerca scacchi, catture e attacchi doppi.' },
+export const THEME_INFO: Record<Puzzle['theme'], { name: string; difficulty: number; tip: string }> = {
+  mate1: { name: 'Matto in 1', difficulty: 1, tip: 'Trova la mossa che dà scacco matto.' },
+  free: { name: 'Pezzo gratis', difficulty: 1, tip: 'C’è un pezzo avversario che puoi prendere in vantaggio. Trovalo.' },
+  fork: { name: 'Forchetta', difficulty: 2, tip: 'Una mossa attacca due pezzi insieme. Trovala.' },
+  mate2: { name: 'Matto in 2', difficulty: 2, tip: 'Matto in due mosse: la prima è forzante, l’avversario risponde, poi dai matto.' },
+  tactic: { name: 'Vinci materiale', difficulty: 3, tip: 'C’è una mossa che vince materiale. Cerca scacchi, catture e attacchi doppi.' },
 }
 
 /** Sceglie il prossimo puzzle: dà più peso ai temi in cui sbagli di più e a quelli adatti al tuo livello. */
@@ -217,23 +220,48 @@ export function PuzzleRunner({
   return (
     <div className="screen">
       <div className="topbar">
-        <button className="ghost" onClick={onExit}>← Esci</button>
-        <div className="opp">
-          {THEME_INFO[puzzle.theme].emoji} {title ?? THEME_INFO[puzzle.theme].name}
-          {total !== undefined && <span className="thinking"> {i + 1}/{total}</span>}
-        </div>
-      </div>
-      <Board fen={fen} orientation={turn} movable={solved ? null : turn} onMove={onMove} lastMove={lastMove} hint={hintInfo} shake={shake} />
-      <CoachBubble text={coach.text} mood={coach.mood}>
-        <div className="row">
-          {!solved && <button className="btn" onClick={hint}>💡 Aiuto</button>}
-          {solved && (
-            <button className="btn primary" onClick={goNext}>
-              {total !== undefined && i + 1 >= total ? 'Finito ✔' : 'Prossimo →'}
-            </button>
+        <button className="ghost" onClick={onExit}>
+          <ArrowLeft size={20} weight="bold" /> Esci
+        </button>
+        <div className="title">
+          <ThemeIcon id={puzzle.theme} size={24} /> {title ?? THEME_INFO[puzzle.theme].name}
+          {total !== undefined && (
+            <span className="chip-count">
+              {i + 1}/{total}
+            </span>
           )}
         </div>
-      </CoachBubble>
+      </div>
+      <div className="game-shell">
+        <div className="game-main">
+          <Board fen={fen} orientation={turn} movable={solved ? null : turn} onMove={onMove} lastMove={lastMove} hint={hintInfo} shake={shake} />
+        </div>
+        <div className="game-side">
+          <CoachBubble text={coach.text} mood={coach.mood}>
+            <div className="row">
+              {!solved && (
+                <button className="btn" onClick={hint}>
+                  <Lightbulb size={18} weight="fill" /> Aiuto
+                </button>
+              )}
+              {solved && (
+                <button className="btn primary" onClick={goNext}>
+                  {total !== undefined && i + 1 >= total ? (
+                    <>
+                      Finito <Check size={18} weight="bold" />
+                    </>
+                  ) : (
+                    <>
+                      Prossimo <ArrowRight size={18} weight="bold" />
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </CoachBubble>
+        </div>
+      </div>
+      {solved && total !== undefined && i + 1 >= total && <Confetti />}
     </div>
   )
 }
@@ -255,22 +283,30 @@ export function Puzzles({ onExit }: { onExit: () => void }) {
   return (
     <div className="screen">
       <h2>Puzzle</h2>
-      <p className="muted">Trovare la mossa giusta in pochi secondi: l’allenamento più veloce che esista.</p>
-      <button className="btn primary big" onClick={() => setStarted(true)}>🧩 Inizia ad allenarti</button>
-      <div className="card">
+      <p className="sub">Trovare la mossa giusta in pochi secondi: l’allenamento più veloce che esista.</p>
+      <button className="btn primary big" style={{ maxWidth: 460 }} onClick={() => setStarted(true)}>
+        <PuzzlePiece size={24} weight="fill" /> Inizia ad allenarti
+      </button>
+      <div className="card" style={{ maxWidth: 640 }}>
         <h3>I tuoi temi</h3>
         {(Object.keys(THEME_INFO) as Puzzle['theme'][]).map((t) => {
           const st = stats[t] ?? { ok: 0, fail: 0 }
           const tot = st.ok + st.fail
           return (
             <div className="theme-row" key={t}>
-              <span>{THEME_INFO[t].emoji} {THEME_INFO[t].name}</span>
-              <span className="muted">{tot ? `${Math.round((st.ok / tot) * 100)}% al primo colpo` : 'da provare'}</span>
+              <span className="t">
+                <ThemeIcon id={t} size={24} /> {THEME_INFO[t].name}
+              </span>
+              <span className="muted" style={{ margin: 0 }}>
+                {tot ? `${Math.round((st.ok / tot) * 100)}% al primo colpo` : 'da provare'}
+              </span>
             </div>
           )
         })}
       </div>
-      <button className="ghost" onClick={onExit}>Torna alla home</button>
+      <button className="ghost" onClick={onExit}>
+        <ArrowLeft size={18} weight="bold" /> Torna alla home
+      </button>
     </div>
   )
 }

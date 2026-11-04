@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import type { Color } from 'chess.js'
+import { Checkerboard } from '@phosphor-icons/react'
 import { PUZZLES, PuzzleRunner, THEME_INFO, type Puzzle, type PuzzleResult } from './Puzzles'
 import { CoachBubble } from '../components/CoachBubble'
+import { BotAvatar } from '../components/BotAvatar'
 import { BOTS, type Bot } from '../engine/bots'
 import { update } from '../store'
 
@@ -37,12 +39,23 @@ export function PlacementTest({ onExit, startGame }: { onExit: () => void; start
           ? 'Non male! Hai già un po’ d’occhio. Ti metto un livello adatto.'
           : 'Ma allora sai qualcosa! Parti già da un buon livello.'
     return (
-      <div className="screen">
+      <div className="screen" style={{ maxWidth: 640 }}>
         <h2>Test completato</h2>
-        <CoachBubble text={`${text} Hai risolto ${result.score}/${PLAN.length} al primo colpo.`} mood={result.score >= 3 ? 'happy' : 'cool'} />
-        <p className="muted">Ora una partita di prova contro {result.bot.name} {result.bot.emoji}, giusto per rodare.</p>
-        <button className="btn primary big" onClick={() => startGame(result.bot, 'w')}>♟️ Gioca contro {result.bot.name}</button>
-        <button className="btn big" onClick={onExit}>Più tardi</button>
+        <div className="hero">
+          <CoachBubble text={`${text} Hai risolto ${result.score}/${PLAN.length} al primo colpo.`} mood={result.score >= 3 ? 'happy' : 'cool'} size={96} />
+        </div>
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <BotAvatar id={result.bot.id} size={60} />
+          <p className="muted" style={{ margin: 0 }}>
+            Ora una partita di prova contro <b style={{ color: 'var(--ink)' }}>{result.bot.name}</b>, giusto per rodare.
+          </p>
+        </div>
+        <button className="btn primary big" onClick={() => startGame(result.bot, 'w')}>
+          <Checkerboard size={24} weight="fill" /> Gioca contro {result.bot.name}
+        </button>
+        <button className="btn big" onClick={onExit}>
+          Più tardi
+        </button>
       </div>
     )
   }

@@ -1,9 +1,13 @@
 import type { Color } from 'chess.js'
+import { BookOpen, CaretRight, Check, Fire, Lightning, Medal, PuzzlePiece, Star } from '@phosphor-icons/react'
 import { CoachBubble } from '../components/CoachBubble'
+import { BotAvatar } from '../components/BotAvatar'
+import { LessonIcon } from '../components/icons'
 import { BOTS, type Bot } from '../engine/bots'
 import { LESSONS, type Lesson } from '../data/lessons'
 import { levelName, useApp } from '../store'
 import { nextLesson } from './Learn'
+import type { Tab } from '../App'
 
 const DAILY_PUZZLES = 5
 
@@ -31,53 +35,113 @@ export function Home({
   onPuzzles: () => void
   onTest: () => void
   startGame: (b: Bot, c: Color) => void
-  go: (tab: 'play') => void
+  go: (tab: Tab) => void
 }) {
   const { progress, settings } = useApp()
-  const rec = BOTS[Math.max(0, Math.min(7, Math.round(progress.skill / 12)))]
+  const recId = Math.max(0, Math.min(7, Math.round(progress.skill / 12)))
+  const rec = BOTS[recId]
   const next = nextLesson(progress.lessonsDone)
   const t = progress.today
-  const lessonDone = t.lesson
-  const lesson = next ?? LESSONS[Math.floor(Math.random() * LESSONS.length)]
+  const lesson = next ?? LESSONS[Math.floor(progress.xp) % LESSONS.length]
   const puzzleCount = Math.min(t.puzzles, DAILY_PUZZLES)
+  const doneToday = [t.lesson, puzzleCount >= DAILY_PUZZLES, t.game].filter(Boolean).length
 
   return (
     <div className="screen">
-      <div className="stats">
-        <div className="stat">🔥 <b>{progress.streak}</b> {progress.streak === 1 ? 'giorno' : 'giorni'}</div>
-        <div className="stat">⭐ <b>{Math.round(progress.xp)}</b> XP</div>
-        <div className="stat">🎖️ {levelName(progress.skill)}</div>
+      <div className="hero">
+        <CoachBubble text={greeting(settings.tone, progress.streak, progress.placementDone)} mood="cool" size={96} />
       </div>
 
-      <CoachBubble text={greeting(settings.tone, progress.streak, progress.placementDone)} mood="cool" size={80} />
-
       {!progress.placementDone && (
-        <button className="btn primary big" onClick={onTest}>⚡ Fai il test iniziale (2 minuti)</button>
+        <button className="btn primary big" onClick={onTest}>
+          <Lightning size={24} weight="fill" /> Fai il test iniziale (2 minuti)
+        </button>
       )}
 
-      <h3 className="plan-title">Piano di oggi</h3>
-      <button className={`plan-card${lessonDone ? ' done' : ''}`} onClick={() => onLesson(lesson)}>
-        <span className="plan-ico">{lessonDone ? '✅' : lesson.emoji}</span>
-        <span className="plan-info">
-          <strong>{next ? 'Lezione' : 'Ripasso'}: {lesson.title}</strong>
-          <small>1-2 minuti · {lesson.blurb}</small>
-        </span>
-      </button>
-      <button className={`plan-card${puzzleCount >= DAILY_PUZZLES ? ' done' : ''}`} onClick={onPuzzles}>
-        <span className="plan-ico">{puzzleCount >= DAILY_PUZZLES ? '✅' : '🧩'}</span>
-        <span className="plan-info">
-          <strong>{DAILY_PUZZLES} puzzle</strong>
-          <small>{puzzleCount}/{DAILY_PUZZLES} · scelti sui tuoi punti deboli</small>
-        </span>
-      </button>
-      <button className={`plan-card${t.game ? ' done' : ''}`} onClick={() => startGame(rec, 'w')}>
-        <span className="plan-ico">{t.game ? '✅' : rec.emoji}</span>
-        <span className="plan-info">
-          <strong>Una partita contro {rec.name}</strong>
-          <small>Con coach e mappa del pericolo</small>
-        </span>
-      </button>
-      <button className="ghost" onClick={() => go('play')}>Scegli un altro avversario →</button>
+      <div className="home-grid">
+        <div className="screen">
+          <h3 className="plan-title">Piano di oggi · {doneToday}/3</h3>
+          <div className="plan-list">
+            <button className={`plan-card${t.lesson ? ' done' : ''}`} onClick={() => onLesson(lesson)}>
+              <span className={`tile${t.lesson ? ' done' : ''}`}>{t.lesson ? <Check size={28} weight="bold" /> : <LessonIcon id={lesson.id} size={28} />}</span>
+              <span className="plan-info">
+                <strong>
+                  {next ? 'Lezione' : 'Ripasso'}: {lesson.title}
+                </strong>
+                <small>1-2 minuti · {lesson.blurb}</small>
+              </span>
+              <CaretRight className="go" size={20} weight="bold" />
+            </button>
+            <button className={`plan-card${puzzleCount >= DAILY_PUZZLES ? ' done' : ''}`} onClick={onPuzzles}>
+              <span className={`tile${puzzleCount >= DAILY_PUZZLES ? ' done' : ''}`}>
+                {puzzleCount >= DAILY_PUZZLES ? <Check size={28} weight="bold" /> : <PuzzlePiece size={28} weight="duotone" />}
+              </span>
+              <span className="plan-info">
+                <strong>{DAILY_PUZZLES} puzzle</strong>
+                <small>
+                  {puzzleCount}/{DAILY_PUZZLES} · scelti sui tuoi punti deboli
+                </small>
+              </span>
+              <CaretRight className="go" size={20} weight="bold" />
+            </button>
+            <button className={`plan-card${t.game ? ' done' : ''}`} onClick={() => startGame(rec, 'w')}>
+              {t.game ? (
+                <span className="tile done">
+                  <Check size={28} weight="bold" />
+                </span>
+              ) : (
+                <BotAvatar id={rec.id} size={52} />
+              )}
+              <span className="plan-info">
+                <strong>Una partita contro {rec.name}</strong>
+                <small>Con coach e mappa del pericolo</small>
+              </span>
+              <CaretRight className="go" size={20} weight="bold" />
+            </button>
+          </div>
+          <button className="ghost" onClick={() => go('play')}>
+            Scegli un altro avversario <CaretRight size={16} weight="bold" />
+          </button>
+        </div>
+
+        <div className="screen">
+          <div className="card level-card">
+            <div className="level-head">
+              <span className="tile">
+                <Medal size={26} weight="duotone" />
+              </span>
+              <div>
+                <strong>{levelName(progress.skill)}</strong>
+                <small>Il tuo livello</small>
+              </div>
+            </div>
+            <div className="bar" aria-label="Progresso di livello">
+              <i style={{ width: `${Math.max(4, progress.skill)}%` }} />
+            </div>
+            <div className="stats">
+              <div className="stat">
+                <Fire size={18} weight="fill" /> <b>{progress.streak}</b> {progress.streak === 1 ? 'giorno' : 'giorni'}
+              </div>
+              <div className="stat">
+                <Star size={18} weight="fill" /> <b>{Math.round(progress.xp)}</b> XP
+              </div>
+              <div className="stat">
+                <BookOpen size={18} weight="fill" /> <b>{progress.lessonsDone.length}</b>/{LESSONS.length} lezioni
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <h3>Avversari battuti</h3>
+            <div className="mini-bots">
+              {BOTS.map((b) => (
+                <span key={b.id} title={b.name} className={progress.botsBeaten.includes(b.id) ? '' : 'locked'}>
+                  <BotAvatar id={b.id} size={38} />
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -4,7 +4,6 @@ import { UciEngine } from './uci'
 export interface Bot {
   id: number
   name: string
-  emoji: string
   tagline: string
   depth: number
   multipv: number
@@ -16,14 +15,14 @@ export interface Bot {
 }
 
 export const BOTS: Bot[] = [
-  { id: 1, name: 'Pedone Pigro', emoji: '🐌', tagline: 'Muove a caso e si dimentica pure cosa sta facendo.', depth: 1, multipv: 6, temp: 500, randomChance: 0.4, movetime: 100 },
-  { id: 2, name: 'Nonna Gertrude', emoji: '👵', tagline: 'Dolce, ma ti frega con la torta e col matto.', depth: 1, multipv: 5, temp: 260, randomChance: 0.18, movetime: 100 },
-  { id: 3, name: 'Tony il Cavallo', emoji: '🐴', tagline: 'Salta ovunque. A volte ha pure un piano.', depth: 2, multipv: 5, temp: 170, randomChance: 0.07, movetime: 150 },
-  { id: 4, name: 'Alfiere Ale', emoji: '😎', tagline: 'Diagonale per vocazione, prudente per sbaglio.', depth: 3, multipv: 4, temp: 110, randomChance: 0.03, movetime: 200 },
-  { id: 5, name: 'Torre di Controllo', emoji: '🏰', tagline: 'Pochi errori, tanta pazienza.', depth: 5, multipv: 4, temp: 65, randomChance: 0, movetime: 300 },
-  { id: 6, name: 'Lady Matta', emoji: '🔥', tagline: 'Attacca sempre. Se la fermi, ti sorride.', depth: 8, multipv: 3, temp: 38, randomChance: 0, movetime: 500 },
-  { id: 7, name: 'Il Professore', emoji: '🎓', tagline: 'Ha letto tutti i libri. Anche quelli che non esistono.', depth: 11, multipv: 3, temp: 20, randomChance: 0, movetime: 800 },
-  { id: 8, name: 'Re Stoccafisso', emoji: '👑', tagline: 'Il boss finale. Non fa regali.', depth: 14, multipv: 2, temp: 8, randomChance: 0, movetime: 1200 },
+  { id: 1, name: 'Pedone Pigro', tagline: 'Muove a caso e si dimentica pure cosa sta facendo.', depth: 1, multipv: 6, temp: 500, randomChance: 0.4, movetime: 100 },
+  { id: 2, name: 'Nonna Gertrude', tagline: 'Dolce, ma ti frega con la torta e col matto.', depth: 1, multipv: 5, temp: 260, randomChance: 0.18, movetime: 100 },
+  { id: 3, name: 'Tony il Cavallo', tagline: 'Salta ovunque. A volte ha pure un piano.', depth: 2, multipv: 5, temp: 170, randomChance: 0.07, movetime: 150 },
+  { id: 4, name: 'Alfiere Ale', tagline: 'Diagonale per vocazione, prudente per sbaglio.', depth: 3, multipv: 4, temp: 110, randomChance: 0.03, movetime: 200 },
+  { id: 5, name: 'Torre di Controllo', tagline: 'Pochi errori, tanta pazienza.', depth: 5, multipv: 4, temp: 65, randomChance: 0, movetime: 300 },
+  { id: 6, name: 'Lady Matta', tagline: 'Attacca sempre. Se la fermi, ti sorride.', depth: 8, multipv: 3, temp: 38, randomChance: 0, movetime: 500 },
+  { id: 7, name: 'Il Professore', tagline: 'Ha letto tutti i libri. Anche quelli che non esistono.', depth: 11, multipv: 3, temp: 20, randomChance: 0, movetime: 800 },
+  { id: 8, name: 'Re Stoccafisso', tagline: 'Il boss finale. Non fa regali.', depth: 14, multipv: 2, temp: 8, randomChance: 0, movetime: 1200 },
 ]
 
 let botEngine: UciEngine | null = null
