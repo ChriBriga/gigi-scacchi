@@ -1,0 +1,276 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Chess, type PieceSymbol, type Square } from 'chess.js'
+import { Board } from '../components/Board'
+import { CoachBubble } from '../components/CoachBubble'
+import puzzlesData from '../data/puzzles.json'
+import { parseUci } from '../chess/util'
+import { EVENT_MOOD, pieceWithArticle, sayLine, type CoachEvent, type Mood } from '../coach/lines'
+import { addXp, getState, nudgeSkill, touchDay, update, useApp, type Progress } from '../store'
+import { sfx } from '../sound'
+
+export interface Puzzle {
+  id: string
+  fen: string
+  theme: 'mate1' | 'mate2' | 'free' | 'fork' | 'tactic'
+  moves: string[]
+  mates?: string[]
+}
+
+export const PUZZLES = puzzlesData as Puzzle[]
+
+export const THEME_INFO: Record<Puzzle['theme'], { name: string; emoji: string; difficulty: number; tip: string }> = {
+  mate1: { name: 'Matto in 1', emoji: '👑', difficulty: 1, tip: 'Trova la mossa che dà scacco matto.' },
+  free: { name: 'Pezzo gratis', emoji: '🎁', difficulty: 1, tip: 'C’è un pezzo avversario che puoi prendere in vantaggio. Trovalo.' },
+  fork: { name: 'Forchetta', emoji: '🍴', difficulty: 2, tip: 'Una mossa attacca due pezzi insieme. Trovala.' },
+  mate2: { name: 'Matto in 2', emoji: '🪜', difficulty: 2, tip: 'Matto in due mosse: la prima è forzante, l’avversario risponde, poi dai matto.' },
+  tactic: { name: 'Vinci materiale', emoji: '💎', difficulty: 3, tip: 'C’è una mossa che vince materiale. Cerca scacchi, catture e attacchi doppi.' },
+}
+
+/** Sceglie il prossimo puzzle: dà più peso ai temi in cui sbagli di più e a quelli adatti al tuo livello. */
+export function pickPuzzle(p: Progress, exclude: string[] = [], themes?: Puzzle['theme'][]): Puzzle {
+  let pool = PUZZLES.filter((x) => (!themes || themes.includes(x.theme)) && !exclude.includes(x.id))
+  const unseen = pool.filter((x) => !p.puzzleSeen.includes(x.id))
+  if (unseen.length) pool = unseen
+  else if (pool.length === 0) pool = PUZZLES
+  const weights = pool.map((x) => {
+    const st = p.puzzleStats[x.theme] ?? { ok: 0, fail: 0 }
+    const weak = st.fail / (st.ok + st.fail + 1)
+    const d = THEME_INFO[x.theme].difficulty
+    const fit = d > 1 + p.skill / 35 ? 0.2 : 1
+    return (1 + weak * 2) * fit
+  })
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0)
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i]
+    if (r <= 0) return pool[i]
+  }
+  return pool[0]
+}
+
+export interface PuzzleResult {
+  id: string
+  theme: Puzzle['theme']
+  firstTry: boolean
+}
+
+export function PuzzleRunner({
+  next,
+  total,
+  onFinish,
+  onExit,
+  title,
+}: {
+  next: (i: number, results: PuzzleResult[]) => Puzzle | null
+  total?: number
+  onFinish: (results: PuzzleResult[]) => void
+  onExit: () => void
+  title?: string
+}) {
+  const app = useApp()
+  const tone = app.settings.tone
+  const [i, setI] = useState(0)
+  const results = useRef<PuzzleResult[]>([])
+  const [puzzle, setPuzzle] = useState<Puzzle | null>(() => next(0, []))
+
+  const [fen, setFen] = useState(puzzle?.fen ?? '')
+  const [ply, setPly] = useState(0)
+  const [solved, setSolved] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [hintLevel, setHintLevel] = useState(0)
+  const [shake, setShake] = useState(false)
+  const [coach, setCoach] = useState<{ text: string; mood: Mood }>({ text: puzzle ? THEME_INFO[puzzle.theme].tip : '', mood: 'cool' })
+  const [lastMove, setLastMove] = useState<[Square, Square] | null>(null)
+  const game = useRef<Chess | null>(puzzle ? new Chess(puzzle.fen) : null)
+
+  useEffect(() => {
+    if (!puzzle) return
+    setFen(puzzle.fen)
+    setPly(0)
+    setSolved(false)
+    setFailed(false)
+    setHintLevel(0)
+    setLastMove(null)
+    setCoach({ text: THEME_INFO[puzzle.theme].tip, mood: 'cool' })
+    game.current = new Chess(puzzle.fen)
+  }, [puzzle])
+
+  const say = (e: CoachEvent) => setCoach({ text: sayLine(e, tone), mood: EVENT_MOOD[e] })
+  const turn = useMemo(() => (puzzle?.fen.split(' ')[1] === 'b' ? 'b' : 'w') as 'w' | 'b', [puzzle])
+
+  if (!puzzle) {
+    return (
+      <div className="screen">
+        <h2>Non ci sono puzzle</h2>
+        <button className="btn" onClick={onExit}>Indietro</button>
+      </div>
+    )
+  }
+
+  const markSeen = (ok: boolean) =>
+    update((s) => {
+      const p = s.progress
+      touchDay(p)
+      if (!p.puzzleSeen.includes(puzzle.id)) p.puzzleSeen.push(puzzle.id)
+      if (p.puzzleSeen.length >= PUZZLES.length) p.puzzleSeen = []
+      const st = (p.puzzleStats[puzzle.theme] ??= { ok: 0, fail: 0 })
+      if (ok) st.ok += 1
+      else st.fail += 1
+    })
+
+  const onMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
+    const g = game.current!
+    if (solved) return
+    const uci = from + to + (promotion ?? '')
+    const trial = new Chess(g.fen())
+    try {
+      trial.move({ from, to, promotion })
+    } catch {
+      return
+    }
+    const expected = puzzle.moves[ply]
+    const isLast = ply >= puzzle.moves.length - 1
+    const correct = uci === expected || (isLast && trial.isCheckmate()) || (puzzle.theme === 'mate1' && puzzle.mates?.includes(uci)) || uci.startsWith(expected) && expected.length === 4 && uci.length === 5
+
+    if (!correct) {
+      sfx.bad()
+      setShake(true)
+      setTimeout(() => setShake(false), 450)
+      say('puzzleFail')
+      if (!failed) {
+        setFailed(true)
+        markSeen(false)
+        nudgeSkill(-0.4)
+      }
+      return
+    }
+
+    g.move({ from, to, promotion })
+    setFen(g.fen())
+    setLastMove([from, to])
+    setHintLevel(0)
+
+    if (isLast) {
+      sfx.good()
+      setSolved(true)
+      say('puzzleOk')
+      if (!failed) {
+        markSeen(true)
+        nudgeSkill(THEME_INFO[puzzle.theme].difficulty * 0.5)
+      }
+      update((s) => {
+        s.progress.puzzlesSolved += 1
+        s.progress.today.puzzles += 1
+      })
+      addXp(failed ? 3 : 8)
+      results.current = [...results.current, { id: puzzle.id, theme: puzzle.theme, firstTry: !failed }]
+      return
+    }
+    // risposta dell'avversario e poi tocca di nuovo a te
+    sfx.move()
+    const reply = puzzle.moves[ply + 1]
+    setCoach({ text: 'Bene! Continua così…', mood: 'happy' })
+    setTimeout(() => {
+      const r = parseUci(reply)
+      g.move({ from: r.from, to: r.to, promotion: r.promotion })
+      setFen(g.fen())
+      setLastMove([r.from, r.to])
+      sfx.move()
+    }, 450)
+    setPly(ply + 2)
+  }
+
+  const hint = async () => {
+    const expected = puzzle.moves[ply]
+    const level = Math.min(hintLevel + 1, 2)
+    setHintLevel(level)
+    const g = game.current!
+    const piece = g.get(expected.slice(0, 2) as Square)
+    if (level === 1) setCoach({ text: `Indizio: muovi ${piece ? pieceWithArticle(piece.type) : 'un pezzo'} (evidenziato).`, mood: 'neutral' })
+    else setCoach({ text: 'Ecco la mossa! La prossima volta la vedi da solo.', mood: 'cool' })
+    if (!failed) {
+      setFailed(true)
+      markSeen(false)
+    }
+  }
+
+  const goNext = () => {
+    const nextI = i + 1
+    if (total !== undefined && nextI >= total) {
+      onFinish(results.current)
+      return
+    }
+    const p = next(nextI, results.current)
+    if (!p) {
+      onFinish(results.current)
+      return
+    }
+    setI(nextI)
+    setPuzzle(p)
+  }
+
+  const expectedMove = puzzle.moves[ply]
+  const hintInfo =
+    hintLevel >= 1
+      ? { from: expectedMove.slice(0, 2) as Square, to: hintLevel >= 2 ? (expectedMove.slice(2, 4) as Square) : undefined }
+      : null
+
+  return (
+    <div className="screen">
+      <div className="topbar">
+        <button className="ghost" onClick={onExit}>← Esci</button>
+        <div className="opp">
+          {THEME_INFO[puzzle.theme].emoji} {title ?? THEME_INFO[puzzle.theme].name}
+          {total !== undefined && <span className="thinking"> {i + 1}/{total}</span>}
+        </div>
+      </div>
+      <Board fen={fen} orientation={turn} movable={solved ? null : turn} onMove={onMove} lastMove={lastMove} hint={hintInfo} shake={shake} />
+      <CoachBubble text={coach.text} mood={coach.mood}>
+        <div className="row">
+          {!solved && <button className="btn" onClick={hint}>💡 Aiuto</button>}
+          {solved && (
+            <button className="btn primary" onClick={goNext}>
+              {total !== undefined && i + 1 >= total ? 'Finito ✔' : 'Prossimo →'}
+            </button>
+          )}
+        </div>
+      </CoachBubble>
+    </div>
+  )
+}
+
+export function Puzzles({ onExit }: { onExit: () => void }) {
+  const { progress } = useApp()
+  const [started, setStarted] = useState(false)
+  const stats = progress.puzzleStats
+
+  if (started) {
+    return (
+      <PuzzleRunner
+        next={(_, res) => pickPuzzle(getState().progress, res.map((r) => r.id))}
+        onFinish={() => setStarted(false)}
+        onExit={() => setStarted(false)}
+      />
+    )
+  }
+  return (
+    <div className="screen">
+      <h2>Puzzle</h2>
+      <p className="muted">Trovare la mossa giusta in pochi secondi: l’allenamento più veloce che esista.</p>
+      <button className="btn primary big" onClick={() => setStarted(true)}>🧩 Inizia ad allenarti</button>
+      <div className="card">
+        <h3>I tuoi temi</h3>
+        {(Object.keys(THEME_INFO) as Puzzle['theme'][]).map((t) => {
+          const st = stats[t] ?? { ok: 0, fail: 0 }
+          const tot = st.ok + st.fail
+          return (
+            <div className="theme-row" key={t}>
+              <span>{THEME_INFO[t].emoji} {THEME_INFO[t].name}</span>
+              <span className="muted">{tot ? `${Math.round((st.ok / tot) * 100)}% al primo colpo` : 'da provare'}</span>
+            </div>
+          )
+        })}
+      </div>
+      <button className="ghost" onClick={onExit}>Torna alla home</button>
+    </div>
+  )
+}
