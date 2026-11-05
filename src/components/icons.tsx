@@ -16,6 +16,10 @@ import {
   Stairs,
   Gift,
   Diamond,
+  Sparkle,
+  ShieldCheck,
+  Skull,
+  FlagCheckered,
   Smiley,
   Pepper,
   SmileyAngry,
@@ -46,6 +50,13 @@ export const THEME_ICON: Record<string, Icon> = {
   free: Gift,
   fork: ForkKnife,
   tactic: Diamond,
+  backrank: CastleTurret,
+  matepat: Skull,
+  pin: PushPin,
+  skewer: Lightning,
+  discover: Sparkle,
+  defend: ShieldCheck,
+  endgame: FlagCheckered,
 }
 
 export const TONE_ICON = { gentle: Smiley, spicy: Pepper, ruthless: SmileyAngry }

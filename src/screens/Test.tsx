@@ -10,9 +10,13 @@ import { update } from '../store'
 /** Test iniziale: 5 puzzle a difficoltà crescente per stimare il livello di partenza. */
 const PLAN = [1, 1, 2, 2, 3]
 
+/** il test usa solo i temi di base: i temi nuovi (inchiodatura, finali…) sono per dopo */
+const BASE_THEMES: Puzzle['theme'][] = ['mate1', 'mate2', 'free', 'fork', 'tactic']
+const BASE = PUZZLES.filter((p) => BASE_THEMES.includes(p.theme))
+
 function pickByDifficulty(d: number, used: string[]): Puzzle | null {
-  const pool = PUZZLES.filter((p) => THEME_INFO[p.theme].difficulty === d && !used.includes(p.id))
-  const any = pool.length ? pool : PUZZLES.filter((p) => !used.includes(p.id))
+  const pool = BASE.filter((p) => THEME_INFO[p.theme].difficulty === d && !used.includes(p.id))
+  const any = pool.length ? pool : BASE.filter((p) => !used.includes(p.id))
   return any.length ? any[Math.floor(Math.random() * any.length)] : null
 }
 

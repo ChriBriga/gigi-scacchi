@@ -14,12 +14,19 @@ import { sfx } from '../sound'
 export interface Puzzle {
   id: string
   fen: string
-  theme: 'mate1' | 'mate2' | 'free' | 'fork' | 'tactic'
+  theme: 'mate1' | 'mate2' | 'free' | 'fork' | 'tactic' | 'backrank' | 'matepat' | 'pin' | 'skewer' | 'discover' | 'defend' | 'endgame'
   moves: string[]
   mates?: string[]
+  /** altre prime mosse che valgono quasi quanto la soluzione: l'app le accetta */
+  alts?: string[]
+  /** (difesa) la mossa con cui l'avversario ti minacciava: si mostra a puzzle risolto */
+  threat?: string
+  /** (schemi di matto) quale schema: smother | arabian | kiss */
+  kind?: string
 }
 
 export const PUZZLES = puzzlesData as Puzzle[]
+const PUZZLE_IDS = new Set(PUZZLES.map((x) => x.id))
 
 export const THEME_INFO: Record<Puzzle['theme'], { name: string; difficulty: number; tip: string }> = {
   mate1: { name: 'Matto in 1', difficulty: 1, tip: 'Trova la mossa che dà scacco matto.' },
@@ -27,7 +34,30 @@ export const THEME_INFO: Record<Puzzle['theme'], { name: string; difficulty: num
   fork: { name: 'Forchetta', difficulty: 2, tip: 'Una mossa attacca due pezzi insieme. Trovala.' },
   mate2: { name: 'Matto in 2', difficulty: 2, tip: 'Matto in due mosse: la prima è forzante, l’avversario risponde, poi dai matto.' },
   tactic: { name: 'Vinci materiale', difficulty: 3, tip: 'C’è una mossa che vince materiale. Cerca scacchi, catture e attacchi doppi.' },
+  backrank: { name: 'Matto di corridoio', difficulty: 2, tip: 'Il re è chiuso dai suoi stessi pedoni sull’ultima riga: trova il matto.' },
+  pin: { name: 'Inchiodatura', difficulty: 2, tip: 'Un pezzo avversario non può muoversi senza scoprirne uno più prezioso. Sfruttalo!' },
+  defend: { name: 'Difendi!', difficulty: 2, tip: 'L’avversario minaccia qualcosa di grosso. Trova la mossa che lo ferma.' },
+  matepat: { name: 'Schemi di matto', difficulty: 3, tip: 'Riconosci lo schema? Trova il matto.' },
+  skewer: { name: 'Infilata', difficulty: 3, tip: 'Attacca un pezzo di valore con un altro dietro di lui: quando si sposta, prendi quello.' },
+  discover: { name: 'Attacco scoperto', difficulty: 3, tip: 'Sposta un pezzo e fai partire l’attacco di quello che gli stava dietro.' },
+  endgame: { name: 'Finale', difficulty: 3, tip: 'Finale semplice: una sola mossa vince, le altre pareggiano.' },
 }
+
+/** Una riga di spiegazione dopo la soluzione, per fissare l'idea. */
+const NOTE: Partial<Record<Puzzle['theme'], string>> = {
+  backrank: 'Matto di corridoio: i pedoni davanti al re gli tolgono ogni via di fuga.',
+  pin: 'Inchiodatura: il pezzo davanti non poteva muoversi.',
+  skewer: 'Infilata: il pezzo di valore ha dovuto spostarsi e quello dietro è caduto.',
+  discover: 'Attacco scoperto: due minacce in una mossa sola.',
+  defend: 'La freccia rossa era la minaccia: l’hai fermata.',
+  endgame: 'Una sola mossa vinceva: tutte le altre pareggiavano.',
+}
+const KIND_NOTE: Record<string, string> = {
+  smother: 'Matto soffocato: il re è chiuso dai suoi stessi pezzi e il cavallo fa il resto.',
+  arabian: 'Matto arabo: torre e cavallo, il re è bloccato nell’angolo.',
+  kiss: 'Bacio della morte: la donna dà matto accanto al re, protetta da un altro pezzo.',
+}
+const noteFor = (p: Puzzle): string => (p.theme === 'matepat' ? (KIND_NOTE[p.kind ?? ''] ?? '') : (NOTE[p.theme] ?? ''))
 
 /** Sceglie il prossimo puzzle: dà più peso ai temi in cui sbagli di più e a quelli adatti al tuo livello. */
 export function pickPuzzle(p: Progress, exclude: string[] = [], themes?: Puzzle['theme'][]): Puzzle {
@@ -39,7 +69,7 @@ export function pickPuzzle(p: Progress, exclude: string[] = [], themes?: Puzzle[
     const st = p.puzzleStats[x.theme] ?? { ok: 0, fail: 0 }
     const weak = st.fail / (st.ok + st.fail + 1)
     const d = THEME_INFO[x.theme].difficulty
-    const fit = d > 1 + p.skill / 35 ? 0.2 : 1
+    const fit = d > 1 + p.skill / 35 ? 0.45 : 1
     return (1 + weak * 2) * fit
   })
   let r = Math.random() * weights.reduce((a, b) => a + b, 0)
@@ -114,6 +144,8 @@ export function PuzzleRunner({
       const p = s.progress
       touchDay(p)
       if (!p.puzzleSeen.includes(puzzle.id)) p.puzzleSeen.push(puzzle.id)
+      // i puzzle tolti dall'elenco non contano più fra quelli visti
+      p.puzzleSeen = p.puzzleSeen.filter((id) => PUZZLE_IDS.has(id))
       if (p.puzzleSeen.length >= PUZZLES.length) {
         p.puzzleSeen = []
         p.puzzleCycle = (p.puzzleCycle ?? 0) + 1
@@ -135,7 +167,7 @@ export function PuzzleRunner({
     }
     const expected = puzzle.moves[ply]
     const isLast = ply >= puzzle.moves.length - 1
-    const correct = uci === expected || (isLast && trial.isCheckmate()) || (puzzle.theme === 'mate1' && puzzle.mates?.includes(uci)) || uci.startsWith(expected) && expected.length === 4 && uci.length === 5
+    const correct = uci === expected || (isLast && trial.isCheckmate()) || (puzzle.theme === 'mate1' && puzzle.mates?.includes(uci)) || (ply === 0 && !!puzzle.alts?.includes(uci)) || (uci.startsWith(expected) && expected.length === 4 && uci.length === 5)
 
     if (!correct) {
       sfx.bad()
@@ -159,6 +191,8 @@ export function PuzzleRunner({
       sfx.good()
       setSolved(true)
       say('puzzleOk')
+      const note = noteFor(puzzle)
+      if (note) setCoach((c) => ({ ...c, text: `${c.text} ${note}` }))
       if (!failed) {
         markSeen(true)
         nudgeSkill(THEME_INFO[puzzle.theme].difficulty * 0.5)
@@ -237,7 +271,7 @@ export function PuzzleRunner({
       </div>
       <div className="game-shell">
         <div className="game-main">
-          <Board fen={fen} orientation={turn} movable={solved ? null : turn} onMove={onMove} lastMove={lastMove} hint={hintInfo} shake={shake} />
+          <Board fen={fen} orientation={turn} movable={solved ? null : turn} onMove={onMove} lastMove={lastMove} hint={hintInfo} shake={shake} arrows={solved && puzzle.threat ? [[puzzle.threat.slice(0, 2) as Square, puzzle.threat.slice(2, 4) as Square, '#ff5a36']] : undefined} />
         </div>
         <div className="game-side">
           <CoachBubble text={coach.text} mood={coach.mood}>

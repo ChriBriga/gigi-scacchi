@@ -25,3 +25,5 @@ dist-ssr
 
 .gen.log
 .claude/settings.local.json
+
+scripts/.shard*
