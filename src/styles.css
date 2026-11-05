@@ -1122,11 +1122,14 @@ main {
 }
 .piece {
   position: absolute;
+  left: 0;
+  top: 0;
   width: 12.5%;
   height: 12.5%;
   background-size: 100% 100%;
   background-repeat: no-repeat;
-  transition: left var(--mv, 0.2s) cubic-bezier(0.3, 1, 0.4, 1), top var(--mv, 0.2s) cubic-bezier(0.3, 1, 0.4, 1);
+  /* la posizione è la proprietà `translate` (in % del pezzo = una casa), così lo spostamento non fa ricalcolare il layout */
+  transition: translate var(--mv, 0.2s) cubic-bezier(0.3, 1, 0.4, 1);
   z-index: 3;
   pointer-events: none;
   filter: drop-shadow(0 3px 2px rgba(20, 8, 50, 0.45));
@@ -2625,4 +2628,85 @@ main {
   font-weight: 600;
   font-size: 0.95rem;
   line-height: 1.35;
+}
+
+/* =========================================================
+   Livelli degli effetti (vedi src/perf.ts): data-fx = low | mid | high
+   Leggero: niente ombre pesanti, blur e animazioni infinite (resta solo l'ammiccare).
+   ========================================================= */
+html[data-fx='low'] .piece,
+html[data-fx='low'] .pigeon,
+html[data-fx='low'] .piece.dragging {
+  filter: none;
+}
+html[data-fx='low'] .tabs,
+html[data-fx='low'] .review-overlay {
+  backdrop-filter: none;
+}
+html[data-fx='low'] .tabs {
+  background: var(--bg-b);
+}
+html[data-fx='low'] .review-overlay {
+  background: rgba(8, 3, 20, 0.92);
+}
+html[data-fx='low'] .danger-ring {
+  box-shadow: none;
+}
+html[data-fx='low'] .hero-gigi::before,
+html[data-fx='low'] .hero-big[data-tod='night']::after {
+  animation: none;
+}
+html[data-fx='low'] .pigeon,
+html[data-fx='low'] .pigeon * {
+  animation: none !important;
+}
+html[data-fx='low'] .pigeon .pg-eye {
+  animation: pg-blink 5.2s infinite !important;
+}
+/* anteprime (guardaroba, coach, espressioni): ferme finché non le tocchi, tranne nel livello Spettacolare */
+html:not([data-fx='high']) .pigeon.still,
+html:not([data-fx='high']) .pigeon.still * {
+  animation: none !important;
+}
+
+/* schermata che si sta caricando (schermate a richiesta): un attimo di vuoto, senza saltare */
+.screen-loading {
+  min-height: 60vh;
+}
+
+/* selettore a 4 voci (Effetti): su telefono i bottoni vanno a capo invece di uscire dal riquadro */
+.seg.seg4 {
+  flex-wrap: wrap;
+}
+.seg.seg4 button {
+  flex: 1 1 auto;
+  padding: 9px 8px;
+  font-size: 0.92rem;
+}
+
+/* Guardaroba: scelta del coach da vestire */
+.wd-coaches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0 12px;
+}
+.wd-coach {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 5px;
+  border-radius: 99px;
+  border: 2px solid var(--line);
+  background: var(--surface-2, rgba(255, 255, 255, 0.05));
+  color: inherit;
+  font-family: 'Fredoka Variable', sans-serif;
+  font-weight: 500;
+}
+.wd-coach.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.wd-coach.locked {
+  opacity: 0.55;
 }

@@ -180,9 +180,10 @@ export function Board(props: BoardProps) {
         {sprites.map((p) => {
           const { col, row } = toView(p.square)
           const dragging = drag?.moved && drag.sq === p.square
+          // i pezzi si spostano con `translate` (compositor) e non con left/top (ricalcolo del layout a ogni frame)
           const style: React.CSSProperties = dragging
-            ? { left: `${(drag!.x / (boardRef.current?.clientWidth ?? 1)) * 100 - 6.25}%`, top: `${(drag!.y / (boardRef.current?.clientHeight ?? 1)) * 100 - 6.25}%` }
-            : { left: `${col * 12.5}%`, top: `${row * 12.5}%` }
+            ? { translate: `${((drag!.x / (boardRef.current?.clientWidth ?? 1)) * 8 - 0.5) * 100}% ${((drag!.y / (boardRef.current?.clientHeight ?? 1)) * 8 - 0.5) * 100}%` }
+            : { translate: `${col * 100}% ${row * 100}%` }
           return (
             <div
               key={p.id}
@@ -198,7 +199,7 @@ export function Board(props: BoardProps) {
             <div
               key={`ghost-${g.id}`}
               className="piece ghost"
-              style={{ ...posStyle({ col, row }), backgroundImage: `url(${PIECE_URL(g.color, g.type)})` }}
+              style={{ translate: `${col * 100}% ${row * 100}%`, backgroundImage: `url(${PIECE_URL(g.color, g.type)})` }}
             />
           )
         })}

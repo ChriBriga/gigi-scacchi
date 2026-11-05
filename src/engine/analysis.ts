@@ -1,5 +1,7 @@
 import { Chess, type Color } from 'chess.js'
 import { UciEngine, type PvLine } from './uci'
+import { getBotEngine } from './bots'
+import { fxTier } from '../perf'
 import { materialFor, opposite, parseUci } from '../chess/util'
 
 export type Quality = 'brilliant' | 'best' | 'great' | 'good' | 'inaccuracy' | 'mistake' | 'blunder'
@@ -16,8 +18,22 @@ export const QUALITY_INFO: Record<Quality, { label: string; icon: string; color:
 
 let engine: UciEngine | null = null
 function getEngine(): UciEngine {
+  // sui dispositivi deboli bot e giudizio dividono lo stesso motore (una sola copia in memoria, le ricerche vanno in fila)
+  if (fxTier() === 'low') return getBotEngine()
   if (!engine) engine = new UciEngine()
   return engine
+}
+
+/** Quanto a fondo (e per quanto tempo al massimo) il motore giudica una posizione, secondo il livello degli effetti. */
+function evalBudget(): { depth: number; movetime: number } {
+  switch (fxTier()) {
+    case 'low':
+      return { depth: 9, movetime: 600 }
+    case 'mid':
+      return { depth: 11, movetime: 800 }
+    default:
+      return { depth: 12, movetime: 900 }
+  }
 }
 
 export interface Evaluation {
@@ -30,12 +46,14 @@ export interface Evaluation {
 
 const cache = new Map<string, Promise<Evaluation>>()
 
-export function evaluate(fen: string, depth = 12): Promise<Evaluation> {
-  const key = `${fen}|${depth}`
+export function evaluate(fen: string, depth?: number): Promise<Evaluation> {
+  const budget = evalBudget()
+  const d = depth ?? budget.depth
+  const key = `${fen}|${d}`
   let p = cache.get(key)
   if (!p) {
     p = getEngine()
-      .search(fen, { depth, movetime: 900 })
+      .search(fen, { depth: d, movetime: budget.movetime })
       .then((r) => {
         const l: PvLine | undefined = r.lines[0]
         return { cp: l?.cp ?? 0, mate: l?.mate, best: l?.pv[0] ?? (r.bestmove === '(none)' ? undefined : r.bestmove), pv: l?.pv ?? [] }

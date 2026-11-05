@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Chess, type Color, type PieceSymbol } from 'chess.js'
 import { VALUE } from '../chess/util'
 import { QUALITY_INFO, type Quality } from '../engine/analysis'
+import { fxTier } from '../perf'
 
 const START_COUNT: Record<string, number> = { p: 8, n: 2, b: 2, r: 2, q: 1 }
 const ORDER: PieceSymbol[] = ['q', 'r', 'b', 'n', 'p']
@@ -123,7 +124,7 @@ const COLORS = ['#ffd23f', '#ff6fb5', '#3fe0d0', '#9b7cff', '#7ed957', '#ff8a3d'
 export function Confetti() {
   const bits = useMemo(
     () =>
-      Array.from({ length: 46 }, (_, i) => ({
+      Array.from({ length: fxTier() === 'low' ? 16 : 46 }, (_, i) => ({
         left: Math.random() * 100,
         delay: Math.random() * 0.6,
         dur: 1.8 + Math.random() * 1.6,

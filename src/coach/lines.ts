@@ -1,9 +1,6 @@
 import { GIGI } from './voices/gigi'
-import { GABBIANO } from './voices/gabbiano'
-import { GUFO } from './voices/gufo'
-import { GALLINA } from './voices/gallina'
 import type { CoachId } from './coaches'
-import { currentCoach } from '../store'
+import { currentCoach, subscribe } from '../store'
 
 export type Tone = 'gentle' | 'spicy' | 'ruthless'
 
@@ -171,12 +168,33 @@ function pick(key: string, pool: string[]): string {
   return pool[idx]
 }
 
-/** Le voci dei coach: Gigi ha tutto, gli altri solo gli eventi scritti per loro (il resto ripiega su Gigi). */
-const VOICES: Record<CoachId, Partial<Voice>> = { gigi: GIGI, gabbiano: GABBIANO, gufo: GUFO, gallina: GALLINA }
+/**
+ * Le voci dei coach: Gigi ha tutto ed è sempre pronto; gli altri si caricano a richiesta (sono file a parte)
+ * e hanno solo gli eventi scritti per loro: il resto ripiega su Gigi.
+ */
+const VOICES: Partial<Record<CoachId, Partial<Voice>>> = { gigi: GIGI }
+const LOADERS: Record<Exclude<CoachId, 'gigi'>, () => Promise<Partial<Voice>>> = {
+  gabbiano: () => import('./voices/gabbiano').then((m) => m.GABBIANO),
+  gufo: () => import('./voices/gufo').then((m) => m.GUFO),
+  gallina: () => import('./voices/gallina').then((m) => m.GALLINA),
+}
+
+/** Carica la voce di un coach (se serve). Fino ad allora si usano le battute di Gigi. */
+export async function ensureVoice(id: CoachId): Promise<void> {
+  if (VOICES[id] || id === 'gigi') return
+  try {
+    VOICES[id] = await LOADERS[id]()
+  } catch {
+    /* offline e non in cache: si resta con Gigi */
+  }
+}
+
+// se il coach cambia (anche dalla sincronizzazione), la sua voce viene caricata
+subscribe(() => void ensureVoice(currentCoach()))
 
 export function sayLine(event: CoachEvent, tone: Tone, vars: LineVars = {}): string {
   const coach = currentCoach()
-  const pool = VOICES[coach][event]?.[tone] ?? GIGI[event]?.[tone] ?? []
+  const pool = VOICES[coach]?.[event]?.[tone] ?? GIGI[event]?.[tone] ?? []
   const line = pick(`${coach}:${event}:${tone}`, pool)
   const the = vars.piece ? pieceWithArticle(vars.piece) : 'il pezzo'
   return line

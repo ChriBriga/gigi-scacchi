@@ -7,9 +7,8 @@ import { BotAvatar } from '../components/BotAvatar'
 import { LessonIcon } from '../components/icons'
 import { pickGreeting } from '../coach/greeting'
 import { BOTS, recommendedBot, type Bot } from '../engine/bots'
-import { LESSONS, type Lesson } from '../data/lessons'
+import { LESSONS, nextLesson, type Lesson } from '../data/lessons'
 import { currentStreak, dueNotebook, levelName, useApp } from '../store'
-import { nextLesson } from './Learn'
 import type { Tab } from '../App'
 
 const DAILY_PUZZLES = 5

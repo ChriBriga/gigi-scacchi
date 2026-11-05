@@ -317,3 +317,8 @@ export const LESSONS: Lesson[] = [
 ]
 
 export const LESSON_ORDER = LESSONS.map((l) => l.id)
+
+/** La prima lezione non ancora fatta. */
+export function nextLesson(done: string[]): Lesson | undefined {
+  return LESSONS.find((l) => !done.includes(l.id))
+}

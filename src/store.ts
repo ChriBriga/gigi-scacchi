@@ -18,6 +18,8 @@ export interface Settings {
   liveJudging: boolean
   /** accessori indossati da Gigi */
   outfit: Outfit
+  /** accessori degli altri coach (Gigi usa `outfit`) */
+  outfits: Partial<Record<CoachId, Outfit>>
   /** nome mostrato nel profilo (vuoto = quello dell'account Google) */
   nickname: string
   /** avatar scelto: 'gigi', 'google', 'piece:wN', 'bot:3', 'coach:gufo' */
@@ -96,7 +98,7 @@ export interface Progress {
 }
 
 /** Impostazioni che viaggiano con la sincronizzazione (la chiave Gemini no, resta solo sul dispositivo). */
-export type SyncedSettings = Pick<Settings, 'theme' | 'tone' | 'danger' | 'sound' | 'liveJudging' | 'outfit' | 'nickname' | 'avatar' | 'coach'>
+export type SyncedSettings = Pick<Settings, 'theme' | 'tone' | 'danger' | 'sound' | 'liveJudging' | 'outfit' | 'outfits' | 'nickname' | 'avatar' | 'coach'>
 export const pickSynced = (s: Settings): SyncedSettings => ({
   theme: s.theme,
   tone: s.tone,
@@ -104,6 +106,7 @@ export const pickSynced = (s: Settings): SyncedSettings => ({
   sound: s.sound,
   liveJudging: s.liveJudging,
   outfit: s.outfit,
+  outfits: s.outfits ?? {},
   nickname: s.nickname,
   avatar: s.avatar,
   coach: s.coach,
@@ -124,7 +127,7 @@ export const todayStr = () => new Date().toLocaleDateString('sv-SE')
 const emptyDay = (): DayLog => ({ day: todayStr(), lesson: false, puzzles: 0, game: false })
 
 const defaults = (): AppState => ({
-  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {}, nickname: '', avatar: 'gigi', coach: 'gigi' },
+  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {}, outfits: {}, nickname: '', avatar: 'gigi', coach: 'gigi' },
   progress: {
     placementDone: false,
     skill: 10,
@@ -203,6 +206,20 @@ export function useApp(): AppState {
       return () => listeners.delete(cb)
     },
     () => state,
+  )
+}
+
+/**
+ * Come useApp, ma ridisegna il componente solo quando cambia il valore scelto.
+ * Il selettore deve restituire un valore semplice (stringa, numero, booleano): non un oggetto nuovo a ogni chiamata.
+ */
+export function useAppSelector<T extends string | number | boolean | undefined>(select: (s: AppState) => T): T {
+  return useSyncExternalStore(
+    (cb) => {
+      listeners.add(cb)
+      return () => listeners.delete(cb)
+    },
+    () => select(state),
   )
 }
 

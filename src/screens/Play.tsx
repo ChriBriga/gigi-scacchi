@@ -15,6 +15,7 @@ import { explainWithGemini } from '../coach/gemini'
 import { coachInfo } from '../coach/coaches'
 import { addToNotebook, addXp, bumpMistake, currentCoach, getState, nudgeSkill, rememberGame, touchDay, update, useApp, type DangerMode, type NotebookDraft } from '../store'
 import { sfx } from '../sound'
+import { watchFrames } from '../perf'
 
 interface MoveRec {
   san: string
@@ -94,8 +95,11 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
 
   useEffect(() => {
     alive.current = true
+    // se il dispositivo fatica anche con la scacchiera in movimento, il livello automatico degli effetti scende
+    const t = window.setTimeout(() => watchFrames(4000), 2500)
     return () => {
       alive.current = false
+      clearTimeout(t)
     }
   }, [])
 

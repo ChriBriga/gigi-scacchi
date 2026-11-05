@@ -1,20 +1,24 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import type { Color } from 'chess.js'
 import { BookOpen, Checkerboard, Fire, Gear, House, PuzzlePiece, Star, type Icon } from '@phosphor-icons/react'
-import { Play } from './screens/Play'
-import { PlaySetup } from './screens/PlaySetup'
-import { Settings } from './screens/Settings'
 import { Home } from './screens/Home'
-import { Learn, LessonPlayer } from './screens/Learn'
-import { PuzzleRunner, Puzzles, pickPuzzle } from './screens/Puzzles'
-import { PlacementTest } from './screens/Test'
-import { NotebookSession } from './screens/Notebook'
 import { Logo } from './components/Logo'
 import { Avatar, useProfile } from './components/Avatar'
 import type { Bot } from './engine/bots'
 import type { Lesson } from './data/lessons'
-import { currentStreak, getState, levelName, useApp } from './store'
+import { currentStreak, levelName, useApp } from './store'
 import { THEMES } from './themes'
+
+// le schermate pesanti si caricano solo quando servono (la Home e la barra restano subito pronte)
+const Play = lazy(() => import('./screens/Play').then((m) => ({ default: m.Play })))
+const PlaySetup = lazy(() => import('./screens/PlaySetup').then((m) => ({ default: m.PlaySetup })))
+const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })))
+const Learn = lazy(() => import('./screens/Learn').then((m) => ({ default: m.Learn })))
+const LessonPlayer = lazy(() => import('./screens/Learn').then((m) => ({ default: m.LessonPlayer })))
+const Puzzles = lazy(() => import('./screens/Puzzles').then((m) => ({ default: m.Puzzles })))
+const DailyPuzzles = lazy(() => import('./screens/DailyPuzzles').then((m) => ({ default: m.DailyPuzzles })))
+const PlacementTest = lazy(() => import('./screens/Test').then((m) => ({ default: m.PlacementTest })))
+const NotebookSession = lazy(() => import('./screens/Notebook').then((m) => ({ default: m.NotebookSession })))
 
 export type Tab = 'home' | 'play' | 'puzzles' | 'learn' | 'settings'
 
@@ -58,17 +62,7 @@ export function App() {
   let narrow = false
   if (overlay?.kind === 'game') content = <Play key={overlay.key} bot={overlay.bot} color={overlay.color} onExit={close} />
   else if (overlay?.kind === 'lesson') content = <LessonPlayer key={overlay.lesson.id} lesson={overlay.lesson} onExit={close} />
-  else if (overlay?.kind === 'puzzles5')
-    content = (
-      <PuzzleRunner
-        key={overlay.key}
-        total={5}
-        title="Puzzle del giorno"
-        next={(_, res) => pickPuzzle(getState().progress, res.map((r) => r.id))}
-        onFinish={close}
-        onExit={close}
-      />
-    )
+  else if (overlay?.kind === 'puzzles5') content = <DailyPuzzles key={overlay.key} onClose={close} />
   else if (overlay?.kind === 'test') content = <PlacementTest onExit={close} startGame={startGame} />
   else if (overlay?.kind === 'notebook') content = <NotebookSession onExit={close} />
   else if (tab === 'home')
@@ -122,7 +116,9 @@ export function App() {
       </aside>
 
       <main>
-        <div className={`page${narrow ? ' narrow' : ''}`}>{content}</div>
+        <div className={`page${narrow ? ' narrow' : ''}`}>
+          <Suspense fallback={<div className="screen-loading" aria-label="Carico…" />}>{content}</Suspense>
+        </div>
       </main>
 
       <nav className="tabs">

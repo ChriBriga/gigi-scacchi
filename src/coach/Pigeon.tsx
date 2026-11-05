@@ -1,7 +1,7 @@
-import { useId } from 'react'
+import { memo, useId, useMemo } from 'react'
 import type { Mood } from './lines'
-import { useApp } from '../store'
-import type { Outfit } from './outfits'
+import { useAppSelector } from '../store'
+import { DEFAULT_CROWN, outfitOf, validOutfit, type Outfit } from './outfits'
 import { activeCoach, type CoachId } from './coaches'
 
 const CROWN: Record<string, { top: string; mid: string; bottom: string; edge: string }> = {
@@ -120,27 +120,53 @@ const SPECIES: Record<CoachId, Species> = {
   },
 }
 
+/** Varianti di copricapo degli altri coach (la struttura è la stessa, cambiano i colori). */
+const PIRATE_HAT: Record<string, { fill: string; edge: string; trim: string }> = {
+  tricorno: { fill: '#232338', edge: '#0b0b14', trim: '#ffcf3a' },
+  'tricorno-rosso': { fill: '#b3123a', edge: '#5e0a21', trim: '#ffe08a' },
+  'tricorno-blu': { fill: '#1f3f8a', edge: '#0f2257', trim: '#ffd23f' },
+  'tricorno-oro': { fill: '#e9b02a', edge: '#8a5a0a', trim: '#fff3b0' },
+}
+const GRAD_CAP: Record<string, { top: string; band: string; edge: string; tassel: string }> = {
+  tocco: { top: '#2c3570', band: '#232a5a', edge: '#141a3c', tassel: '#ffcf3a' },
+  'tocco-nero': { top: '#34343f', band: '#24242d', edge: '#0d0d12', tassel: '#ffcf3a' },
+  'tocco-bordeaux': { top: '#8a2f4a', band: '#6b2038', edge: '#3d0f20', tassel: '#ffcf3a' },
+  'tocco-oro': { top: '#e0ac2a', band: '#c2891a', edge: '#7a5008', tassel: '#7a2342' },
+}
+const CREST: Record<string, { top: string; bottom: string; edge: string }> = {
+  cresta: { top: '#ff6a7c', bottom: '#d12a42', edge: '#a3162b' },
+  'cresta-rosa': { top: '#ffc0dc', bottom: '#f56fa6', edge: '#b8366b' },
+  'cresta-gialla': { top: '#fff0a0', bottom: '#f5b82e', edge: '#b8760e' },
+}
+
 /**
  * I coach (Gigi il piccione, Capitan Gabbiano, Professor Gufo, Nonna Gallina): mascotte in SVG con
  * espressioni, accessori e animazioni idle. Le animazioni sono in CSS (classi pg-*), così costano pochissimo.
  */
-export function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach }: { mood?: Mood; size?: number; outfit?: Outfit; view?: string; coach?: CoachId }) {
+export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach, still }: { mood?: Mood; size?: number; outfit?: Outfit; view?: string; coach?: CoachId; still?: boolean }) {
   const uid = useId().replace(/:/g, '')
   const id = (n: string) => `${n}-${uid}`
   const url = (n: string) => `url(#${id(n)})`
-  const app = useApp()
-  const who: CoachId = coach ?? activeCoach(app.settings, app.progress)
+  // si ridisegna solo se cambia il coach attivo o l'abbigliamento, non a ogni salvataggio dei progressi
+  const activeId = useAppSelector((s) => activeCoach(s.settings, s.progress))
+  const who: CoachId = coach ?? activeId
+  const outfitKey = useAppSelector((s) => JSON.stringify(outfitOf(s.settings, coach ?? activeCoach(s.settings, s.progress))))
+  const savedOutfit = useMemo<Outfit>(() => JSON.parse(outfitKey) as Outfit, [outfitKey])
   const S = SPECIES[who]
-  // il guardaroba è di Gigi: gli altri coach hanno già il loro look
-  const worn: Outfit = who === 'gigi' ? (outfit ?? app.settings.outfit ?? {}) : (outfit ?? {})
+  // ogni coach ha il suo guardaroba; ciò che non esiste (più) per quel coach si ignora e si vede il look di serie
+  const worn: Outfit = validOutfit(who, outfit ?? savedOutfit)
+  const hat = worn.crown ?? DEFAULT_CROWN[who]
 
   const open = mood === 'happy' || mood === 'shocked'
-  const crown = CROWN[worn.crown ?? 'oro'] ?? CROWN.oro
+  const crown = CROWN[hat] ?? CROWN.oro
+  const pirate = PIRATE_HAT[hat] ?? PIRATE_HAT.tricorno
+  const cap = GRAD_CAP[hat] ?? GRAD_CAP.tocco
+  const crest = CREST[hat] ?? CREST.cresta
   const headT = S.headScale === 1 ? undefined : `translate(80 86) scale(${S.headScale}) translate(-80 -86)`
   const cheek = mood === 'happy' ? 0.7 : mood === 'sad' ? 0.15 : mood === 'smug' ? 0.55 : 0.4
 
   return (
-    <svg key={`${who}-${mood}`} className={`pigeon mood-${mood} coach-${who}`} width={size} height={size} viewBox={view ?? '0 0 160 160'} aria-hidden="true">
+    <svg key={`${who}-${mood}`} className={`pigeon mood-${mood} coach-${who}${still ? ' still' : ''}`} width={size} height={size} viewBox={view ?? '0 0 160 160'} aria-hidden="true">
       <defs>
         <linearGradient id={id('body')} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={S.body[0]} />
@@ -184,6 +210,10 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach }: { m
         <linearGradient id={id('comb')} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#ff6a7c" />
           <stop offset="1" stopColor="#d12a42" />
+        </linearGradient>
+        <linearGradient id={id('crest')} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={crest.top} />
+          <stop offset="1" stopColor={crest.bottom} />
         </linearGradient>
         <radialGradient id={id('glow')} cx=".5" cy=".5" r=".5">
           <stop offset="0" stopColor="#fff" stopOpacity=".34" />
@@ -306,8 +336,7 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach }: { m
 
             {/* occhi */}
             <Eyes mood={mood} p={S} />
-            {worn.face && who === 'gigi' && mood !== 'cool' && <FaceItem item={worn.face} />}
-            {who === 'gufo' && mood !== 'cool' && <FaceItem item="tondi" />}
+            {mood !== 'cool' && (worn.face ? <FaceItem item={worn.face} /> : who === 'gufo' ? <FaceItem item="tondi" /> : null)}
 
             {/* bargigli della gallina */}
             {who === 'gallina' && <path d="M75 76 Q80 98 85 76 Z" fill={url('comb')} stroke="#a3162b" strokeWidth="1.2" strokeLinejoin="round" />}
@@ -344,10 +373,15 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach }: { m
           </g>
 
           {/* accessori del collo: quelli di Gigi dal guardaroba, per gli altri il loro segno distintivo */}
-          {who === 'gigi' && worn.neck && <NeckItem item={worn.neck} />}
-          {who === 'gabbiano' && <Bandana />}
-          {who === 'gufo' && <BowTie />}
-          {who === 'gallina' && <Pearls />}
+          {worn.neck ? (
+            <NeckItem item={worn.neck} />
+          ) : (
+            <>
+              {who === 'gabbiano' && <Bandana />}
+              {who === 'gufo' && <BowTie />}
+              {who === 'gallina' && <Pearls />}
+            </>
+          )}
           {worn.back === 'zainetto' && (
             <g fill="none" strokeLinecap="round">
               <path d="M58 84 Q52 112 55 138" stroke="#9b1744" strokeWidth="6" />
@@ -358,7 +392,7 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach }: { m
           )}
         </g>
 
-        {who === 'gigi' && worn.extra && <ExtraItem item={worn.extra} gold={url('gold')} />}
+        {worn.extra && <ExtraItem item={worn.extra} gold={url('gold')} />}
 
         {/* copricapo: Gigi ha la corona da regina (stretta e alta, come il pezzo degli scacchi) */}
         <g transform={headT}>
@@ -389,30 +423,40 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach }: { m
           )}
           {who === 'gabbiano' && (
             <g className="pg-crown" strokeLinejoin="round">
-              <path d="M44 42 Q48 24 62 24 Q70 10 80 10 Q90 10 98 24 Q112 24 116 42 Q80 30 44 42 Z" fill="#232338" stroke="#0b0b14" strokeWidth="1.8" />
-              <path d="M44 42 Q80 30 116 42" fill="none" stroke="#ffcf3a" strokeWidth="2.6" strokeLinecap="round" />
+              <path d="M44 42 Q48 24 62 24 Q70 10 80 10 Q90 10 98 24 Q112 24 116 42 Q80 30 44 42 Z" fill={pirate.fill} stroke={pirate.edge} strokeWidth="1.8" />
+              <path d="M44 42 Q80 30 116 42" fill="none" stroke={pirate.trim} strokeWidth="2.6" strokeLinecap="round" />
               <circle cx="80" cy="22" r="5" fill="#fff" />
               <path d="M77 26 V28.5 H83 V26" fill="#fff" />
-              <circle cx="78" cy="21.5" r="1.3" fill="#232338" />
-              <circle cx="82" cy="21.5" r="1.3" fill="#232338" />
+              <circle cx="78" cy="21.5" r="1.3" fill={pirate.fill} />
+              <circle cx="82" cy="21.5" r="1.3" fill={pirate.fill} />
               <path d="M70 34 L90 30 M70 30 L90 34" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
               <path d="M50 30 Q34 20 38 6 Q48 14 58 26 Z" fill="#e8436a" stroke="#a3162b" strokeWidth="1.2" />
             </g>
           )}
           {who === 'gufo' && (
             <g className="pg-crown" strokeLinejoin="round">
-              <path d="M60 32 H100 V42 Q80 49 60 42 Z" fill="#232a5a" stroke="#141a3c" strokeWidth="1.4" />
-              <path d="M38 26 L80 8 L122 26 L80 42 Z" fill="#2c3570" stroke="#141a3c" strokeWidth="1.6" />
+              <path d="M60 32 H100 V42 Q80 49 60 42 Z" fill={cap.band} stroke={cap.edge} strokeWidth="1.4" />
+              <path d="M38 26 L80 8 L122 26 L80 42 Z" fill={cap.top} stroke={cap.edge} strokeWidth="1.6" />
               <path d="M80 8 L122 26 L80 42 Z" fill="#fff" opacity=".07" />
-              <circle cx="80" cy="25" r="2.8" fill="#ffcf3a" />
-              <path d="M80 25 L116 30 V46" stroke="#ffcf3a" strokeWidth="2" fill="none" strokeLinecap="round" />
-              <rect x="112.5" y="44" width="7" height="12" rx="2.4" fill="#ffcf3a" stroke="#b8760e" strokeWidth="1" />
+              <circle cx="80" cy="25" r="2.8" fill={cap.tassel} />
+              <path d="M80 25 L116 30 V46" stroke={cap.tassel} strokeWidth="2" fill="none" strokeLinecap="round" />
+              <rect x="112.5" y="44" width="7" height="12" rx="2.4" fill={cap.tassel} stroke={cap.edge} strokeWidth="1" />
             </g>
           )}
           {who === 'gallina' && (
             <g className="pg-crown" strokeLinejoin="round">
-              <path d="M62 38 C54 22 66 12 73 24 C73 6 91 6 89 24 C98 12 108 22 98 38 Z" fill={url('comb')} stroke="#a3162b" strokeWidth="1.7" />
-              <path d="M70 26 q2 -6 6 -4 M86 26 q2 -5 5 -3" stroke="#fff" strokeWidth="2" strokeLinecap="round" fill="none" opacity=".5" />
+              {hat === 'cuoca' ? (
+                <>
+                  <path d="M60 40 C46 40 42 22 56 20 C54 4 74 -2 80 10 C86 -2 106 4 104 20 C118 22 114 40 100 40 Z" fill="#fff" stroke="#c9c2d9" strokeWidth="1.6" />
+                  <path d="M58 36 H102 V44 Q80 50 58 44 Z" fill="#f1eef8" stroke="#c9c2d9" strokeWidth="1.4" />
+                  <path d="M66 14 q4 -6 9 -3 M88 12 q5 -4 9 1" stroke="#dcd7ea" strokeWidth="2" strokeLinecap="round" fill="none" />
+                </>
+              ) : (
+                <>
+                  <path d="M62 38 C54 22 66 12 73 24 C73 6 91 6 89 24 C98 12 108 22 98 38 Z" fill={url('crest')} stroke={crest.edge} strokeWidth="1.7" />
+                  <path d="M70 26 q2 -6 6 -4 M86 26 q2 -5 5 -3" stroke="#fff" strokeWidth="2" strokeLinecap="round" fill="none" opacity=".5" />
+                </>
+              )}
             </g>
           )}
         </g>
@@ -473,7 +517,7 @@ export function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach }: { m
       </g>
     </svg>
   )
-}
+})
 
 function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; lid: string } }) {
   const eyes = [67, 93]
@@ -650,6 +694,75 @@ function FairyWings() {
 }
 
 function ExtraItem({ item, gold }: { item: string; gold: string }) {
+  if (item === 'cannocchiale') {
+    return (
+      <g transform="rotate(-32 30 132)" strokeLinejoin="round">
+        <rect x="6" y="126" width="20" height="13" rx="4" fill="#8a5a2b" stroke="#4d2f12" strokeWidth="1.5" />
+        <rect x="24" y="128" width="17" height="9" rx="3" fill="#e9b02a" stroke="#8a5a0a" strokeWidth="1.5" />
+        <rect x="39" y="129.5" width="12" height="6" rx="2.4" fill="#8a5a2b" stroke="#4d2f12" strokeWidth="1.3" />
+        <ellipse cx="51" cy="132.5" rx="2" ry="3.4" fill="#bfe6ff" stroke="#4d2f12" strokeWidth="1" />
+        <path d="M9 129 H22" stroke="#fff" strokeWidth="1.4" opacity=".4" strokeLinecap="round" />
+      </g>
+    )
+  }
+  if (item === 'forziere') {
+    return (
+      <g strokeLinejoin="round">
+        <path d="M10 134 Q10 118 30 118 Q50 118 50 134 Z" fill="#a8692a" stroke="#4d2f12" strokeWidth="1.8" />
+        <rect x="10" y="134" width="40" height="17" rx="2.5" fill="#8a5a2b" stroke="#4d2f12" strokeWidth="1.8" />
+        <path d="M10 134 H50 M22 120 V151 M38 120 V151" stroke="#e9b02a" strokeWidth="3" />
+        <rect x="26" y="130" width="8" height="9" rx="2" fill="#ffcf3a" stroke="#8a5a0a" strokeWidth="1.3" />
+        <circle cx="30" cy="135" r="1.3" fill="#4d2f12" />
+        <g fill="#ffcf3a" stroke="#b8760e" strokeWidth="1">
+          <circle cx="54" cy="150" r="3" />
+          <circle cx="60" cy="146" r="2.4" />
+        </g>
+      </g>
+    )
+  }
+  if (item === 'libro') {
+    return (
+      <g strokeLinejoin="round">
+        <rect x="10" y="120" width="38" height="30" rx="3" fill="#7a2342" stroke="#3d0f20" strokeWidth="1.8" />
+        <rect x="14" y="123" width="31" height="24" rx="2" fill="#8f2f50" />
+        <path d="M10 146 H48" stroke="#f6e8cc" strokeWidth="3" />
+        <path d="M19 130 H40 M21 136 H38" stroke="#ffcf3a" strokeWidth="2.2" strokeLinecap="round" />
+        <rect x="42" y="120" width="4.5" height="30" fill="#e9b02a" opacity=".85" />
+      </g>
+    )
+  }
+  if (item === 'pergamena') {
+    return (
+      <g strokeLinejoin="round">
+        <path d="M14 124 H46 V146 H14 Z" fill="#f6e3b4" stroke="#a87a3a" strokeWidth="1.6" />
+        <rect x="9" y="121" width="9" height="28" rx="4.5" fill="#e8cf94" stroke="#a87a3a" strokeWidth="1.6" />
+        <rect x="42" y="121" width="9" height="28" rx="4.5" fill="#e8cf94" stroke="#a87a3a" strokeWidth="1.6" />
+        <path d="M21 131 H40 M21 136 H37 M21 141 H40" stroke="#8a6a32" strokeWidth="1.8" strokeLinecap="round" />
+        <circle cx="38" cy="142" r="3" fill="#c0392b" />
+      </g>
+    )
+  }
+  if (item === 'mestolo') {
+    return (
+      <g strokeLinejoin="round" strokeLinecap="round">
+        <path d="M48 154 L26 116" stroke="#c98a3f" strokeWidth="5" />
+        <path d="M48 154 L26 116" stroke="#e8b46a" strokeWidth="1.6" />
+        <ellipse cx="22" cy="109" rx="12" ry="9" transform="rotate(-30 22 109)" fill="#aab4cc" stroke="#5a6684" strokeWidth="1.8" />
+        <ellipse cx="22" cy="108" rx="8" ry="5.5" transform="rotate(-30 22 108)" fill="#7e8aa8" />
+      </g>
+    )
+  }
+  if (item === 'torta') {
+    return (
+      <g strokeLinejoin="round">
+        <ellipse cx="32" cy="150" rx="26" ry="5" fill="#fff" stroke="#c9d0ee" strokeWidth="1.5" />
+        <path d="M14 132 V144 Q32 152 50 144 V132 Z" fill="#f6b6cf" stroke="#c9507a" strokeWidth="1.6" />
+        <ellipse cx="32" cy="132" rx="18" ry="6" fill="#fff6fa" stroke="#c9507a" strokeWidth="1.6" />
+        <path d="M18 136 q3 5 6 0 M26 138 q3 5 6 0 M34 138 q3 5 6 0 M42 136 q3 5 6 0" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="32" cy="127" r="3.4" fill="#e8312a" stroke="#a3162b" strokeWidth="1" />
+      </g>
+    )
+  }
   if (item === 'caffe') {
     return (
       <g>
@@ -709,6 +822,35 @@ function ExtraItem({ item, gold }: { item: string; gold: string }) {
 }
 
 function FaceItem({ item }: { item: string }) {
+  if (item === 'benda') {
+    return (
+      <g strokeLinecap="round">
+        <path d="M50 40 Q80 46 110 50" stroke="#14091f" strokeWidth="3.4" fill="none" />
+        <ellipse cx="93" cy="55" rx="12.5" ry="11.5" fill="#14091f" stroke="#3a2a55" strokeWidth="1.4" />
+        <path d="M86 50 q4 -3 9 -1" stroke="#fff" strokeWidth="1.6" opacity=".35" fill="none" />
+      </g>
+    )
+  }
+  if (item === 'mezzaluna') {
+    return (
+      <g fill="#fff" fillOpacity=".14" stroke="#e9a91c" strokeWidth="2.4" strokeLinejoin="round">
+        <path d="M54 53 H80 Q80 69 67 69 Q54 69 54 53 Z" />
+        <path d="M80 53 H106 Q106 69 93 69 Q80 69 80 53 Z" />
+        <path d="M54 53 L48 50 M106 53 L112 50" fill="none" strokeLinecap="round" />
+      </g>
+    )
+  }
+  if (item === 'nonna') {
+    return (
+      <g fill="#fff" fillOpacity=".16" stroke="#c9507a" strokeWidth="2.2">
+        <circle cx="67" cy="57" r="10.5" />
+        <circle cx="93" cy="57" r="10.5" />
+        <path d="M77.5 56 Q80 53.5 82.5 56" fill="none" />
+        <path d="M56.5 55 L50 52 M103.5 55 L110 52" fill="none" strokeLinecap="round" />
+        <path d="M50 52 Q40 70 52 88" fill="none" stroke="#e8b04a" strokeWidth="1.4" strokeDasharray="2 2.2" />
+      </g>
+    )
+  }
   if (item === 'stella') {
     return (
       <g strokeLinejoin="round">
@@ -742,6 +884,36 @@ function FaceItem({ item }: { item: string }) {
 }
 
 function NeckItem({ item }: { item: string }) {
+  if (item === 'doblone') {
+    return (
+      <g strokeLinejoin="round">
+        <path d="M58 84 Q80 110 102 84" fill="none" stroke="#7a4a1e" strokeWidth="3.4" strokeLinecap="round" />
+        <circle cx="80" cy="110" r="10" fill="#ffcf3a" stroke="#b8760e" strokeWidth="2" />
+        <circle cx="80" cy="110" r="6.4" fill="none" stroke="#e9981a" strokeWidth="1.3" />
+        <path d="M76 106 L84 114 M84 106 L76 114" stroke="#b8760e" strokeWidth="2" strokeLinecap="round" />
+      </g>
+    )
+  }
+  if (item === 'orologio') {
+    return (
+      <g strokeLinejoin="round">
+        <path d="M56 86 Q74 112 98 104" fill="none" stroke="#e9a91c" strokeWidth="2.4" strokeLinecap="round" strokeDasharray="4 2" />
+        <circle cx="101" cy="112" r="10.5" fill="#ffcf3a" stroke="#b8760e" strokeWidth="2" />
+        <circle cx="101" cy="112" r="7.4" fill="#fffdf2" stroke="#b8760e" strokeWidth="1" />
+        <path d="M101 112 V107 M101 112 L105 114" stroke="#3a2a55" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="101" cy="100.5" r="2" fill="#b8760e" />
+      </g>
+    )
+  }
+  if (item === 'scialle') {
+    return (
+      <g strokeLinejoin="round">
+        <path d="M42 100 Q80 86 118 100 L122 130 Q80 144 38 130 Z" fill="#9a6bd1" stroke="#5e3a91" strokeWidth="1.4" />
+        <path d="M44 111 Q80 126 116 111 M41 121 Q80 137 119 121" fill="none" stroke="#e9d9ff" strokeWidth="3" strokeLinecap="round" opacity=".7" />
+        <path d="M44 130 V137 M52 133 V140 M60 135 V142 M68 137 V144 M76 138 V145 M84 138 V145 M92 137 V144 M100 135 V142 M108 133 V140 M116 130 V137" stroke="#5e3a91" strokeWidth="2" strokeLinecap="round" />
+      </g>
+    )
+  }
   if (item === 'cravatta') {
     return (
       <g strokeLinejoin="round">

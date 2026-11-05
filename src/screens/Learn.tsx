@@ -5,16 +5,12 @@ import { Board } from '../components/Board'
 import { CoachBubble } from '../components/CoachBubble'
 import { Confetti } from '../components/GameParts'
 import { LessonIcon } from '../components/icons'
-import { LESSONS, type Lesson, type Step } from '../data/lessons'
+import { LESSONS, nextLesson, type Lesson, type Step } from '../data/lessons'
 import { dangerTints } from '../chess/danger'
 import { parseUci } from '../chess/util'
 import type { Mood } from '../coach/lines'
 import { addXp, touchDay, update, useApp } from '../store'
 import { sfx } from '../sound'
-
-export function nextLesson(done: string[]): Lesson | undefined {
-  return LESSONS.find((l) => !done.includes(l.id))
-}
 
 export function Learn({ onOpen }: { onOpen: (l: Lesson) => void }) {
   const { progress } = useApp()

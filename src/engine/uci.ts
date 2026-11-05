@@ -1,3 +1,5 @@
+import { fxTier } from '../perf'
+
 export interface PvLine {
   multipv: number
   depth: number
@@ -107,7 +109,8 @@ export class UciEngine {
     const uciok = this.waitFor('uciok', INIT_TIMEOUT)
     this.worker.postMessage('uci')
     await uciok
-    this.worker.postMessage('setoption name Hash value 16')
+    // meno memoria sui dispositivi deboli
+    this.worker.postMessage(`setoption name Hash value ${fxTier() === 'low' ? 8 : 16}`)
     const readyok = this.waitFor('readyok', INIT_TIMEOUT)
     this.worker.postMessage('isready')
     await readyok

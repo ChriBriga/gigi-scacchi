@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { ArrowsClockwise, ChalkboardTeacher, Check, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, Lock, PlugsConnected, Palette, Smiley, SpeakerHigh, UserCircle } from '@phosphor-icons/react'
+import { ArrowsClockwise, ChalkboardTeacher, Check, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, Lightning, Lock, PlugsConnected, Palette, Smiley, SpeakerHigh, UserCircle } from '@phosphor-icons/react'
+import { FX_LABEL, setFxPref, useFx, type FxPref } from '../perf'
 import { COACHES, activeCoach, coachInfo, coachUnlocked } from '../coach/coaches'
 import { exportCode, importCode, update, useApp, type DangerMode } from '../store'
-import type { Mood, Tone } from '../coach/lines'
+import { ensureVoice, type Mood, type Tone } from '../coach/lines'
 import { explainWithGemini, lastModelUsed } from '../coach/gemini'
 import { Pigeon } from '../coach/Pigeon'
 import { TONE_ICON } from '../components/icons'
@@ -36,6 +37,8 @@ export function Settings() {
   const [testing, setTesting] = useState(false)
   const [showKey, setShowKey] = useState(false)
   const sync = useSyncStatus()
+  const fx = useFx()
+  const [hotMood, setHotMood] = useState<Mood | null>(null)
 
   const set = <K extends keyof typeof settings>(k: K, v: (typeof settings)[K]) =>
     update((s) => {
@@ -136,6 +139,33 @@ export function Settings() {
 
       <section className="card">
         <h3>
+          <Lightning size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
+          Effetti e fluidità
+        </h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          {fx.pref === 'auto' ? `Scelto in automatico per questo dispositivo: ${FX_LABEL[fx.tier]}.` : `Hai scelto: ${FX_LABEL[fx.tier]}.`} Se l’app scatta, scegli Leggero.
+        </p>
+        <div className="seg seg4">
+          {(
+            [
+              ['auto', 'Auto'],
+              ['low', FX_LABEL.low],
+              ['mid', FX_LABEL.mid],
+              ['high', FX_LABEL.high],
+            ] as [FxPref, string][]
+          ).map(([p, l]) => (
+            <button key={p} className={fx.pref === p ? 'on' : ''} onClick={() => setFxPref(p)}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          Leggero: meno animazioni e ombre, motore più veloce. Spettacolare: tutti gli effetti. Questa scelta resta solo su questo dispositivo.
+        </p>
+      </section>
+
+      <section className="card">
+        <h3>
           <ChalkboardTeacher size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
           Il tuo coach
         </h3>
@@ -148,9 +178,9 @@ export function Settings() {
             const on = coachNow === c.id
             const have = Math.min(c.need, c.have(progress))
             return (
-              <button key={c.id} className={`coach-card${on ? ' on' : ''}${ok ? '' : ' locked'}`} disabled={!ok} onClick={() => set('coach', c.id)} title={ok ? c.name : c.how}>
+              <button key={c.id} className={`coach-card${on ? ' on' : ''}${ok ? '' : ' locked'}`} disabled={!ok} onClick={() => void ensureVoice(c.id).then(() => set('coach', c.id))} title={ok ? c.name : c.how}>
                 <span className="coach-portrait">
-                  <Pigeon mood={on ? 'happy' : 'cool'} coach={c.id} size={104} />
+                  <Pigeon mood={on ? 'happy' : 'cool'} coach={c.id} size={104} still={!on} />
                 </span>
                 <strong>{c.name}</strong>
                 {ok ? (
@@ -204,8 +234,9 @@ export function Settings() {
           </div>
           <div className="moods">
             {MOODS.map(([m, l]) => (
-              <div key={m}>
-                <Pigeon mood={m} size={80} />
+              <div key={m} onPointerEnter={() => setHotMood(m)} onPointerLeave={() => setHotMood(null)}>
+                {/* ferme finché non le tocchi: 10 piccioni animati insieme pesano sui telefoni */}
+                <Pigeon mood={m} size={80} still={hotMood !== m} />
                 {l}
               </div>
             ))}
