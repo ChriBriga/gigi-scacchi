@@ -93,6 +93,8 @@ export interface Progress {
   puzzleCycle?: number
   /** partite giocate senza ritirare nessuna mossa */
   cleanGames?: number
+  /** finali superati: id del finale -> meno mosse con cui ci sei riuscito */
+  drills?: Record<string, number>
   /** il quaderno degli errori */
   notebook?: NotebookItem[]
   /** errori del quaderno ormai imparati (servono perché la sincronizzazione non li faccia tornare) */

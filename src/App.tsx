@@ -6,12 +6,14 @@ import { Logo } from './components/Logo'
 import { Avatar, useProfile } from './components/Avatar'
 import type { Bot } from './engine/bots'
 import type { Lesson } from './data/lessons'
+import { nextDrill, type Drill } from './data/drills'
 import { currentStreak, levelName, useApp } from './store'
 import { THEMES } from './themes'
 
 // le schermate pesanti si caricano solo quando servono (la Home e la barra restano subito pronte)
 const Play = lazy(() => import('./screens/Play').then((m) => ({ default: m.Play })))
 const PlaySetup = lazy(() => import('./screens/PlaySetup').then((m) => ({ default: m.PlaySetup })))
+const DrillPlay = lazy(() => import('./screens/Drill').then((m) => ({ default: m.DrillPlay })))
 const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })))
 const Learn = lazy(() => import('./screens/Learn').then((m) => ({ default: m.Learn })))
 const LessonPlayer = lazy(() => import('./screens/Learn').then((m) => ({ default: m.LessonPlayer })))
@@ -33,6 +35,7 @@ const TABS: { id: Tab; Icon: Icon; label: string }[] = [
 type Overlay =
   | { kind: 'game'; bot: Bot; color: Color; key: number }
   | { kind: 'lesson'; lesson: Lesson }
+  | { kind: 'drill'; drill: Drill }
   | { kind: 'puzzles5'; key: number }
   | { kind: 'test' }
   | { kind: 'notebook' }
@@ -40,6 +43,7 @@ type Overlay =
 export function App() {
   const [tab, setTab] = useState<Tab>('home')
   const [overlay, setOverlay] = useState<Overlay | null>(null)
+  const [playMode, setPlayMode] = useState<'games' | 'drills'>('games')
   const { settings, progress } = useApp()
   const profile = useProfile()
   const streak = currentStreak(progress)
@@ -62,7 +66,11 @@ export function App() {
   let narrow = false
   if (overlay?.kind === 'game') content = <Play key={overlay.key} bot={overlay.bot} color={overlay.color} onExit={close} />
   else if (overlay?.kind === 'lesson') content = <LessonPlayer key={overlay.lesson.id} lesson={overlay.lesson} onExit={close} />
-  else if (overlay?.kind === 'puzzles5') content = <DailyPuzzles key={overlay.key} onClose={close} />
+  else if (overlay?.kind === 'drill') {
+    const d = overlay.drill
+    const nx = nextDrill(d.id)
+    content = <DrillPlay key={d.id} drill={d} onExit={close} onNext={nx ? () => setOverlay({ kind: 'drill', drill: nx }) : undefined} />
+  } else if (overlay?.kind === 'puzzles5') content = <DailyPuzzles key={overlay.key} onClose={close} />
   else if (overlay?.kind === 'test') content = <PlacementTest onExit={close} startGame={startGame} />
   else if (overlay?.kind === 'notebook') content = <NotebookSession onExit={close} />
   else if (tab === 'home')
@@ -72,11 +80,15 @@ export function App() {
         onPuzzles={() => setOverlay({ kind: 'puzzles5', key: Date.now() })}
         onTest={() => setOverlay({ kind: 'test' })}
         onNotebook={() => setOverlay({ kind: 'notebook' })}
+        onDrills={() => {
+          setPlayMode('drills')
+          goTab('play')
+        }}
         startGame={startGame}
         go={goTab}
       />
     )
-  else if (tab === 'play') content = <PlaySetup onStart={startGame} />
+  else if (tab === 'play') content = <PlaySetup onStart={startGame} onDrill={(d) => setOverlay({ kind: 'drill', drill: d })} mode={playMode} onMode={setPlayMode} />
   else if (tab === 'puzzles') content = <Puzzles onExit={() => setTab('home')} onNotebook={() => setOverlay({ kind: 'notebook' })} />
   else if (tab === 'learn') content = <Learn onOpen={openLesson} />
   else {

@@ -67,6 +67,8 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     puzzleSeen:
       (a.puzzleCycle ?? 0) === (b.puzzleCycle ?? 0) ? union(a.puzzleSeen, b.puzzleSeen) : (a.puzzleCycle ?? 0) > (b.puzzleCycle ?? 0) ? a.puzzleSeen : b.puzzleSeen,
     cleanGames: Math.max(a.cleanGames ?? 0, b.cleanGames ?? 0),
+    // finali superati: li unisce tutti, con il record migliore (meno mosse)
+    drills: maxByKey(a.drills, b.drills, (x, y) => Math.min(x, y)),
     ...mergeNotebook(a, b),
     gigi: mergeGigi(a.gigi, b.gigi),
     games: Math.max(a.games, b.games),

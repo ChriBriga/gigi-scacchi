@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Color } from 'chess.js'
-import { Check, Shuffle, Star, StarHalf } from '@phosphor-icons/react'
+import { Check, Crown, Handshake, Medal, Shuffle, Star, StarHalf, type Icon } from '@phosphor-icons/react'
+import { DRILLS, type Drill, type DrillGoal } from '../data/drills'
 import { BOTS, recommendedBot, starsOf, type Bot } from '../engine/bots'
 import { BotAvatar } from '../components/BotAvatar'
 import { useApp } from '../store'
@@ -9,7 +10,54 @@ function Dot({ light }: { light: boolean }) {
   return <span style={{ width: 14, height: 14, borderRadius: '50%', background: light ? '#fff' : '#1b1033', border: '2px solid #888', display: 'inline-block' }} />
 }
 
-export function PlaySetup({ onStart, suggested }: { onStart: (bot: Bot, color: Color) => void; suggested?: number }) {
+const GOAL_ICON: Record<DrillGoal, Icon> = { mate: Crown, promote: Medal, draw: Handshake }
+const LEVEL_NAME = { 1: 'Matti base', 2: 'Vantaggio e pedoni', 3: 'Per veri finalisti' } as const
+
+/** L'elenco dei finali contro il bot, con quelli già superati e il tuo record. */
+function DrillList({ onDrill }: { onDrill: (d: Drill) => void }) {
+  const { progress } = useApp()
+  const done = progress.drills ?? {}
+  return (
+    <div className="drill-list">
+      <p className="sub" style={{ margin: 0 }}>
+        Mini-partite da 2-5 minuti: parti da una posizione fissa e devi raggiungere l’obiettivo. Puoi annullare le mosse e chiedere aiuto.
+      </p>
+      {([1, 2, 3] as const).map((lvl) => (
+        <div key={lvl} style={{ display: 'contents' }}>
+          <div className="drill-level">{LEVEL_NAME[lvl]}</div>
+          {DRILLS.filter((d) => d.level === lvl).map((d) => {
+            const I = GOAL_ICON[d.goal]
+            const best = done[d.id]
+            return (
+              <button key={d.id} className={`drill-card${best ? ' done' : ''}`} onClick={() => onDrill(d)}>
+                <span className={`tile${best ? ' done' : ''}`}>{best ? <Check size={26} weight="bold" /> : <I size={26} weight="duotone" />}</span>
+                <span className="drill-info">
+                  <strong>{d.title}</strong>
+                  <small>{d.blurb}</small>
+                </span>
+                {best ? <span className="badge-pill ok">record {best}</span> : null}
+              </button>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function PlaySetup({
+  onStart,
+  onDrill,
+  mode,
+  onMode,
+  suggested,
+}: {
+  onStart: (bot: Bot, color: Color) => void
+  onDrill: (d: Drill) => void
+  mode: 'games' | 'drills'
+  onMode: (m: 'games' | 'drills') => void
+  suggested?: number
+}) {
   const app = useApp()
   const [colorPick, setColorPick] = useState<'w' | 'b' | 'r'>('w')
   const skill = app.progress.skill
@@ -18,6 +66,18 @@ export function PlaySetup({ onStart, suggested }: { onStart: (bot: Bot, color: C
 
   return (
     <div className="screen">
+      <div className="seg" style={{ maxWidth: 460 }}>
+        <button className={mode === 'games' ? 'on' : ''} onClick={() => onMode('games')}>
+          Partite
+        </button>
+        <button className={mode === 'drills' ? 'on' : ''} onClick={() => onMode('drills')}>
+          Finali ({Object.keys(app.progress.drills ?? {}).length}/{DRILLS.length})
+        </button>
+      </div>
+      {mode === 'drills' ? (
+        <DrillList onDrill={onDrill} />
+      ) : (
+        <>
       <h2>Scegli l’avversario</h2>
       <p className="sub">Parti da quello consigliato e sali di livello man mano che li batti.</p>
       <div className="seg" style={{ maxWidth: 460 }}>
@@ -61,6 +121,8 @@ export function PlaySetup({ onStart, suggested }: { onStart: (bot: Bot, color: C
           </button>
         ))}
       </div>
+        </>
+      )}
     </div>
   )
 }

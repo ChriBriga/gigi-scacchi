@@ -2293,6 +2293,69 @@ main {
   }
 }
 
+/* ---- Finali contro il bot ---- */
+.drill-goal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+}
+.drill-goal .chip {
+  background: var(--accent);
+  color: var(--accent-ink);
+  flex: none;
+}
+.drill-goal .chip.warn {
+  background: #ff8a3d;
+  color: #1b1033;
+}
+.drill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.drill-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 2px solid var(--line);
+  background: var(--surface-2, rgba(255, 255, 255, 0.05));
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.drill-card.done {
+  border-color: color-mix(in srgb, #7ed957 55%, var(--line));
+}
+.drill-card .tile {
+  flex: none;
+}
+.drill-card .drill-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.drill-card .drill-info small {
+  color: var(--muted);
+  font-weight: 600;
+}
+.drill-level {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 8px 0 -2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

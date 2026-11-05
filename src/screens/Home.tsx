@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Color } from 'chess.js'
-import { BookOpen, CaretRight, Check, Fire, Lightning, Notebook as NotebookIcon, PuzzlePiece, Star } from '@phosphor-icons/react'
+import { BookOpen, CaretRight, Check, Fire, FlagCheckered, Lightning, Notebook as NotebookIcon, PuzzlePiece, Star } from '@phosphor-icons/react'
 import { Avatar } from '../components/Avatar'
 import { Hero } from '../components/Hero'
 import { BotAvatar } from '../components/BotAvatar'
@@ -8,6 +8,7 @@ import { LessonIcon } from '../components/icons'
 import { pickGreeting } from '../coach/greeting'
 import { BOTS, recommendedBot, type Bot } from '../engine/bots'
 import { LESSONS, nextLesson, type Lesson } from '../data/lessons'
+import { DRILLS } from '../data/drills'
 import { currentStreak, dueNotebook, levelName, useApp } from '../store'
 import type { Tab } from '../App'
 
@@ -18,6 +19,7 @@ export function Home({
   onPuzzles,
   onTest,
   onNotebook,
+  onDrills,
   startGame,
   go,
 }: {
@@ -25,6 +27,7 @@ export function Home({
   onPuzzles: () => void
   onTest: () => void
   onNotebook: () => void
+  onDrills: () => void
   startGame: (b: Bot, c: Color) => void
   go: (tab: Tab) => void
 }) {
@@ -133,6 +136,18 @@ export function Home({
               </div>
             </div>
           </div>
+          <button className="plan-card" onClick={onDrills}>
+            <span className="tile">
+              <FlagCheckered size={28} weight="duotone" />
+            </span>
+            <span className="plan-info">
+              <strong>Finali contro il bot</strong>
+              <small>
+                {Object.keys(progress.drills ?? {}).length}/{DRILLS.length} superati · matti base, pedoni, Lucena
+              </small>
+            </span>
+            <CaretRight className="go" size={20} weight="bold" />
+          </button>
           <div className="card">
             <h3>Avversari battuti</h3>
             <div className="mini-bots">
