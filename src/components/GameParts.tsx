@@ -7,7 +7,10 @@ import { fxTier } from '../perf'
 const START_COUNT: Record<string, number> = { p: 8, n: 2, b: 2, r: 2, q: 1 }
 const ORDER: PieceSymbol[] = ['q', 'r', 'b', 'n', 'p']
 
-const pieceUrl = (color: Color, type: PieceSymbol) => `${import.meta.env.BASE_URL}pieces/${color}${type.toUpperCase()}.svg`
+import { pieceUrl as setPieceUrl } from '../chess/look'
+import { currentCoach, getState } from '../store'
+
+const pieceUrl = (color: Color, type: PieceSymbol) => setPieceUrl(getState().settings.pieces, color, type)
 
 /** Pezzi catturati da ciascun colore e vantaggio di materiale (positivo = bianco avanti). */
 export function captured(fen: string) {
@@ -118,19 +121,26 @@ export function MoveList({ moves }: { moves: MoveRow[] }) {
   )
 }
 
-const COLORS = ['#ffd23f', '#ff6fb5', '#3fe0d0', '#9b7cff', '#7ed957', '#ff8a3d']
+/** I coriandoli prendono i colori del coach in uso. */
+const CONFETTI_COLORS: Record<string, string[]> = {
+  gigi: ['#ffd23f', '#ff6fb5', '#3fe0d0', '#9b7cff', '#7ed957', '#ff8a3d'],
+  gabbiano: ['#e8344a', '#ffffff', '#ffcf3a', '#3f6fe0', '#ff8a3d'],
+  gufo: ['#ffcf3a', '#c2506f', '#d9b887', '#6f7fe0', '#ffffff'],
+  gallina: ['#ff9fbd', '#fff1dc', '#f2b53a', '#ff6a7c', '#7ed957'],
+}
 
 /** Coriandoli in CSS puro, montati solo per qualche secondo. */
 export function Confetti() {
+  const palette = CONFETTI_COLORS[currentCoach()] ?? CONFETTI_COLORS.gigi
   const bits = useMemo(
     () =>
-      Array.from({ length: fxTier() === 'low' ? 16 : 46 }, (_, i) => ({
+      Array.from({ length: { low: 16, mid: 46, high: 90 }[fxTier()] }, (_, i) => ({
         left: Math.random() * 100,
         delay: Math.random() * 0.6,
         dur: 1.8 + Math.random() * 1.6,
         rot: Math.random() * 360,
         size: 6 + Math.random() * 7,
-        color: COLORS[i % COLORS.length],
+        color: palette[i % palette.length],
         drift: (Math.random() - 0.5) * 120,
       })),
     [],

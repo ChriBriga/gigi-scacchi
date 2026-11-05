@@ -1,4 +1,5 @@
 import { getState } from './store'
+import { buzz } from './haptics'
 
 /**
  * Suoni sintetizzati con Web Audio (nessun file da scaricare, nessuna licenza da rispettare).
@@ -102,30 +103,39 @@ function thud(freq: number, when: number, dur = 0.3, vol = 0.18) {
 }
 
 export const sfx = {
-  move: () => knock(0, { freq: 1700 + Math.random() * 300, q: 5, dur: 0.07, vol: 0.55, body: 190 }),
+  move: () => {
+    knock(0, { freq: 1700 + Math.random() * 300, q: 5, dur: 0.07, vol: 0.55, body: 190 })
+    buzz(8)
+  },
   capture: () => {
     knock(0, { freq: 1300, q: 3.5, dur: 0.1, vol: 0.8, body: 150 })
     knock(0.045, { freq: 2100, q: 5, dur: 0.06, vol: 0.45, body: 240 })
+    buzz([18, 25, 10])
   },
   good: () => {
     chime(784, 0, 0.35, 0.1)
     chime(1175, 0.07, 0.5, 0.1)
+    buzz(12)
   },
   brilliant: () => {
     chime(659, 0, 0.4, 0.1)
     chime(880, 0.09, 0.4, 0.1)
     chime(1319, 0.18, 0.7, 0.12)
     chime(1760, 0.28, 0.8, 0.08)
+    buzz([12, 40, 12, 40, 20])
   },
   bad: () => {
     thud(196, 0, 0.28)
     thud(147, 0.14, 0.4)
+    buzz([35, 50, 35])
   },
   win: () => {
     ;[523, 659, 784, 1047].forEach((f, i) => chime(f, i * 0.11, 0.7, 0.12))
     chime(1568, 0.5, 1.1, 0.1)
+    buzz([20, 60, 20, 60, 20, 60, 40])
   },
   lose: () => {
     ;[392, 330, 262].forEach((f, i) => thud(f, i * 0.2, 0.5, 0.16))
+    buzz([60, 80, 90])
   },
 }

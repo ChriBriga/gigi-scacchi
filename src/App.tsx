@@ -117,7 +117,11 @@ export function App() {
 
       <main>
         <div className={`page${narrow ? ' narrow' : ''}`}>
-          <Suspense fallback={<div className="screen-loading" aria-label="Carico…" />}>{content}</Suspense>
+          <Suspense fallback={<div className="screen-loading" aria-label="Carico…" />}>
+            <div className="page-fx" key={overlay ? overlay.kind : tab}>
+              {content}
+            </div>
+          </Suspense>
         </div>
       </main>
 

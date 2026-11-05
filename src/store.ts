@@ -20,6 +20,12 @@ export interface Settings {
   outfit: Outfit
   /** accessori degli altri coach (Gigi usa `outfit`) */
   outfits: Partial<Record<CoachId, Outfit>>
+  /** colori della scacchiera ('tema' = quelli del tema) */
+  board: string
+  /** set di pezzi */
+  pieces: string
+  /** vibrazione sul telefono (resta sul dispositivo, non si sincronizza) */
+  haptics: boolean
   /** nome mostrato nel profilo (vuoto = quello dell'account Google) */
   nickname: string
   /** avatar scelto: 'gigi', 'google', 'piece:wN', 'bot:3', 'coach:gufo' */
@@ -98,7 +104,7 @@ export interface Progress {
 }
 
 /** Impostazioni che viaggiano con la sincronizzazione (la chiave Gemini no, resta solo sul dispositivo). */
-export type SyncedSettings = Pick<Settings, 'theme' | 'tone' | 'danger' | 'sound' | 'liveJudging' | 'outfit' | 'outfits' | 'nickname' | 'avatar' | 'coach'>
+export type SyncedSettings = Pick<Settings, 'theme' | 'tone' | 'danger' | 'sound' | 'liveJudging' | 'outfit' | 'outfits' | 'board' | 'pieces' | 'nickname' | 'avatar' | 'coach'>
 export const pickSynced = (s: Settings): SyncedSettings => ({
   theme: s.theme,
   tone: s.tone,
@@ -107,6 +113,8 @@ export const pickSynced = (s: Settings): SyncedSettings => ({
   liveJudging: s.liveJudging,
   outfit: s.outfit,
   outfits: s.outfits ?? {},
+  board: s.board,
+  pieces: s.pieces,
   nickname: s.nickname,
   avatar: s.avatar,
   coach: s.coach,
@@ -127,7 +135,7 @@ export const todayStr = () => new Date().toLocaleDateString('sv-SE')
 const emptyDay = (): DayLog => ({ day: todayStr(), lesson: false, puzzles: 0, game: false })
 
 const defaults = (): AppState => ({
-  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {}, outfits: {}, nickname: '', avatar: 'gigi', coach: 'gigi' },
+  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {}, outfits: {}, board: 'tema', pieces: 'classico', haptics: true, nickname: '', avatar: 'gigi', coach: 'gigi' },
   progress: {
     placementDone: false,
     skill: 10,

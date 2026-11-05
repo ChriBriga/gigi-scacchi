@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { ArrowsClockwise, ChalkboardTeacher, Check, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, Lightning, Lock, PlugsConnected, Palette, Smiley, SpeakerHigh, UserCircle } from '@phosphor-icons/react'
+import { ArrowsClockwise, ChalkboardTeacher, Check, Checkerboard, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, Lightning, Lock, PlugsConnected, Palette, Smiley, SpeakerHigh, UserCircle } from '@phosphor-icons/react'
 import { FX_LABEL, setFxPref, useFx, type FxPref } from '../perf'
+import { BOARD_STYLES, PIECE_SETS, pieceUrl } from '../chess/look'
+import { canVibrate } from '../haptics'
 import { COACHES, activeCoach, coachInfo, coachUnlocked } from '../coach/coaches'
 import { exportCode, importCode, update, useApp, type DangerMode } from '../store'
 import { ensureVoice, type Mood, type Tone } from '../coach/lines'
@@ -139,6 +141,41 @@ export function Settings() {
 
       <section className="card">
         <h3>
+          <Checkerboard size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
+          Scacchiera e pezzi
+        </h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Colori della scacchiera
+        </p>
+        <div className="look-grid">
+          {BOARD_STYLES.map((b) => (
+            <button key={b.id} className={`look-opt${settings.board === b.id ? ' on' : ''}`} onClick={() => set('board', b.id)} aria-pressed={settings.board === b.id}>
+              <span className="look-board" style={b.light ? ({ ['--light' as string]: b.light, ['--dark' as string]: b.dark } as React.CSSProperties) : undefined}>
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+              <small>{b.name}</small>
+            </button>
+          ))}
+        </div>
+        <p className="muted">Stile dei pezzi</p>
+        <div className="look-grid">
+          {PIECE_SETS.map((p) => (
+            <button key={p.id} className={`look-opt${settings.pieces === p.id ? ' on' : ''}`} onClick={() => set('pieces', p.id)} aria-pressed={settings.pieces === p.id}>
+              <span className="look-pieces">
+                <img src={pieceUrl(p.id, 'w', 'n')} alt="" />
+                <img src={pieceUrl(p.id, 'b', 'q')} alt="" />
+              </span>
+              <small>{p.name}</small>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="card">
+        <h3>
           <Lightning size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
           Effetti e fluidità
         </h3>
@@ -160,8 +197,14 @@ export function Settings() {
           ))}
         </div>
         <p className="muted" style={{ marginBottom: 0 }}>
-          Leggero: meno animazioni e ombre, motore più veloce. Spettacolare: tutti gli effetti. Questa scelta resta solo su questo dispositivo.
+          Leggero: meno animazioni e ombre, motore più veloce. Spettacolare: scintille sulle catture, onde, bagliore dello scacco, passaggi fra schermate e coriandoli del coach. Questa scelta resta solo su questo dispositivo.
         </p>
+        {canVibrate() && (
+          <label className="switch">
+            <span>Vibrazione (non nel livello Leggero)</span>
+            <input type="checkbox" checked={settings.haptics} onChange={(e) => set('haptics', e.target.checked)} />
+          </label>
+        )}
       </section>
 
       <section className="card">

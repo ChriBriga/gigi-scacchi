@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
 import { ALL_SQUARES, coordsToSq, sqToCoords } from '../chess/util'
 import { useBoardPieces, type PieceSprite } from './useBoardPieces'
+import { boardStyleOf, pieceUrl } from '../chess/look'
+import { useAppSelector } from '../store'
+import { useFx } from '../perf'
 
 export type Tint = { kind: 'danger' | 'safe' | 'both'; n: number }
 
@@ -31,11 +34,13 @@ export interface BoardProps {
   onPick?: (sq: Square) => void
 }
 
-const PIECE_URL = (color: Color, type: PieceSymbol) =>
-  `${import.meta.env.BASE_URL}pieces/${color}${type.toUpperCase()}.svg`
-
 export function Board(props: BoardProps) {
   const { fen, orientation = 'w', movable, onMove, lastMove, lastBy, slowMove, tints, rings, marks, hint, arrows, badge, showRange, shake, onPick } = props
+  const pieceSet = useAppSelector((s) => s.settings.pieces)
+  const boardStyle = boardStyleOf(useAppSelector((s) => s.settings.board))
+  const PIECE_URL = (color: Color, type: PieceSymbol) => pieceUrl(pieceSet, color, type)
+  // gli effetti scenografici (scintille, onde, bagliore dello scacco) solo nel livello Spettacolare
+  const fancy = useFx().tier === 'high'
   const sprites = useBoardPieces(fen)
   const ghosts = useGhosts(sprites)
   const boardRef = useRef<HTMLDivElement>(null)
@@ -143,10 +148,11 @@ export function Board(props: BoardProps) {
   const kingInCheck = chess?.inCheck() ? ALL_SQUARES.find((s) => chess.get(s)?.type === 'k' && chess.get(s)?.color === chess.turn()) : undefined
 
   return (
-    <div className={`board-wrap${shake ? ' shake' : ''}`}>
+    <div className={`board-wrap${shake ? ' shake' : ''}${fancy && kingInCheck ? ' in-check' : ''}`}>
       <div
         ref={boardRef}
         className={`board${slowMove ? ' slow' : ''}`}
+        style={boardStyle.light ? ({ ['--light' as string]: boardStyle.light, ['--dark' as string]: boardStyle.dark } as React.CSSProperties) : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -160,7 +166,7 @@ export function Board(props: BoardProps) {
           return (
             <div
               key={sq}
-              className={`sq ${dark ? 'dark' : 'light'}${isLast ? (lastBy === 'opp' ? (lastMove![1] === sq ? ' last-opp to' : ' last-opp from') : ' last') : ''}${selected === sq ? ' sel' : ''}${kingInCheck === sq ? ' check' : ''}${marks?.includes(sq) ? ' mark' : ''}`}
+              className={`sq ${dark ? 'dark' : 'light'}${isLast ? (lastBy === 'opp' ? (lastMove![1] === sq ? ' last-opp to' : ' last-opp from') : ` last${lastMove![1] === sq ? ' last-to' : ''}`) : ''}${selected === sq ? ' sel' : ''}${kingInCheck === sq ? ' check' : ''}${marks?.includes(sq) ? ' mark' : ''}`}
               style={{ left: `${col * 12.5}%`, top: `${row * 12.5}%` }}
             >
               {tint && <div className={`tint ${tint.kind}`} style={{ opacity: Math.min(0.8, 0.3 + tint.n * 0.12) }} />}
@@ -168,6 +174,7 @@ export function Board(props: BoardProps) {
               {col === 0 && <span className="coord rank">{sq[1]}</span>}
               {targets.includes(sq) && <div className={chess?.get(sq) ? 'capture-ring' : 'dot'} />}
               {rings?.includes(sq) && <div className="danger-ring" />}
+              {fancy && lastMove && lastMove[1] === sq && <div key={fen} className="ripple" />}
             </div>
           )
         })}
@@ -203,6 +210,7 @@ export function Board(props: BoardProps) {
             />
           )
         })}
+        {fancy && ghosts.map((g) => <Burst key={`burst-${g.id}`} sprite={g} pos={toView(g.square)} />)}
 
         {lastBy === 'opp' && lastMove && (
           <svg key={lastMove.join('')} className="arrows trail" viewBox="0 0 8 8">
@@ -276,6 +284,27 @@ export function Board(props: BoardProps) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Scintille quando un pezzo viene preso: una decina di puntini che volano via dalla casa (solo livello Spettacolare). */
+function Burst({ sprite, pos }: { sprite: PieceSprite; pos: { col: number; row: number } }) {
+  const bits = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => {
+        const a = (i / 12) * Math.PI * 2 + sprite.id * 0.7
+        const d = 330 + ((i * 53 + sprite.id * 31) % 260)
+        return { dx: Math.round(Math.cos(a) * d), dy: Math.round(Math.sin(a) * d), delay: (i % 3) * 0.03 }
+      }),
+    [sprite.id],
+  )
+  const palette = sprite.color === 'w' ? ['#fff6c8', '#ffd23f', '#ffffff'] : ['#ff6fb5', '#9b7cff', '#3fe0d0']
+  return (
+    <div className="burst" style={posStyle(pos)} aria-hidden="true">
+      {bits.map((b, i) => (
+        <i key={i} style={{ background: palette[i % palette.length], color: palette[i % palette.length], animationDelay: `${b.delay}s`, ['--dx' as string]: `${b.dx}%`, ['--dy' as string]: `${b.dy}%` }} />
+      ))}
     </div>
   )
 }

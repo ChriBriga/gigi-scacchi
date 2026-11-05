@@ -6,6 +6,7 @@ import { sayLine, type Mood } from '../coach/lines'
 import type { TimeOfDay } from '../coach/greeting'
 import { useTypewriter } from './CoachBubble'
 import { useApp } from '../store'
+import { useFx } from '../perf'
 
 const TOD_ICON: Record<TimeOfDay, Icon> = { morning: Sun, afternoon: CloudSun, evening: SunHorizon, night: MoonStars }
 const POKE_MOODS: Mood[] = ['happy', 'shocked', 'confused', 'smug', 'cool', 'happy']
@@ -21,6 +22,7 @@ export function Hero({ greeting, tod }: { greeting: { text: string; mood: Mood }
   const pokes = useRef<number[]>([])
   const shown = useTypewriter(say.text)
   const TodIcon = TOD_ICON[tod]
+  const fancy = useFx().tier === 'high'
 
   const poke = () => {
     const now = Date.now()
@@ -35,6 +37,16 @@ export function Hero({ greeting, tod }: { greeting: { text: string; mood: Mood }
 
   return (
     <div className="hero-big" data-tod={tod}>
+      {fancy && (
+        <span className="hero-motes" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+      )}
       <span className="hero-sky" aria-hidden="true">
         <TodIcon size={26} weight="fill" />
       </span>
