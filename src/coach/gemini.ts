@@ -83,16 +83,24 @@ export async function explainWithGemini(key: string, input: ExplainInput): Promi
     .filter(Boolean)
     .join('\n')
 
+  return generate(models, key, prompt, 160)
+}
+
+/** Prova i modelli in ordine finché uno risponde. Con `timeoutMs` ogni richiesta viene interrotta se è troppo lenta. */
+async function generate(models: string[], key: string, prompt: string, maxOutputTokens: number, timeoutMs?: number): Promise<string | null> {
   const now = Date.now()
   for (const model of models.slice(0, 8)) {
     if ((dead.get(model) ?? 0) > now) continue
+    const ctrl = timeoutMs ? new AbortController() : undefined
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : undefined
     try {
       const res = await fetch(`${API}/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: ctrl?.signal,
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.9, maxOutputTokens: 160 },
+          generationConfig: { temperature: 0.9, maxOutputTokens },
         }),
       })
       if (res.status === 429 || res.status === 503 || res.status === 404 || res.status === 403) {
@@ -107,8 +115,66 @@ export async function explainWithGemini(key: string, input: ExplainInput): Promi
         return text
       }
     } catch {
-      /* rete assente o errore: prova il modello successivo */
+      /* rete assente, richiesta interrotta o errore: prova il modello successivo */
+    } finally {
+      if (timer) clearTimeout(timer)
     }
   }
   return null
+}
+
+export interface GameSummaryInput {
+  persona?: string
+  tone: Tone
+  botName: string
+  /** com'è fatto il gioco del bot (es. "attaccante"), se ha uno stile */
+  botStyle?: string
+  outcome: 'win' | 'lose' | 'draw'
+  moves: number
+  /** precisione 0-100 */
+  accuracy: number
+  /** giudizi delle tue mosse: etichetta -> quante (es. "Svarione": 1) */
+  judgements: Record<string, number>
+  /** errori per tipo (es. "pezzi lasciati in presa": 2) */
+  mistakes: Record<string, number>
+  /** i due errori più pesanti: mossa e cosa è successo */
+  worst: string[]
+  cleanGame: boolean
+  /** si è arreso (la sconfitta non conta come partita giocata fino in fondo) */
+  resigned?: boolean
+}
+
+const OUTCOME_TEXT = { win: 'ha vinto', lose: 'ha perso', draw: 'ha pareggiato' } as const
+
+/**
+ * Un breve commento a fine partita (3 frasi al massimo) con i temi ricorrenti. Facoltativo: se Gemini non c'è,
+ * è lento (oltre ~12 secondi a richiesta) o non risponde, restituisce null e la partita resta com'era.
+ */
+export async function summarizeGameWithGemini(key: string, input: GameSummaryInput): Promise<string | null> {
+  if (!key) return null
+  let models: string[]
+  try {
+    models = await listModels(key)
+  } catch {
+    return null
+  }
+  const list = (r: Record<string, number>) =>
+    Object.entries(r)
+      .map(([k, n]) => `${k}: ${n}`)
+      .join(', ') || 'nessuno'
+  const prompt = [
+    `${input.persona ?? 'Sei Gigi, un piccione allenatore di scacchi di parco, simpatico e diretto.'} Parla in italiano, dando del tu.`,
+    `Tono: ${TONE_TEXT[input.tone]}.`,
+    'Scrivi un commento di fine partita in MASSIMO 3 frasi brevi (sotto 60 parole) per un giocatore alle prime armi: com’è andata, il tema che ritorna di più negli errori e UN consiglio concreto per la prossima volta.',
+    'Niente elenchi, niente gergo tecnico, non inventare mosse o varianti: usa SOLO i fatti qui sotto.',
+    `Il giocatore ${input.resigned ? 'si è arreso' : OUTCOME_TEXT[input.outcome]} contro ${input.botName}${input.botStyle ? ` (stile ${input.botStyle})` : ''} in ${input.moves} mosse.`,
+    `Precisione: ${input.accuracy}%.`,
+    `Giudizi delle sue mosse: ${list(input.judgements)}.`,
+    `Tipi di errore: ${list(input.mistakes)}.`,
+    ...input.worst.map((w) => `Errore pesante: ${w}`),
+    input.cleanGame ? 'Non ha ritirato nessuna mossa (partita pulita).' : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
+  return generate(models, key, prompt, 400, 12_000)
 }

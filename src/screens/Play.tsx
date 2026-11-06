@@ -7,14 +7,14 @@ import { Confetti, MoveList, PlayerBar, type MoveRow } from '../components/GameP
 import { CoachBubble } from '../components/CoachBubble'
 import { GameReview, pickReviewItems } from '../components/GameReview'
 import { GameReplay } from '../components/GameReplay'
-import { buildRecord } from '../engine/mistakes'
+import { MISTAKE_INFO, buildRecord, classifyMistake } from '../engine/mistakes'
 import { chooseBotMove, type Bot } from '../engine/bots'
 import { STYLES } from '../engine/style'
 import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, type Quality } from '../engine/analysis'
 import { dangerTints, hangingPieces } from '../chess/danger'
 import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
-import { explainWithGemini } from '../coach/gemini'
+import { explainWithGemini, summarizeGameWithGemini } from '../coach/gemini'
 import { coachInfo } from '../coach/coaches'
 import { addGameRecord, addToNotebook, addXp, bumpMistake, currentCoach, getState, nudgeSkill, rememberGame, todayStr, touchDay, update, useApp, type DangerMode, type NotebookDraft } from '../store'
 import { sfx } from '../sound'
@@ -97,6 +97,8 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   const [analysisReady, setAnalysisReady] = useState(false)
   const [cleanNote, setCleanNote] = useState<string | null>(null)
   const [notebookNote, setNotebookNote] = useState<string | null>(null)
+  /** commento di fine partita di Gemini (facoltativo): 'loading' mentre scrive, poi il testo; se non arriva non si vede nulla */
+  const [summary, setSummary] = useState<'loading' | string | null>(null)
   const notebookSaved = useRef(false)
   const ownMoves = useRef(resumed.current ? resumed.current.filter((m) => m.color === color).length : 0)
   const started = useRef(false)
@@ -500,7 +502,33 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     // la partita finisce nello storico (precisione e tipi di errore) per "Il tuo punto debole"
     if (result) {
       const rec = buildRecord(moves, color, bot.id, result.outcome, todayStr())
-      if (rec) addGameRecord(rec)
+      if (rec) {
+        addGameRecord(rec)
+        // il commento di Gemini parte in coda: non blocca né rallenta la revisione
+        if (settings.geminiKey) {
+          const worst = [...reviewItems]
+            .sort((a, b) => b.judgement.loss - a.judgement.loss)
+            .slice(0, 2)
+            .map((it) => `mossa ${it.moveNo}, ${it.san} (${QUALITY_INFO[it.judgement.quality].label.toLowerCase()}): ${MISTAKE_INFO[classifyMistake(it.fenBefore, it.uci, it.judgement, it.moveNo)].what}`)
+          setSummary('loading')
+          summarizeGameWithGemini(settings.geminiKey, {
+            persona: coachInfo(currentCoach()).persona,
+            tone: settings.tone,
+            botName: bot.name,
+            botStyle: bot.style !== 'balanced' ? STYLES[bot.style].label.toLowerCase() : undefined,
+            outcome: result.outcome,
+            moves: rec.moves,
+            accuracy: rec.acc,
+            judgements: Object.fromEntries(Object.entries(rec.q).map(([q, n]) => [QUALITY_INFO[q as Quality].label.toLowerCase(), n as number])),
+            mistakes: Object.fromEntries(Object.entries(rec.kinds).map(([k, n]) => [MISTAKE_INFO[k as keyof typeof MISTAKE_INFO].label.toLowerCase(), n as number])),
+            worst,
+            cleanGame: cleanNote !== null,
+            resigned: result.reason === 'resa',
+          }).then((text) => {
+            if (alive.current) setSummary(text)
+          })
+        }
+      }
     }
     const drafts: NotebookDraft[] = reviewItems.map((it) => ({
       fen: it.fenBefore,
@@ -623,6 +651,8 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
                 )}
                 {!analysing && reviewItems.length === 0 && moves.some((m) => m.judgement) && <p className="review-note">Nessun errore grave da rivedere. Niente male!</p>}
                 {notebookNote && <p className="review-note">{notebookNote}</p>}
+                {summary === 'loading' && <p className="review-note">{coachInfo(currentCoach()).name} sta scrivendo il commento…</p>}
+                {summary && summary !== 'loading' && <p className="review-note summary">{summary}</p>}
                 {!analysing && moves.length >= 2 && (
                   <button className="btn" onClick={() => setReplayOpen(true)}>
                     <Rewind size={18} weight="bold" /> Rivedi tutta la partita

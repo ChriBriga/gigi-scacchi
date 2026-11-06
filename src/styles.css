@@ -3232,3 +3232,8 @@ html[data-fx='high'] .page-fx {
 .acc-dot.lose {
   fill: var(--bad);
 }
+
+.review-note.summary {
+  padding-left: 10px;
+  border-left: 3px solid var(--bubble-accent);
+}
