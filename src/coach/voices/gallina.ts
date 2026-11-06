@@ -192,4 +192,9 @@ export const GALLINA: Partial<Voice> = {
     ['{bot} è a terra! Sei il mio eroe.', 'Hai battuto {bot}! Ora lo sanno tutti.', '{bot} ha perso contro di te. Vai a dirlo in giro.'],
     ['{bot} sconfitto. Il prossimo ti ridurrà in briciole.', 'Hai battuto {bot}. Non montarti la testa.', '{bot} è ko. Non pensavo ce la facessi.'],
   ),
+  resume: t(
+    ['Bentornato, tesoro! La partita contro {bot} ti aspettava.', 'Ecco il mio nipotino! Riprendiamo, con calma, come il sugo.', 'Ripresa la partita! Respira e guarda la scacchiera.'],
+    ['Eccoti! {bot} ha aspettato, io ho sferruzzato. Su, muovi.', 'Sei tornato? Rileggi la posizione, che la memoria non è più quella di una volta.', 'Ripresa la partita! Non farmi aspettare come il pane in forno.'],
+    ['Eri scappato, eh? Ai miei tempi non si lasciavano le partite a metà.', '{bot} ti ha aspettato. Io ho già sistemato la cucina due volte.', 'Ripresa la partita. Vedi di non combinare guai, che non ho più pazienza.'],
+  ),
 }

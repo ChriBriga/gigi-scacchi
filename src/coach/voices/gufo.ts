@@ -192,4 +192,9 @@ export const GUFO: Partial<Voice> = {
     ['{bot} è a terra! Il professore applaude. Con una piuma.', 'Hai battuto {bot}! Ora tutta la facoltà lo sa.', '{bot} ha perso. Contro di te. Inaudito.'],
     ['{bot} sconfitto. Il prossimo ti ridurrà in briciole.', 'Hai battuto {bot}. Non esaltarti: il prossimo è più forte.', '{bot} è ko. Non lo credevo possibile.'],
   ),
+  resume: t(
+    ['Bentornato, allievo! Riprendiamo la partita contro {bot} da dove l’avevamo lasciata.', 'Ad rem! La lezione contro {bot} continua. Rifletti con calma.', 'Eccoci di nuovo: la posizione è immutata, il metodo anche.'],
+    ['Ah, sei tornato. {bot} aspettava, e io pure. Con pazienza accademica.', 'Ripresa la partita! Rileggi la posizione prima di muovere, prego.', 'Ecco l’allievo. Il professore ha ripassato la scacchiera nel frattempo.'],
+    ['Ritorno tardivo. {bot} si è annoiato, io no: ho preso appunti sui tuoi errori.', 'Partita ripresa. Speriamo che la sosta abbia portato consiglio.', 'Eccoti. Ora, per favore: pensiero prima del pezzo.'],
+  ),
 }

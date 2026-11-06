@@ -7,7 +7,7 @@ import { Confetti, MoveList, PlayerBar, type MoveRow } from '../components/GameP
 import { CoachBubble } from '../components/CoachBubble'
 import { GameReview, pickReviewItems } from '../components/GameReview'
 import { chooseBotMove, type Bot } from '../engine/bots'
-import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, type Judgement, type Quality } from '../engine/analysis'
+import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, type Quality } from '../engine/analysis'
 import { dangerTints, hangingPieces } from '../chess/danger'
 import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
@@ -16,14 +16,9 @@ import { coachInfo } from '../coach/coaches'
 import { addToNotebook, addXp, bumpMistake, currentCoach, getState, nudgeSkill, rememberGame, touchDay, update, useApp, type DangerMode, type NotebookDraft } from '../store'
 import { sfx } from '../sound'
 import { watchFrames } from '../perf'
+import { clearSavedGame, replayMoves, saveGame, type SavedGame, type SavedMove } from '../savedGame'
 
-interface MoveRec {
-  san: string
-  uci: string
-  fenBefore: string
-  color: Color
-  judgement?: Judgement
-}
+type MoveRec = SavedMove
 
 /** "Dov'è il guaio?": le case che valgono come risposta, e la mossa con cui l'avversario ti punisce */
 interface Quiz {
@@ -62,18 +57,29 @@ function isBad(q: Quality) {
   return q === 'mistake' || q === 'blunder'
 }
 
-export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: () => void }) {
+export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; resume?: SavedGame; onExit: () => void }) {
   const app = useApp()
   const settings = app.settings
-  const game = useRef(new Chess())
+  const game = useRef<Chess>(null as unknown as Chess)
+  // partita ripresa: si rigiocano le mosse salvate (se qualcosa non torna si ricomincia da capo)
+  const resumed = useRef<SavedMove[] | null>(null)
+  if (!game.current) {
+    const g = resume ? replayMoves(resume.moves) : null
+    resumed.current = g ? resume!.moves : null
+    game.current = g ?? new Chess()
+  }
+  const lastSaved = resumed.current?.[resumed.current.length - 1]
   const [fen, setFen] = useState(game.current.fen())
-  const [moves, setMoves] = useState<MoveRec[]>([])
-  const [last, setLast] = useState<[Square, Square] | null>(null)
-  const [lastBy, setLastBy] = useState<'me' | 'opp'>('me')
-  const [botSan, setBotSan] = useState<string | null>(null)
-  const [phase, setPhase] = useState<Phase>('player')
+  const [moves, setMoves] = useState<MoveRec[]>(resumed.current ?? [])
+  const [last, setLast] = useState<[Square, Square] | null>(lastSaved ? [lastSaved.uci.slice(0, 2) as Square, lastSaved.uci.slice(2, 4) as Square] : null)
+  const [lastBy, setLastBy] = useState<'me' | 'opp'>(lastSaved && lastSaved.color !== color ? 'opp' : 'me')
+  const [botSan, setBotSan] = useState<string | null>([...(resumed.current ?? [])].reverse().find((m) => m.color !== color)?.san ?? null)
+  const [phase, setPhase] = useState<Phase>(resumed.current && game.current.turn() !== color ? 'thinking' : 'player')
   const [badge, setBadge] = useState<{ square: Square; icon: string; color: string } | null>(null)
-  const [coach, setCoach] = useState<{ text: string; mood: Mood }>({ text: sayLine('start', settings.tone), mood: 'cool' })
+  const [coach, setCoach] = useState<{ text: string; mood: Mood }>(() => {
+    const ev: CoachEvent = resumed.current ? 'resume' : 'start'
+    return { text: sayLine(ev, settings.tone, { bot: bot.name }), mood: EVENT_MOOD[ev] }
+  })
   const [hintLevel, setHintLevel] = useState(0)
   const [hint, setHint] = useState<{ from?: Square; to?: Square } | null>(null)
   const [takeback, setTakeback] = useState<{ botUci: string; rec: MoveRec; tag: string } | null>(null)
@@ -86,12 +92,12 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   const [cleanNote, setCleanNote] = useState<string | null>(null)
   const [notebookNote, setNotebookNote] = useState<string | null>(null)
   const notebookSaved = useRef(false)
-  const ownMoves = useRef(0)
+  const ownMoves = useRef(resumed.current ? resumed.current.filter((m) => m.color === color).length : 0)
   const started = useRef(false)
   /** false dopo l'uscita dalla partita: i timer e le risposte del motore arrivati in ritardo non devono più fare nulla */
   const alive = useRef(true)
-  const retracts = useRef(0)
-  const badMoves = useRef(0)
+  const retracts = useRef(resumed.current ? (resume?.retracts ?? 0) : 0)
+  const badMoves = useRef(resumed.current ? (resume?.badMoves ?? 0) : 0)
 
   useEffect(() => {
     alive.current = true
@@ -181,7 +187,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   useEffect(() => {
     if (started.current) return
     started.current = true
-    if (color === 'b') {
+    if (game.current.turn() !== color) {
       setPhase('thinking')
       Promise.all([chooseBotMove(game.current.fen(), bot), sleep(700)]).then(([uci]) => {
         if (alive.current) applyBot(uci)
@@ -189,6 +195,19 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
     } else evaluate(game.current.fen()).catch(() => undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // la partita si salva da sola a ogni mossa: se chiudi la scheda la ritrovi nella Home.
+  // Se hai appena fatto una mossa da ritirare, si salva la posizione prima, così puoi rifarla con calma.
+  useEffect(() => {
+    if (phase === 'over') {
+      clearSavedGame()
+      return
+    }
+    const keep = phase === 'decide' ? moves.slice(0, -1) : moves
+    if (keep.length === 0) return
+    saveGame({ botId: bot.id, color, moves: keep, retracts: retracts.current, badMoves: badMoves.current })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moves, phase])
 
   const onUserMove = async (from: Square, to: Square, promotion?: PieceSymbol) => {
     const g = game.current
@@ -516,7 +535,7 @@ export function Play({ bot, color, onExit }: { bot: Bot; color: Color; onExit: (
   return (
     <div className="screen play">
       <div className="topbar">
-        <button className="ghost" onClick={onExit}>
+        <button className="ghost" onClick={onExit} title={phase === 'over' ? undefined : 'La partita resta salvata: la riprendi dalla Home'}>
           <ArrowLeft size={20} weight="bold" /> Esci
         </button>
         <div className="title">Partita contro {bot.name}</div>

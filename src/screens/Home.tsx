@@ -1,12 +1,13 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { Color } from 'chess.js'
-import { BookOpen, CaretRight, Check, Fire, FlagCheckered, Lightning, Notebook as NotebookIcon, PuzzlePiece, Star } from '@phosphor-icons/react'
+import { BookOpen, CaretRight, Check, Fire, FlagCheckered, Lightning, Notebook as NotebookIcon, Play, PuzzlePiece, Star } from '@phosphor-icons/react'
+import { clearSavedGame, loadSavedGame, type SavedGame } from '../savedGame'
 import { Avatar } from '../components/Avatar'
 import { Hero } from '../components/Hero'
 import { BotAvatar } from '../components/BotAvatar'
 import { LessonIcon } from '../components/icons'
 import { pickGreeting } from '../coach/greeting'
-import { BOTS, recommendedBot, type Bot } from '../engine/bots'
+import { BOTS, botById, recommendedBot, type Bot } from '../engine/bots'
 import { LESSONS, nextLesson, type Lesson } from '../data/lessons'
 import { DRILLS } from '../data/drills'
 import { currentStreak, dueNotebook, levelName, useApp } from '../store'
@@ -21,6 +22,7 @@ export function Home({
   onNotebook,
   onDrills,
   startGame,
+  resumeGame,
   go,
 }: {
   onLesson: (l: Lesson) => void
@@ -29,9 +31,12 @@ export function Home({
   onNotebook: () => void
   onDrills: () => void
   startGame: (b: Bot, c: Color) => void
+  resumeGame: (g: SavedGame) => void
   go: (tab: Tab) => void
 }) {
   const { progress, settings } = useApp()
+  const [saved, setSaved] = useState(() => loadSavedGame())
+  const savedBot = saved ? botById(saved.botId) : undefined
   const rec = recommendedBot(progress.skill)
   const next = nextLesson(progress.lessonsDone)
   const t = progress.today
@@ -52,6 +57,32 @@ export function Home({
         <button className="btn primary big" onClick={onTest}>
           <Lightning size={24} weight="fill" /> Fai il test iniziale (2 minuti)
         </button>
+      )}
+
+      {saved && savedBot && (
+        <div className="plan-card resume">
+          <BotAvatar id={savedBot.id} size={52} />
+          <span className="plan-info">
+            <strong>Partita in corso contro {savedBot.name}</strong>
+            <small>
+              {Math.ceil(saved.moves.length / 2) === 1 ? '1 mossa giocata' : `${Math.ceil(saved.moves.length / 2)} mosse giocate`} ·{saved.color === 'w' ? 'hai il Bianco' : 'hai il Nero'}
+            </small>
+          </span>
+          <button
+            className="ghost"
+            onClick={() => {
+              if (confirm('Abbandoni la partita lasciata a metà? Non conterà come sconfitta.')) {
+                clearSavedGame()
+                setSaved(null)
+              }
+            }}
+          >
+            Abbandona
+          </button>
+          <button className="btn primary" onClick={() => resumeGame(saved)}>
+            <Play size={18} weight="fill" /> Riprendi
+          </button>
+        </div>
       )}
 
       <div className="home-grid">

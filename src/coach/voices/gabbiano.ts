@@ -192,4 +192,9 @@ export const GABBIANO: Partial<Voice> = {
     ['{bot} è a picco! Sei il mio eroe, anzi quasi.', 'Hai battuto {bot}! Ora tutti i mari sanno chi sei.', '{bot} ha perso contro di te. Vai a vantartene al porto.'],
     ['{bot} affondato. Ora il prossimo ti ridurrà in zattera.', 'Hai battuto {bot}. Non montarti la testa: il prossimo è più forte.', '{bot} è ko. Non pensavo ce la facessi.'],
   ),
+  resume: t(
+    ['Si riprende la rotta! {bot} ci aspetta all’orizzonte.', 'Bentornato a bordo, mozzo! La partita è ancora in mare.', 'Rotta ripresa! Guarda bene le onde prima di muovere.'],
+    ['Eccoti! {bot} ha atteso tutto il tempo. Io ho pulito il ponte.', 'Ripresa la partita, mozzo! Non dirmi che ti eri perso in porto.', 'Sei tornato! {bot} ha fatto un pisolino sull’albero maestro.'],
+    ['Disertore! Torna al timone: {bot} ti aspettava, brutto topo di sentina.', 'Partita ripresa. Per fortuna non sei finito dritto alla tavola da camminare.', 'Bentornato. {bot} nel frattempo ha affilato la sciabola.'],
+  ),
 }

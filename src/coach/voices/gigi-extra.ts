@@ -516,4 +516,21 @@ export const GIGI_EXTRA: Omit<Voice, CoreEvent> = {
       'L’ultima volta hai ritirato {n} volte. Il bot ti ha concesso più chance di una slot machine.',
     ],
   },
+  resume: {
+    gentle: [
+      'Bentornato! La partita contro {bot} ti aspettava: riprendiamo da dove eravamo.',
+      'Eccoci di nuovo! {bot} non si è mosso, io nemmeno. Riparti con calma.',
+      'Ripresa la partita! Dai un’occhiata alla scacchiera prima di muovere.',
+    ],
+    spicy: [
+      'Sei tornato! {bot} ha aspettato. Io ho fatto un pisolino sul re.',
+      'Partita ripresa. Rileggiti la posizione: non fidarti della tua memoria da piccione.',
+      'Eccoti! {bot} sorride. Non so perché, ma sorride.',
+    ],
+    ruthless: [
+      'Sei scappato dalla partita e sei tornato. Il coraggio è questione di dettagli.',
+      '{bot} ti ha aspettato. Gli avevi lasciato anche un po’ di vantaggio, o l’hai dimenticato?',
+      'Partita ripresa. Spero tu abbia pensato alla mossa nel frattempo.',
+    ],
+  },
 }

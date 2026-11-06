@@ -4,7 +4,8 @@ import { BookOpen, Checkerboard, Fire, Gear, House, PuzzlePiece, Star, type Icon
 import { Home } from './screens/Home'
 import { Logo } from './components/Logo'
 import { Avatar, useProfile } from './components/Avatar'
-import type { Bot } from './engine/bots'
+import { botById, type Bot } from './engine/bots'
+import { clearSavedGame, loadSavedGame, type SavedGame } from './savedGame'
 import type { Lesson } from './data/lessons'
 import { nextDrill, type Drill } from './data/drills'
 import { currentStreak, levelName, useApp } from './store'
@@ -33,7 +34,7 @@ const TABS: { id: Tab; Icon: Icon; label: string }[] = [
 ]
 
 type Overlay =
-  | { kind: 'game'; bot: Bot; color: Color; key: number }
+  | { kind: 'game'; bot: Bot; color: Color; key: number; resume?: SavedGame }
   | { kind: 'lesson'; lesson: Lesson }
   | { kind: 'drill'; drill: Drill }
   | { kind: 'puzzles5'; key: number }
@@ -55,7 +56,17 @@ export function App() {
   }, [settings.theme])
 
   const close = () => setOverlay(null)
-  const startGame = (bot: Bot, color: Color) => setOverlay({ kind: 'game', bot, color, key: Date.now() })
+  const startGame = (bot: Bot, color: Color) => {
+    // una partita nuova prende il posto di quella lasciata a metà: meglio chiederlo
+    const saved = loadSavedGame()
+    if (saved && !confirm(`Hai una partita in corso contro ${botById(saved.botId)?.name ?? 'un avversario'}. Se ne inizi un'altra, quella va persa. Continuare?`)) return
+    clearSavedGame()
+    setOverlay({ kind: 'game', bot, color, key: Date.now() })
+  }
+  const resumeGame = (saved: SavedGame) => {
+    const bot = botById(saved.botId)
+    if (bot) setOverlay({ kind: 'game', bot, color: saved.color, key: Date.now(), resume: saved })
+  }
   const openLesson = (lesson: Lesson) => setOverlay({ kind: 'lesson', lesson })
   const goTab = (t: Tab) => {
     setOverlay(null)
@@ -64,7 +75,7 @@ export function App() {
 
   let content
   let narrow = false
-  if (overlay?.kind === 'game') content = <Play key={overlay.key} bot={overlay.bot} color={overlay.color} onExit={close} />
+  if (overlay?.kind === 'game') content = <Play key={overlay.key} bot={overlay.bot} color={overlay.color} resume={overlay.resume} onExit={close} />
   else if (overlay?.kind === 'lesson') content = <LessonPlayer key={overlay.lesson.id} lesson={overlay.lesson} onExit={close} />
   else if (overlay?.kind === 'drill') {
     const d = overlay.drill
@@ -85,6 +96,7 @@ export function App() {
           goTab('play')
         }}
         startGame={startGame}
+        resumeGame={resumeGame}
         go={goTab}
       />
     )

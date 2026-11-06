@@ -2981,3 +2981,17 @@ html[data-fx='high'] .page-fx {
     opacity: 0;
   }
 }
+
+/* partita lasciata a metà, in cima alla Home */
+.plan-card.resume {
+  flex-wrap: wrap;
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  cursor: default;
+}
+.plan-card.resume:hover,
+.plan-card.resume:active {
+  transform: none;
+}
+.plan-card.resume .plan-info {
+  flex-basis: 160px;
+}

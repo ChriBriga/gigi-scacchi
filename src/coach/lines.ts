@@ -19,6 +19,7 @@ export type CoachEvent =
   | 'lose'
   | 'draw'
   | 'start'
+  | 'resume'
   | 'puzzleOk'
   | 'puzzleFail'
   | 'lessonDone'
@@ -70,6 +71,7 @@ export const EVENT_MOOD: Record<CoachEvent, Mood> = {
   lose: 'sad',
   draw: 'neutral',
   start: 'cool',
+  resume: 'cool',
   puzzleOk: 'happy',
   puzzleFail: 'confused',
   lessonDone: 'happy',
