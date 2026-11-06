@@ -3,6 +3,7 @@ import type { Color } from 'chess.js'
 import { Check, Crown, Handshake, Medal, Shuffle, Star, StarHalf, type Icon } from '@phosphor-icons/react'
 import { DRILLS, type Drill, type DrillGoal } from '../data/drills'
 import { BOTS, recommendedBot, starsOf, type Bot } from '../engine/bots'
+import { STYLES } from '../engine/style'
 import { BotAvatar } from '../components/BotAvatar'
 import { useApp } from '../store'
 
@@ -102,6 +103,11 @@ export function PlaySetup({
             <span className="bot-info">
               <strong>{b.name}</strong>
               <small>{b.tagline}</small>
+              {b.style !== 'balanced' && (
+                <span className="style-pill" title={`${STYLES[b.style].blurb} ${STYLES[b.style].tip}`}>
+                  Stile {STYLES[b.style].label.toLowerCase()}
+                </span>
+              )}
             </span>
             <span className="bot-meta">
               <span className="stars" title={`${starsOf(b)} stelle`}>

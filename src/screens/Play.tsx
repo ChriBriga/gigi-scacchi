@@ -7,6 +7,7 @@ import { Confetti, MoveList, PlayerBar, type MoveRow } from '../components/GameP
 import { CoachBubble } from '../components/CoachBubble'
 import { GameReview, pickReviewItems } from '../components/GameReview'
 import { chooseBotMove, type Bot } from '../engine/bots'
+import { STYLES } from '../engine/style'
 import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, type Quality } from '../engine/analysis'
 import { dangerTints, hangingPieces } from '../chess/danger'
 import { PIECE_NAME, opposite, parseUci } from '../chess/util'
@@ -78,7 +79,9 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   const [badge, setBadge] = useState<{ square: Square; icon: string; color: string } | null>(null)
   const [coach, setCoach] = useState<{ text: string; mood: Mood }>(() => {
     const ev: CoachEvent = resumed.current ? 'resume' : 'start'
-    return { text: sayLine(ev, settings.tone, { bot: bot.name }), mood: EVENT_MOOD[ev] }
+    // contro un bot con uno stile, il consiglio per affrontarlo si aggiunge alla frase d'inizio (una volta, a inizio partita)
+    const tip = !resumed.current && bot.style !== 'balanced' ? ` ${STYLES[bot.style].label}: ${STYLES[bot.style].tip}` : ''
+    return { text: sayLine(ev, settings.tone, { bot: bot.name }) + tip, mood: EVENT_MOOD[ev] }
   })
   const [hintLevel, setHintLevel] = useState(0)
   const [hint, setHint] = useState<{ from?: Square; to?: Square } | null>(null)
@@ -546,7 +549,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
           <PlayerBar
             avatar={<BotAvatar id={bot.id} size={40} />}
             name={bot.name}
-            sub={phase === 'thinking' ? 'Sta pensando…' : botSan ? `Ha giocato ${botSan}` : 'Avversario'}
+            sub={phase === 'thinking' ? 'Sta pensando…' : botSan ? `Ha giocato ${botSan}` : bot.style !== 'balanced' ? `Avversario · stile ${STYLES[bot.style].label.toLowerCase()}` : 'Avversario'}
             color={oppColor}
             fen={fen}
             active={phase === 'thinking' || phase === 'reply'}
