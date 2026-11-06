@@ -3007,3 +3007,228 @@ html[data-fx='high'] .page-fx {
   background: color-mix(in srgb, var(--accent-2) 16%, transparent);
   cursor: help;
 }
+
+/* =========================================================
+   Rivedi tutta la partita (grafico del vantaggio + mosse)
+   ========================================================= */
+.replay-sheet {
+  width: min(960px, 100%);
+}
+.replay-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 16px;
+  align-items: start;
+}
+.replay-left,
+.replay-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.replay-board {
+  width: min(100%, 480px, calc(100dvh - 330px));
+  min-width: 260px;
+  margin: 0 auto;
+}
+.replay-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.replay-pos {
+  min-width: 64px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--muted);
+}
+.replay-cap {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+.win-graph {
+  width: 100%;
+  height: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.wg-bg {
+  fill: var(--surface-2);
+}
+.wg-mid {
+  stroke: var(--line);
+  stroke-dasharray: 3 4;
+}
+.wg-area {
+  fill: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.wg-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.wg-cursor {
+  stroke: var(--ink);
+  stroke-width: 1.4;
+  opacity: 0.7;
+}
+.wg-dot {
+  stroke: var(--surface);
+  stroke-width: 1.2;
+}
+.replay-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.replay-info strong {
+  font-family: 'Fredoka Variable', sans-serif;
+  font-weight: 500;
+  font-size: 1.15rem;
+}
+.replay-info .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.replay-info .lg-red,
+.replay-info .lg-green {
+  display: inline-block;
+  width: 18px;
+  height: 5px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.replay-info .lg-red {
+  background: #ff5a5a;
+}
+.replay-info .lg-green {
+  background: #6be36b;
+}
+.replay-moves {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+}
+.rv-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 1fr;
+  gap: 4px;
+  align-items: center;
+}
+.rv-mv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 9px;
+  font-weight: 700;
+  text-align: left;
+  color: var(--ink);
+  background: transparent;
+}
+.rv-mv.empty {
+  pointer-events: none;
+}
+.rv-mv i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.rv-mv:hover {
+  background: var(--surface-3);
+}
+.rv-mv.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+@media (max-width: 760px) {
+  .replay-grid {
+    grid-template-columns: 1fr;
+  }
+  .replay-board {
+    width: min(100%, 420px);
+  }
+  .replay-moves {
+    max-height: 180px;
+  }
+}
+
+/* =========================================================
+   Il tuo punto debole
+   ========================================================= */
+.weak-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.weak-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.weak-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 40%) 1fr 44px;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.92rem;
+}
+.weak-label {
+  font-weight: 700;
+}
+.weak-track {
+  height: 10px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.weak-track i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+.weak-row b {
+  text-align: right;
+}
+.acc-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.acc-big {
+  font-family: 'Fredoka Variable', sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+.acc-chart {
+  cursor: default;
+  margin-bottom: 6px;
+}
+.acc-dot {
+  fill: var(--muted);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.acc-dot.win {
+  fill: var(--good);
+}
+.acc-dot.lose {
+  fill: var(--bad);
+}

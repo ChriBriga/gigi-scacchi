@@ -7,6 +7,7 @@ import { Avatar, useProfile } from './components/Avatar'
 import { botById, type Bot } from './engine/bots'
 import { clearSavedGame, loadSavedGame, type SavedGame } from './savedGame'
 import type { Lesson } from './data/lessons'
+import type { Puzzle } from './screens/Puzzles'
 import { nextDrill, type Drill } from './data/drills'
 import { currentStreak, levelName, useApp } from './store'
 import { THEMES } from './themes'
@@ -21,6 +22,7 @@ const LessonPlayer = lazy(() => import('./screens/Learn').then((m) => ({ default
 const Puzzles = lazy(() => import('./screens/Puzzles').then((m) => ({ default: m.Puzzles })))
 const DailyPuzzles = lazy(() => import('./screens/DailyPuzzles').then((m) => ({ default: m.DailyPuzzles })))
 const PlacementTest = lazy(() => import('./screens/Test').then((m) => ({ default: m.PlacementTest })))
+const WeakSpots = lazy(() => import('./screens/WeakSpots').then((m) => ({ default: m.WeakSpots })))
 const NotebookSession = lazy(() => import('./screens/Notebook').then((m) => ({ default: m.NotebookSession })))
 
 export type Tab = 'home' | 'play' | 'puzzles' | 'learn' | 'settings'
@@ -37,7 +39,8 @@ type Overlay =
   | { kind: 'game'; bot: Bot; color: Color; key: number; resume?: SavedGame }
   | { kind: 'lesson'; lesson: Lesson }
   | { kind: 'drill'; drill: Drill }
-  | { kind: 'puzzles5'; key: number }
+  | { kind: 'puzzles5'; key: number; themes?: Puzzle['theme'][]; title?: string }
+  | { kind: 'weak' }
   | { kind: 'test' }
   | { kind: 'notebook' }
 
@@ -81,9 +84,22 @@ export function App() {
     const d = overlay.drill
     const nx = nextDrill(d.id)
     content = <DrillPlay key={d.id} drill={d} onExit={close} onNext={nx ? () => setOverlay({ kind: 'drill', drill: nx }) : undefined} />
-  } else if (overlay?.kind === 'puzzles5') content = <DailyPuzzles key={overlay.key} onClose={close} />
+  } else if (overlay?.kind === 'puzzles5') content = <DailyPuzzles key={overlay.key} onClose={close} themes={overlay.themes} title={overlay.title} />
   else if (overlay?.kind === 'test') content = <PlacementTest onExit={close} startGame={startGame} />
   else if (overlay?.kind === 'notebook') content = <NotebookSession onExit={close} />
+  else if (overlay?.kind === 'weak')
+    content = (
+      <WeakSpots
+        onExit={close}
+        onLesson={openLesson}
+        onPuzzles={(themes, title) => setOverlay({ kind: 'puzzles5', key: Date.now(), themes, title: `Allenamento: ${title}` })}
+        onDrills={() => {
+          setPlayMode('drills')
+          goTab('play')
+        }}
+        onNotebook={() => setOverlay({ kind: 'notebook' })}
+      />
+    )
   else if (tab === 'home')
     content = (
       <Home
@@ -91,6 +107,7 @@ export function App() {
         onPuzzles={() => setOverlay({ kind: 'puzzles5', key: Date.now() })}
         onTest={() => setOverlay({ kind: 'test' })}
         onNotebook={() => setOverlay({ kind: 'notebook' })}
+        onWeak={() => setOverlay({ kind: 'weak' })}
         onDrills={() => {
           setPlayMode('drills')
           goTab('play')

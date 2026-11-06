@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
-import { ArrowCounterClockwise, ArrowLeft, ArrowRight, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ArrowLeft, ArrowRight, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold, Rewind } from '@phosphor-icons/react'
 import { Board, type Tint } from '../components/Board'
 import { BotAvatar } from '../components/BotAvatar'
 import { Confetti, MoveList, PlayerBar, type MoveRow } from '../components/GameParts'
 import { CoachBubble } from '../components/CoachBubble'
 import { GameReview, pickReviewItems } from '../components/GameReview'
+import { GameReplay } from '../components/GameReplay'
+import { buildRecord } from '../engine/mistakes'
 import { chooseBotMove, type Bot } from '../engine/bots'
 import { STYLES } from '../engine/style'
 import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, type Quality } from '../engine/analysis'
@@ -14,7 +16,7 @@ import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
 import { explainWithGemini } from '../coach/gemini'
 import { coachInfo } from '../coach/coaches'
-import { addToNotebook, addXp, bumpMistake, currentCoach, getState, nudgeSkill, rememberGame, touchDay, update, useApp, type DangerMode, type NotebookDraft } from '../store'
+import { addGameRecord, addToNotebook, addXp, bumpMistake, currentCoach, getState, nudgeSkill, rememberGame, todayStr, touchDay, update, useApp, type DangerMode, type NotebookDraft } from '../store'
 import { sfx } from '../sound'
 import { watchFrames } from '../perf'
 import { clearSavedGame, replayMoves, saveGame, type SavedGame, type SavedMove } from '../savedGame'
@@ -90,6 +92,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   const [result, setResult] = useState<{ outcome: 'win' | 'lose' | 'draw'; reason: string } | null>(null)
   const [shake, setShake] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [replayOpen, setReplayOpen] = useState(false)
   const [analysing, setAnalysing] = useState(false)
   const [analysisReady, setAnalysisReady] = useState(false)
   const [cleanNote, setCleanNote] = useState<string | null>(null)
@@ -494,6 +497,11 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   useEffect(() => {
     if (phase !== 'over' || !analysisReady || notebookSaved.current) return
     notebookSaved.current = true
+    // la partita finisce nello storico (precisione e tipi di errore) per "Il tuo punto debole"
+    if (result) {
+      const rec = buildRecord(moves, color, bot.id, result.outcome, todayStr())
+      if (rec) addGameRecord(rec)
+    }
     const drafts: NotebookDraft[] = reviewItems.map((it) => ({
       fen: it.fenBefore,
       color,
@@ -507,7 +515,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     const n = addToNotebook(drafts)
     if (n > 0) setNotebookNote(sayLine('notebookSaved', settings.tone, { n }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, analysisReady, reviewItems])
+  }, [phase, analysisReady, reviewItems, result])
 
   const lastUserMove = useMemo(() => [...moves].reverse().find((m) => m.color === color), [moves, color])
 
@@ -615,6 +623,11 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
                 )}
                 {!analysing && reviewItems.length === 0 && moves.some((m) => m.judgement) && <p className="review-note">Nessun errore grave da rivedere. Niente male!</p>}
                 {notebookNote && <p className="review-note">{notebookNote}</p>}
+                {!analysing && moves.length >= 2 && (
+                  <button className="btn" onClick={() => setReplayOpen(true)}>
+                    <Rewind size={18} weight="bold" /> Rivedi tutta la partita
+                  </button>
+                )}
                 <div className="row">
                   <button className="btn primary" onClick={onExit}>
                     Continua <ArrowRight size={18} weight="bold" />
@@ -673,6 +686,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
         </div>
       </div>
       {phase === 'over' && result?.outcome === 'win' && <Confetti />}
+      {replayOpen && <GameReplay moves={moves} color={color} tone={settings.tone} geminiKey={settings.geminiKey} onClose={() => setReplayOpen(false)} />}
       {reviewOpen && reviewItems.length > 0 && (
         <GameReview items={reviewItems} color={color} tone={settings.tone} geminiKey={settings.geminiKey} onClose={() => setReviewOpen(false)} />
       )}

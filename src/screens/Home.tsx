@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Color } from 'chess.js'
-import { BookOpen, CaretRight, Check, Fire, FlagCheckered, Lightning, Notebook as NotebookIcon, Play, PuzzlePiece, Star } from '@phosphor-icons/react'
+import { BookOpen, CaretRight, Check, Binoculars, Fire, FlagCheckered, Lightning, Notebook as NotebookIcon, Play, PuzzlePiece, Star } from '@phosphor-icons/react'
 import { clearSavedGame, loadSavedGame, type SavedGame } from '../savedGame'
 import { Avatar } from '../components/Avatar'
 import { Hero } from '../components/Hero'
@@ -20,6 +20,7 @@ export function Home({
   onPuzzles,
   onTest,
   onNotebook,
+  onWeak,
   onDrills,
   startGame,
   resumeGame,
@@ -29,6 +30,7 @@ export function Home({
   onPuzzles: () => void
   onTest: () => void
   onNotebook: () => void
+  onWeak: () => void
   onDrills: () => void
   startGame: (b: Bot, c: Color) => void
   resumeGame: (g: SavedGame) => void
@@ -179,6 +181,20 @@ export function Home({
             </span>
             <CaretRight className="go" size={20} weight="bold" />
           </button>
+          {(progress.history?.length ?? 0) > 0 && (
+            <button className="plan-card" onClick={onWeak}>
+              <span className="tile">
+                <Binoculars size={28} weight="duotone" />
+              </span>
+              <span className="plan-info">
+                <strong>Il tuo punto debole</strong>
+                <small>
+                  Ultima precisione {progress.history![progress.history!.length - 1].acc}% · dove perdi punti e come migliorare
+                </small>
+              </span>
+              <CaretRight className="go" size={20} weight="bold" />
+            </button>
+          )}
           <div className="card">
             <h3>Avversari battuti</h3>
             <div className="mini-bots">

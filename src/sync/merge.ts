@@ -1,4 +1,5 @@
 import type { GigiMemory, NotebookItem, Progress, SyncedSettings } from '../store'
+import type { GameRecord } from '../engine/mistakes'
 
 export interface CloudDoc {
   progress: Progress
@@ -23,6 +24,13 @@ function mergeNotebook(a: Progress, b: Progress): Pick<Progress, 'notebook' | 'n
     if (!cur || it.upd > cur.upd) byId.set(it.id, it)
   }
   return { notebook: [...byId.values()].sort((x, y) => x.added.localeCompare(y.added)).slice(-100), notebookGone: gone.slice(-300) }
+}
+
+/** Lo storico delle partite: unione per id (la stessa partita non si conta due volte), le più recenti restano. */
+function mergeHistory(a: GameRecord[] = [], b: GameRecord[] = []): GameRecord[] {
+  const byId = new Map<number, GameRecord>()
+  for (const g of [...a, ...b]) byId.set(g.id, g)
+  return [...byId.values()].sort((x, y) => x.id - y.id).slice(-60)
 }
 
 /** La memoria di Gigi: i contatori più alti vincono, la "ultima partita" è la più recente. */
@@ -71,6 +79,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     drills: maxByKey(a.drills, b.drills, (x, y) => Math.min(x, y)),
     ...mergeNotebook(a, b),
     gigi: mergeGigi(a.gigi, b.gigi),
+    history: mergeHistory(a.history, b.history),
     games: Math.max(a.games, b.games),
     wins: Math.max(a.wins, b.wins),
     botsBeaten: union(a.botsBeaten, b.botsBeaten),

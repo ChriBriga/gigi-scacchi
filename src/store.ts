@@ -5,6 +5,7 @@ import type { Outfit } from './coach/outfits'
 import type { Quality } from './engine/analysis'
 import { activeCoach, type CoachId } from './coach/coaches'
 import { mergeProgress } from './sync/merge'
+import type { GameRecord } from './engine/mistakes'
 
 export type DangerMode = 'off' | 'threats' | 'full'
 
@@ -100,6 +101,8 @@ export interface Progress {
   /** errori del quaderno ormai imparati (servono perché la sincronizzazione non li faccia tornare) */
   notebookGone?: string[]
   gigi?: GigiMemory
+  /** le ultime partite in piccolo (precisione, tipi di errore): servono a "Il tuo punto debole" */
+  history?: GameRecord[]
   today: DayLog
   /** ultima modifica locale (ms): serve alla sincronizzazione per capire chi è più recente */
   modified?: number
@@ -258,6 +261,19 @@ export function addXp(n: number) {
 export function bumpMistake(tag: string) {
   update((s) => {
     s.progress.mistakeTags[tag] = (s.progress.mistakeTags[tag] ?? 0) + 1
+  })
+}
+
+/** Quante partite si ricordano per le statistiche. */
+export const HISTORY_MAX = 60
+
+export function addGameRecord(rec: GameRecord) {
+  update((s) => {
+    const list = (s.progress.history ??= [])
+    if (list.some((g) => g.id === rec.id)) return
+    list.push(rec)
+    list.sort((a, b) => a.id - b.id)
+    if (list.length > HISTORY_MAX) list.splice(0, list.length - HISTORY_MAX)
   })
 }
 
