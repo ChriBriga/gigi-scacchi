@@ -72,6 +72,8 @@ export interface DayLog {
   lesson: boolean
   puzzles: number
   game: boolean
+  /** finale superato o errore del quaderno ripassato oggi: è il terzo passo dell'allenamento */
+  train?: boolean
 }
 
 export interface Progress {
@@ -356,6 +358,7 @@ export function resolveNotebook(id: string, ok: boolean) {
   update((s) => {
     const p = s.progress
     touchDay(p)
+    p.today.train = true
     const list = p.notebook ?? []
     const it = list.find((x) => x.id === id)
     if (!it) return

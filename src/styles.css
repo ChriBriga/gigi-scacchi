@@ -3265,3 +3265,8 @@ html[data-fx='high'] .page-fx {
 .btn.on {
   outline: 2px solid var(--accent, #ffd23f);
 }
+
+.plan-why {
+  margin: 0;
+  font-size: 0.95rem;
+}

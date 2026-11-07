@@ -8,9 +8,11 @@ import { BotAvatar } from '../components/BotAvatar'
 import { LessonIcon } from '../components/icons'
 import { pickGreeting } from '../coach/greeting'
 import { BOTS, botById, recommendedBot, type Bot } from '../engine/bots'
-import { LESSONS, nextLesson, type Lesson } from '../data/lessons'
-import { DRILLS } from '../data/drills'
-import { currentStreak, dueNotebook, levelName, useApp } from '../store'
+import { LESSONS, type Lesson } from '../data/lessons'
+import { DRILLS, type Drill } from '../data/drills'
+import { currentStreak, levelName, useApp } from '../store'
+import { todaysPlan } from '../training'
+import type { Puzzle } from './Puzzles'
 import type { Tab } from '../App'
 
 const DAILY_PUZZLES = 5
@@ -18,6 +20,7 @@ const DAILY_PUZZLES = 5
 export function Home({
   onLesson,
   onPuzzles,
+  onDrill,
   onTest,
   onNotebook,
   onWeak,
@@ -27,7 +30,8 @@ export function Home({
   go,
 }: {
   onLesson: (l: Lesson) => void
-  onPuzzles: () => void
+  onPuzzles: (themes?: Puzzle['theme'][], title?: string) => void
+  onDrill: (d: Drill) => void
   onTest: () => void
   onNotebook: () => void
   onWeak: () => void
@@ -40,13 +44,14 @@ export function Home({
   const [saved, setSaved] = useState(() => loadSavedGame())
   const savedBot = saved ? botById(saved.botId) : undefined
   const rec = recommendedBot(progress.skill)
-  const next = nextLesson(progress.lessonsDone)
   const t = progress.today
-  const lesson = next ?? LESSONS[Math.floor(progress.xp) % LESSONS.length]
+  // il piano resta lo stesso per tutta la giornata
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const plan = useMemo(() => todaysPlan(progress), [progress.today.day])
   const puzzleCount = Math.min(t.puzzles, DAILY_PUZZLES)
-  const doneToday = [t.lesson, puzzleCount >= DAILY_PUZZLES, t.game].filter(Boolean).length
+  const puzzlesDone = puzzleCount >= DAILY_PUZZLES
+  const doneToday = [t.lesson, puzzlesDone, !!t.train].filter(Boolean).length
   const streak = currentStreak(progress)
-  const due = dueNotebook(progress).length
   // il saluto si sceglie una volta sola per visita: non cambia a ogni aggiornamento della pagina
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const greet = useMemo(() => pickGreeting(settings.tone, progress), [settings.tone])
@@ -89,57 +94,66 @@ export function Home({
 
       <div className="home-grid">
         <div className="screen">
-          <h3 className="plan-title">Piano di oggi · {doneToday}/3</h3>
+          <h3 className="plan-title">Allenamento di oggi · {doneToday}/3</h3>
+          <p className="plan-why">
+            {plan.reason} <span className="muted">Circa 10 minuti.</span>
+          </p>
           <div className="plan-list">
-            <button className={`plan-card${t.lesson ? ' done' : ''}`} onClick={() => onLesson(lesson)}>
-              <span className={`tile${t.lesson ? ' done' : ''}`}>{t.lesson ? <Check size={28} weight="bold" /> : <LessonIcon id={lesson.id} size={28} />}</span>
+            <button className={`plan-card${t.lesson ? ' done' : ''}`} onClick={() => onLesson(plan.lesson)}>
+              <span className={`tile${t.lesson ? ' done' : ''}`}>{t.lesson ? <Check size={28} weight="bold" /> : <LessonIcon id={plan.lesson.id} size={28} />}</span>
               <span className="plan-info">
                 <strong>
-                  {next ? 'Lezione' : 'Ripasso'}: {lesson.title}
+                  {plan.lessonReview ? 'Ripasso' : 'Lezione'}: {plan.lesson.title}
                 </strong>
-                <small>1-2 minuti · {lesson.blurb}</small>
+                <small>1-2 minuti · {plan.lesson.blurb}</small>
               </span>
               <CaretRight className="go" size={20} weight="bold" />
             </button>
-            <button className={`plan-card${puzzleCount >= DAILY_PUZZLES ? ' done' : ''}`} onClick={onPuzzles}>
-              <span className={`tile${puzzleCount >= DAILY_PUZZLES ? ' done' : ''}`}>
-                {puzzleCount >= DAILY_PUZZLES ? <Check size={28} weight="bold" /> : <PuzzlePiece size={28} weight="duotone" />}
-              </span>
+            <button className={`plan-card${puzzlesDone ? ' done' : ''}`} onClick={() => onPuzzles(plan.puzzleThemes, plan.puzzleTitle)}>
+              <span className={`tile${puzzlesDone ? ' done' : ''}`}>{puzzlesDone ? <Check size={28} weight="bold" /> : <PuzzlePiece size={28} weight="duotone" />}</span>
               <span className="plan-info">
                 <strong>{DAILY_PUZZLES} puzzle</strong>
                 <small>
-                  {puzzleCount}/{DAILY_PUZZLES} · scelti sui tuoi punti deboli
+                  {puzzleCount}/{DAILY_PUZZLES} · {plan.spot ? 'sul tuo punto debole' : 'scelti sui temi in cui sbagli di più'}
                 </small>
               </span>
               <CaretRight className="go" size={20} weight="bold" />
             </button>
-            <button className={`plan-card${t.game ? ' done' : ''}`} onClick={() => startGame(rec, 'w')}>
-              {t.game ? (
-                <span className="tile done">
-                  <Check size={28} weight="bold" />
-                </span>
-              ) : (
-                <BotAvatar id={rec.id} size={52} />
-              )}
-              <span className="plan-info">
-                <strong>Una partita contro {rec.name}</strong>
-                <small>Con coach e mappa del pericolo</small>
-              </span>
-              <CaretRight className="go" size={20} weight="bold" />
-            </button>
-            {due > 0 && (
-              <button className="plan-card notebook" onClick={onNotebook}>
-                <span className="tile">
-                  <NotebookIcon size={28} weight="duotone" />
-                </span>
+            {plan.third.kind === 'drill' ? (
+              <button className={`plan-card${t.train ? ' done' : ''}`} onClick={() => onDrill(plan.third.kind === 'drill' ? plan.third.drill : DRILLS[0])}>
+                <span className={`tile${t.train ? ' done' : ''}`}>{t.train ? <Check size={28} weight="bold" /> : <FlagCheckered size={28} weight="duotone" />}</span>
                 <span className="plan-info">
-                  <strong>Quaderno: {due === 1 ? '1 errore' : `${due} errori`} da ripassare</strong>
+                  <strong>Finale: {plan.third.drill.title}</strong>
+                  <small>2-5 minuti · {plan.third.drill.blurb}</small>
+                </span>
+                <CaretRight className="go" size={20} weight="bold" />
+              </button>
+            ) : (
+              <button className={`plan-card notebook${t.train ? ' done' : ''}`} onClick={onNotebook}>
+                <span className={`tile${t.train ? ' done' : ''}`}>{t.train ? <Check size={28} weight="bold" /> : <NotebookIcon size={28} weight="duotone" />}</span>
+                <span className="plan-info">
+                  <strong>Quaderno: {plan.third.due === 1 ? '1 errore' : `${plan.third.due} errori`} da ripassare</strong>
                   <small>Errori tuoi, uno alla volta: stavolta li risolvi</small>
                 </span>
                 <CaretRight className="go" size={20} weight="bold" />
               </button>
             )}
           </div>
+          {doneToday === 3 && <p className="plan-why">Allenamento fatto. Ora si gioca: la teoria serve se la metti sulla scacchiera.</p>}
+          <button className={`plan-card${t.game ? ' done' : ''}`} onClick={() => startGame(rec, 'w')}>
+            {t.game ? (
+              <span className="tile done">
+                <Check size={28} weight="bold" />
+              </span>
+            ) : (
+              <BotAvatar id={rec.id} size={52} />
+            )}
+            <span className="plan-info">
+              <strong>Una partita contro {rec.name}</strong>
+              <small>Con coach e mappa del pericolo</small>
+            </span>
+            <CaretRight className="go" size={20} weight="bold" />
+          </button>
           <button className="ghost" onClick={() => go('play')}>
             Scegli un altro avversario <CaretRight size={16} weight="bold" />
           </button>

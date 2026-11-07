@@ -58,6 +58,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
       lesson: a.today.lesson || b.today.lesson,
       puzzles: Math.max(a.today.puzzles, b.today.puzzles),
       game: a.today.game || b.today.game,
+      train: a.today.train || b.today.train,
     }
   } else if (b.today.day > a.today.day) today = b.today
 

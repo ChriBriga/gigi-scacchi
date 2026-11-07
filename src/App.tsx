@@ -104,7 +104,8 @@ export function App() {
     content = (
       <Home
         onLesson={openLesson}
-        onPuzzles={() => setOverlay({ kind: 'puzzles5', key: Date.now() })}
+        onPuzzles={(themes, title) => setOverlay({ kind: 'puzzles5', key: Date.now(), themes, title })}
+        onDrill={(d) => setOverlay({ kind: 'drill', drill: d })}
         onTest={() => setOverlay({ kind: 'test' })}
         onNotebook={() => setOverlay({ kind: 'notebook' })}
         onWeak={() => setOverlay({ kind: 'weak' })}

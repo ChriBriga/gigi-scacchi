@@ -61,6 +61,7 @@ export function DrillPlay({ drill, onExit, onNext }: { drill: Drill; onExit: () 
       sfx.win()
       update((s) => {
         touchDay(s.progress)
+        s.progress.today.train = true
         const d = (s.progress.drills ??= {})
         d[drill.id] = d[drill.id] ? Math.min(d[drill.id], n) : n
         s.progress.xp += first ? 25 : 5
