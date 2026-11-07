@@ -23,6 +23,11 @@ import {
   Smiley,
   Pepper,
   SmileyAngry,
+  Columns,
+  Footprints,
+  Church,
+  TreeStructure,
+  Path,
   type Icon,
 } from '@phosphor-icons/react'
 
@@ -42,6 +47,12 @@ export const LESSON_ICON: Record<string, Icon> = {
   promozione: Medal,
   stallo: Handshake,
   duetorri: Stairs,
+  colonna: Columns,
+  passato: Footprints,
+  alfieri: Church,
+  pedoni: TreeStructure,
+  sicurezza: ShieldCheck,
+  piano: Path,
 }
 
 export const THEME_ICON: Record<string, Icon> = {

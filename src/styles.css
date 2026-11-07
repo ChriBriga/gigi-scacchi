@@ -1685,6 +1685,12 @@ main {
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
+.lessons-h {
+  grid-column: 1 / -1;
+  margin: 10px 2px 0;
+  font-size: 0.95rem;
+  opacity: 0.75;
+}
 @media (min-width: 960px) {
   .bots,
   .lessons {

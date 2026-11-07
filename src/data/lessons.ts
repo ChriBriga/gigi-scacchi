@@ -38,6 +38,8 @@ export type Step =
 
 export interface Lesson {
   id: string
+  /** 'medio' = lezioni oltre le basi (sezione a parte nell'elenco) */
+  level?: 'medio'
   title: string
   blurb: string
   steps: Step[]
@@ -311,6 +313,162 @@ export const LESSONS: Lesson[] = [
         ok: 'Matto a scala! Una torre “taglia” il re, l’altra lo chiude.',
         wrong: 'Dai scacco con la torre libera sull’ottava traversa.',
         hint: ['b1', 'b8'],
+      },
+    ],
+  },
+  // ---- livello medio ----
+  {
+    id: 'colonna',
+    level: 'medio',
+    title: 'La colonna aperta',
+    blurb: 'Dove non ci sono pedoni, la torre corre. Mettila lì.',
+    steps: [
+      {
+        kind: 'info',
+        fen: 'r4rk1/pp3ppp/8/8/8/8/PP3PPP/R4RK1 w - - 0 1',
+        marks: ['e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8'],
+        text: 'Una colonna senza pedoni si chiama “aperta”. Qui la colonna e è libera da cima a fondo: è un’autostrada per le torri.',
+      },
+      {
+        kind: 'try',
+        fen: 'r4rk1/pp3ppp/8/8/8/8/PP3PPP/R4RK1 w - - 0 1',
+        accept: ['f1e1', 'a1e1'],
+        text: 'Le torri stanno bene sulle colonne aperte: da lì premono sulla posizione avversaria e possono entrare. Metti una torre in e1!',
+        ok: 'Ecco: ora la torre controlla tutta la colonna e minaccia di entrare in e7 o e8. Regola: torri sulle colonne aperte.',
+        wrong: 'Cerca la colonna senza pedoni (la e) e porta lì una delle tue torri.',
+        hint: ['f1', 'e1'],
+      },
+    ],
+  },
+  {
+    id: 'passato',
+    level: 'medio',
+    title: 'Il pedone passato',
+    blurb: 'Nessun pedone avversario può fermarlo: un pedone che fa paura.',
+    steps: [
+      {
+        kind: 'info',
+        fen: '8/pp5k/8/3P4/8/8/PP4K1/8 w - - 0 1',
+        marks: ['d5', 'd6', 'd7', 'd8'],
+        text: 'Il pedone in d5 è “passato”: sulla sua colonna e su quelle vicine (c, d, e) non ci sono pedoni neri che possano catturarlo o bloccarlo. Deve solo correre.',
+      },
+      {
+        kind: 'info',
+        fen: '8/pp5k/8/3P4/8/8/PP4K1/8 w - - 0 1',
+        arrows: [['d5', 'd8']],
+        text: 'Un pedone passato obbliga il Nero a tenere il re (o un pezzo) di guardia per sempre. Più vai verso l’ottava, più vale. Nei finali spesso decide la partita.',
+      },
+      {
+        kind: 'try',
+        fen: '8/pp5k/8/3P4/8/8/PP4K1/8 w - - 0 1',
+        accept: ['d5d6'],
+        text: 'Il re nero è lontano, fuori dalla corsa. Spingi il pedone passato!',
+        ok: 'Avanti! Ogni casa che guadagna lo rende più pericoloso: il re nero non fa in tempo.',
+        wrong: 'Il pedone passato deve avanzare: d5 → d6.',
+        hint: ['d5', 'd6'],
+      },
+    ],
+  },
+  {
+    id: 'alfieri',
+    level: 'medio',
+    title: 'La coppia degli alfieri',
+    blurb: 'Due alfieri coprono tutte le case, chiare e scure. Un piccolo tesoro.',
+    steps: [
+      {
+        kind: 'info',
+        range: true,
+        fen: '7k/8/8/8/8/8/8/2B1KB2 w - - 0 1',
+        text: 'Un alfiere vede solo le case del suo colore. Due alfieri, uno chiaro e uno scuro, vedono tutto. Tocca i due alfieri e guarda!',
+      },
+      {
+        kind: 'info',
+        fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1',
+        text: 'Regola pratica: se hai la coppia degli alfieri su una posizione aperta, non scambiarne uno con un cavallo senza buon motivo. Il vantaggio è piccolo ma vero, e pesa nei finali.',
+      },
+      {
+        kind: 'try',
+        fen: '4k3/8/8/8/r7/8/4B3/2B1K3 w - - 0 1',
+        accept: ['e2b5'],
+        text: 'Con due alfieri hai sempre una diagonale libera. Qui uno dei due dà scacco e attacca la torre insieme. Trovalo!',
+        ok: 'Scacco al re e torre sotto tiro: forchetta d’alfiere! Il Nero salva il re e tu prendi la torre.',
+        wrong: 'Cerca una casa da cui l’alfiere attacca il re e la torre nera (a4) insieme.',
+        hint: ['e2', 'b5'],
+      },
+    ],
+  },
+  {
+    id: 'pedoni',
+    level: 'medio',
+    title: 'Pedoni doppiati e isolati',
+    blurb: 'La struttura dei pedoni: i punti deboli che durano tutta la partita.',
+    steps: [
+      {
+        kind: 'info',
+        fen: '4k3/pp3ppp/8/8/8/2P5/2P2PPP/4K3 w - - 0 1',
+        marks: ['c2', 'c3'],
+        text: 'Pedoni DOPPIATI: due pedoni sulla stessa colonna, come in c2 e c3. Si intralciano a vicenda e si proteggono male. Meglio evitarli.',
+      },
+      {
+        kind: 'info',
+        fen: '4k3/pp3ppp/8/3p4/8/8/PP3PPP/3RK3 w - - 0 1',
+        marks: ['d5'],
+        arrows: [['d1', 'd5']],
+        text: 'Pedone ISOLATO: il d5 non ha pedoni amici sulle colonne vicine (c ed e), quindi nessun pedone può proteggerlo. Deve difenderlo un pezzo, ed è un bersaglio.',
+      },
+      {
+        kind: 'try',
+        fen: '4k3/pp3ppp/8/3p4/8/8/PP3PPP/3RK3 w - - 0 1',
+        accept: ['d1d5'],
+        text: 'Il pedone nero d5 è isolato e nessuno lo difende. Attaccato dalla torre… prendilo!',
+        ok: 'Pedone gratis! I pedoni isolati e doppiati sono bersagli: quando li vedi, attaccali. E nelle tue partite, evitali.',
+        wrong: 'Cerca il pedone isolato nero e catturalo con la torre.',
+        hint: ['d1', 'd5'],
+      },
+    ],
+  },
+  {
+    id: 'sicurezza',
+    level: 'medio',
+    title: 'Il re al sicuro: dagli aria',
+    blurb: 'Il matto di corridoio si evita con una mossa di pedone.',
+    steps: [
+      {
+        kind: 'info',
+        fen: 'r1bq1rk1/ppp2ppp/2n2n2/3p4/3P4/2N2N2/PPP2PPP/R1BQ1RK1 w - - 0 1',
+        marks: ['f2', 'g2', 'h2'],
+        text: 'Dopo l’arrocco il re sta dietro tre pedoni (f, g, h): scudo perfetto. Prova a non muoverli senza motivo, ogni pedone spinto è un buco nelle difese.',
+      },
+      {
+        kind: 'try',
+        fen: '4r1k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1',
+        accept: ['h2h3', 'g2g3', 'f2f3', 'h2h4', 'g2g4', 'f2f4'],
+        text: 'Il Nero minaccia Te1 e il re bianco, chiuso dai suoi pedoni, sarebbe matto! Fai una mossa di pedone che gli dia una casa di fuga (si chiama “dare aria”).',
+        ok: 'Aria! Ora il re ha una casa dove scappare e il matto di corridoio non c’è più. Una mossa di pedone, un problema in meno.',
+        wrong: 'Serve una mossa di PEDONE (f, g o h) che liberi una casa davanti al re.',
+        hint: ['h2', 'h3'],
+      },
+    ],
+  },
+  {
+    id: 'piano',
+    level: 'medio',
+    title: 'Come fare un piano',
+    blurb: 'Quando non c’è nessuna tattica, che mossa giochi? Ecco la risposta.',
+    steps: [
+      {
+        kind: 'info',
+        fen: START,
+        text: 'Quando non c’è niente da catturare e nessuna minaccia, non muovere a caso. Un piano semplice in 3 passi: 1) trova il tuo pezzo peggiore; 2) portalo in una casa migliore; 3) poi attacca il punto debole avversario.',
+      },
+      {
+        kind: 'try',
+        fen: '4k3/pp3ppp/8/8/8/N7/PP3PPP/4K3 w - - 0 1',
+        accept: ['a3c4', 'a3b5'],
+        text: 'Il tuo pezzo peggiore è il cavallo in a3, sul bordo: da lì controlla poche case. Portalo al centro o in avanti!',
+        ok: 'Meglio! Un cavallo centrale vede il doppio delle case. Prima di ogni mossa tranquilla: “chi è il mio pezzo peggiore?”',
+        wrong: 'Sposta il cavallo (a3) in una casa più attiva, verso il centro: c4 o b5.',
+        hint: ['a3', 'c4'],
       },
     ],
   },

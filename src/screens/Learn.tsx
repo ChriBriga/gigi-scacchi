@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type PieceSymbol, type Square } from 'chess.js'
 import { ArrowLeft, ArrowRight, Check, Lightbulb, SkipForward } from '@phosphor-icons/react'
 import { Board } from '../components/Board'
@@ -20,17 +20,21 @@ export function Learn({ onOpen }: { onOpen: (l: Lesson) => void }) {
       <h2>Impara</h2>
       <p className="sub">Lezioni di 1-2 minuti. Solo lo stretto necessario, dritto al punto.</p>
       <div className="lessons">
-        {LESSONS.map((l) => {
+        {LESSONS.map((l, i) => {
           const done = progress.lessonsDone.includes(l.id)
+          const startsMid = l.level === 'medio' && LESSONS[i - 1]?.level !== 'medio'
           return (
-            <button key={l.id} className={`lesson-card${next?.id === l.id ? ' rec' : ''}`} onClick={() => onOpen(l)}>
-              <span className={`tile${done ? ' done' : ''}`}>{done ? <Check size={26} weight="bold" /> : <LessonIcon id={l.id} size={28} />}</span>
-              <span className="plan-info">
-                <strong>{l.title}</strong>
-                <small>{l.blurb}</small>
-              </span>
-              {next?.id === l.id && <span className="badge-pill tip">prossima</span>}
-            </button>
+            <Fragment key={l.id}>
+              {startsMid && <h3 className="lessons-h">Livello medio · per battere i bot più forti</h3>}
+              <button className={`lesson-card${next?.id === l.id ? ' rec' : ''}`} onClick={() => onOpen(l)}>
+                <span className={`tile${done ? ' done' : ''}`}>{done ? <Check size={26} weight="bold" /> : <LessonIcon id={l.id} size={28} />}</span>
+                <span className="plan-info">
+                  <strong>{l.title}</strong>
+                  <small>{l.blurb}</small>
+                </span>
+                {next?.id === l.id && <span className="badge-pill tip">prossima</span>}
+              </button>
+            </Fragment>
           )
         })}
       </div>
