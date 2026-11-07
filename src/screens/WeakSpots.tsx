@@ -79,6 +79,20 @@ export function WeakSpots({
   }, [history])
   const hardest = byStyle.filter((s) => s.n >= 3).sort((a, b) => a.rate - b.rate)[0]
 
+  // minacce dell'avversario nelle ultime partite: quante ne hai parate
+  const threats = useMemo(() => {
+    const t = { seen: 0, handled: 0, missed: 0, asked: 0, games: 0 }
+    for (const g of history.slice(-15)) {
+      if (!g.threats) continue
+      t.games++
+      t.seen += g.threats.seen
+      t.handled += g.threats.handled
+      t.missed += g.threats.missed
+      t.asked += g.threats.asked
+    }
+    return t.seen >= 3 ? t : null
+  }, [history])
+
   const header = (
     <div className="topbar">
       <button className="ghost" onClick={onExit}>
@@ -187,6 +201,21 @@ export function WeakSpots({
           <AccuracyChart history={history} />
           <small className="muted">Ogni punto è una partita (verde vittoria, rosso sconfitta). La precisione dice quanto vicino alle mosse migliori hai giocato.</small>
         </div>
+
+        {threats && (
+          <div className="card">
+            <h3>Minacce dell’avversario</h3>
+            <div className="acc-head">
+              <b className="acc-big">{Math.round((threats.handled / Math.max(1, threats.handled + threats.missed)) * 100)}%</b>
+              <span className="muted">parate su {threats.handled + threats.missed}</span>
+            </div>
+            <small className="muted">
+              Pezzi in presa e matti in arrivo che l’avversario ti ha messo davanti, nelle ultime {threats.games} partite
+              {threats.asked > 0 ? `; hai premuto T ${threats.asked} ${threats.asked === 1 ? 'volta' : 'volte'}` : ''}.
+              {threats.missed > threats.handled ? ' Prima di muovere chiediti sempre: cosa vuole fare lui?' : ''}
+            </small>
+          </div>
+        )}
 
         {byStyle.length > 0 && (
           <div className="card">

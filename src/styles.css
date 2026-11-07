@@ -3243,3 +3243,25 @@ html[data-fx='high'] .page-fx {
   padding-left: 10px;
   border-left: 3px solid var(--bubble-accent);
 }
+
+.kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  font: inherit;
+  font-size: 0.75em;
+  line-height: 1.5;
+  text-align: center;
+  opacity: 0.6;
+}
+@media (hover: none) {
+  .kbd {
+    display: none;
+  }
+}
+.btn.on {
+  outline: 2px solid var(--accent, #ffd23f);
+}

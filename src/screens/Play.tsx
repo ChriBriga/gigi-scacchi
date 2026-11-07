@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
-import { ArrowCounterClockwise, ArrowLeft, ArrowRight, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold, Rewind } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ArrowLeft, ArrowRight, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold, Rewind, Warning } from '@phosphor-icons/react'
 import { Board, type Tint } from '../components/Board'
 import { BotAvatar } from '../components/BotAvatar'
 import { Confetti, MoveList, PlayerBar, type MoveRow } from '../components/GameParts'
@@ -11,7 +11,7 @@ import { MISTAKE_INFO, buildRecord, classifyMistake } from '../engine/mistakes'
 import { chooseBotMove, type Bot } from '../engine/bots'
 import { STYLES } from '../engine/style'
 import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, type Quality } from '../engine/analysis'
-import { dangerTints, hangingPieces } from '../chess/danger'
+import { dangerTints, hangingPieces, mateInOne, threatsFor } from '../chess/danger'
 import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
 import { explainWithGemini, summarizeGameWithGemini } from '../coach/gemini'
@@ -55,6 +55,13 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 const DANGER_CYCLE: DangerMode[] = ['off', 'threats', 'full']
 const DANGER_LABEL: Record<DangerMode, string> = { off: 'Spenta', threats: 'Minacce', full: 'Completa' }
+
+export interface ThreatStats {
+  seen: number
+  handled: number
+  missed: number
+  asked: number
+}
 
 function isBad(q: Quality) {
   return q === 'mistake' || q === 'blunder'
@@ -106,6 +113,14 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   const alive = useRef(true)
   const retracts = useRef(resumed.current ? (resume?.retracts ?? 0) : 0)
   const badMoves = useRef(resumed.current ? (resume?.badMoves ?? 0) : 0)
+  /** "Cosa minaccia?": minacce incontrate in partita, quante hai parato e quante lasciato lì, quante volte hai chiesto aiuto */
+  const threatStats = useRef<ThreatStats>({ seen: 0, handled: 0, missed: 0, asked: 0 })
+  /** la minaccia della posizione in cui sei adesso (se c'è) e se hai guardato con T */
+  const pendingThreat = useRef<{ asked: boolean } | null>(null)
+  /** l'ultima minaccia risolta con una mossa, per annullarla se ritiri la mossa */
+  const resolvedThreat = useRef<{ asked: boolean; kind: 'handled' | 'missed' } | null>(null)
+  const seenThreatFens = useRef(new Set<string>())
+  const [threatView, setThreatView] = useState<{ rings: Square[]; arrows: [Square, Square, string][] } | null>(null)
 
   useEffect(() => {
     alive.current = true
@@ -217,6 +232,68 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moves, phase])
 
+  // a ogni nuova posizione in cui tocca a te: si guarda se l'avversario minaccia qualcosa (si conta una volta sola per posizione)
+  useEffect(() => {
+    setThreatView(null)
+    if (phase !== 'player') return
+    const g = game.current
+    if (g.turn() !== color) return
+    const key = g.fen()
+    if (seenThreatFens.current.has(key)) return
+    seenThreatFens.current.add(key)
+    const t = threatsFor(g, color)
+    if (t.hanging.length > 0 || t.mate) {
+      pendingThreat.current = { asked: false }
+      threatStats.current.seen += 1
+    } else pendingThreat.current = null
+    resolvedThreat.current = null
+  }, [fen, phase, color])
+
+  /** "Cosa minaccia?": evidenzia cosa vuole fare l'avversario e lo dice a parole. Non rivela la mossa giusta. */
+  const showThreats = () => {
+    if (phase !== 'player' || game.current.turn() !== color) return
+    if (threatView) {
+      setThreatView(null)
+      return
+    }
+    const g = game.current
+    const t = threatsFor(g, color)
+    threatStats.current.asked += 1
+    if (pendingThreat.current) pendingThreat.current.asked = true
+    const rings: Square[] = t.hanging.map((h) => h.square)
+    const arrows: [Square, Square, string][] = []
+    const parts: string[] = []
+    if (t.mate) {
+      rings.push(t.mate.king)
+      arrows.push([t.mate.from, t.mate.to, '#ff4d5e'])
+      parts.push(`Attenzione: se non fai nulla, l’avversario dà matto con ${t.mate.san}!`)
+    }
+    for (const h of t.hanging.slice(0, 2)) {
+      parts.push(`Il tuo ${PIECE_NAME[h.piece as PieceSymbol]} in ${h.square} è attaccato e rischi di perderlo.`)
+    }
+    setThreatView({ rings, arrows })
+    setCoach(
+      parts.length
+        ? { text: parts.join(' '), mood: t.mate ? 'angry' : 'neutral' }
+        : { text: 'Nessuna minaccia immediata: niente pezzi in presa né matti in arrivo. Ora pensa a cosa vuoi fare tu.', mood: 'cool' },
+    )
+  }
+  const showThreatsRef = useRef(showThreats)
+  showThreatsRef.current = showThreats
+  // scorciatoia da tastiera: T = "cosa minaccia?"
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      if (e.key !== 't' && e.key !== 'T') return
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      e.preventDefault()
+      showThreatsRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const onUserMove = async (from: Square, to: Square, promotion?: PieceSymbol) => {
     const g = game.current
     if (phase !== 'player' || g.turn() !== color) return
@@ -226,6 +303,14 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
       mv = g.move({ from, to, promotion })
     } catch {
       return
+    }
+    // se c'era una minaccia: l'hai parata con questa mossa o è ancora lì?
+    if (pendingThreat.current) {
+      const still = hangingPieces(g, color).length > 0 || !!mateInOne(g)
+      const kind = still ? 'missed' : 'handled'
+      threatStats.current[kind] += 1
+      resolvedThreat.current = { asked: pendingThreat.current.asked, kind }
+      pendingThreat.current = null
     }
     const uci = from + to + (promotion ?? '')
     const rec: MoveRec = { san: mv.san, uci, fenBefore, color }
@@ -315,6 +400,12 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     setPhase('player')
     retracts.current += 1
     ownMoves.current -= 1
+    // la mossa ritirata non conta: la minaccia torna "da risolvere"
+    if (resolvedThreat.current) {
+      threatStats.current[resolvedThreat.current.kind] -= 1
+      pendingThreat.current = { asked: resolvedThreat.current.asked }
+      resolvedThreat.current = null
+    }
     say('retract')
   }
 
@@ -503,6 +594,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     if (result) {
       const rec = buildRecord(moves, color, bot.id, result.outcome, todayStr())
       if (rec) {
+        if (threatStats.current.seen > 0) rec.threats = { ...threatStats.current }
         addGameRecord(rec)
         // il commento di Gemini parte in coda: non blocca né rallenta la revisione
         if (settings.geminiKey) {
@@ -599,8 +691,8 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
             lastBy={lastBy}
             slowMove={lastBy === 'opp'}
             tints={quiz && !quiz.done ? undefined : tints}
-            rings={quiz ? (quiz.done ? quiz.targets : []) : rings}
-            arrows={quiz?.done && quiz.refute ? [[quiz.refute[0], quiz.refute[1], '#ffb347']] : undefined}
+            rings={quiz ? (quiz.done ? quiz.targets : []) : threatView ? [...new Set([...rings, ...threatView.rings])] : rings}
+            arrows={quiz?.done && quiz.refute ? [[quiz.refute[0], quiz.refute[1], '#ffb347']] : threatView && threatView.arrows.length ? threatView.arrows : undefined}
             onPick={quiz && !quiz.done ? onQuizPick : undefined}
             hint={hint}
             badge={badge}
@@ -643,6 +735,13 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
                   ))}
                 </div>
                 {cleanNote && <p className="review-note clean">✨ Partita pulita: nessuna mossa ritirata, +15 XP. {cleanNote}</p>}
+                {threatStats.current.seen > 0 && (
+                  <p className="review-note">
+                    🛡️ Minacce dell’avversario: {threatStats.current.seen} · parate {threatStats.current.handled}
+                    {threatStats.current.missed > 0 ? ` · ignorate ${threatStats.current.missed}` : ''}
+                    {threatStats.current.asked > 0 ? ` · aiuto T usato ${threatStats.current.asked} ${threatStats.current.asked === 1 ? 'volta' : 'volte'}` : ''}
+                  </p>
+                )}
                 {analysing && <p className="review-note">{coachInfo(currentCoach()).name} sta riguardando la partita…</p>}
                 {!analysing && reviewItems.length > 0 && (
                   <button className="btn primary" onClick={() => setReviewOpen(true)}>
@@ -677,6 +776,9 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
                   <MagnifyingGlass size={20} weight="bold" /> Perché?
                 </button>
               )}
+              <button className={`btn${threatView ? ' on' : ''}`} onClick={showThreats} disabled={phase !== 'player'} title="Cosa minaccia l’avversario? (scorciatoia: T)">
+                <Warning size={20} weight="fill" /> Minacce <kbd className="kbd">T</kbd>
+              </button>
               <button className="btn" onClick={cycleDanger}>
                 <MapTrifold size={20} weight="duotone" /> Mappa: {DANGER_LABEL[settings.danger]}
               </button>

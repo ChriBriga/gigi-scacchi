@@ -131,6 +131,8 @@ export interface GameRecord {
   acc: number
   q: Partial<Record<Quality, number>>
   kinds: Partial<Record<MistakeKind, number>>
+  /** minacce dell'avversario incontrate (solo se ce ne sono state): quante, parate, ignorate, aiuti "T" usati */
+  threats?: { seen: number; handled: number; missed: number; asked: number }
 }
 
 /** Formula di Lichess: perdita media di probabilità di vittoria (punti %) → precisione. */

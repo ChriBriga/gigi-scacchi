@@ -62,3 +62,49 @@ export function hangingPieces(chess: Chess, color: Color): Hanging[] {
   }
   return out
 }
+
+export interface MateMove {
+  from: Square
+  to: Square
+  san: string
+}
+
+/** Una mossa che dà scacco matto subito a chi ha la mossa nella posizione (se esiste). */
+export function mateInOne(chess: Chess): MateMove | null {
+  for (const m of chess.moves({ verbose: true })) {
+    const t = new Chess(chess.fen())
+    t.move(m)
+    if (t.isCheckmate()) return { from: m.from, to: m.to, san: m.san }
+  }
+  return null
+}
+
+export interface Threats {
+  /** tuoi pezzi che l'avversario può prendere in vantaggio */
+  hanging: Hanging[]
+  /** il matto in una che l'avversario avrebbe se fosse il suo turno, con la casa del tuo re */
+  mate: (MateMove & { king: Square }) | null
+}
+
+/**
+ * Cosa minaccia l'avversario, quando tocca a `me`: pezzi in presa e matto in una.
+ * Per il matto si "passa il turno" all'avversario nella stessa posizione (se non sei sotto scacco).
+ */
+export function threatsFor(chess: Chess, me: Color): Threats {
+  const hanging = hangingPieces(chess, me)
+  let mate: Threats['mate'] = null
+  if (chess.turn() === me && !chess.inCheck()) {
+    try {
+      const parts = chess.fen().split(' ')
+      parts[1] = opposite(me)
+      parts[3] = '-'
+      const flipped = new Chess(parts.join(' '))
+      const m = mateInOne(flipped)
+      const king = chess.board().flat().find((p) => p?.type === 'k' && p.color === me)?.square
+      if (m && king) mate = { ...m, king }
+    } catch {
+      /* posizione non rigirabile (es. l'avversario sarebbe in scacco): nessuna minaccia di matto */
+    }
+  }
+  return { hanging, mate }
+}
