@@ -3,6 +3,7 @@ import { Chess, type Color, type Square } from 'chess.js'
 import { CaretDoubleLeft, CaretDoubleRight, CaretLeft, CaretRight, Eye, GraduationCap, X } from '@phosphor-icons/react'
 import { Board } from './Board'
 import { GameReview, type ReviewItem } from './GameReview'
+import { QualityIcon } from './QualityIcon'
 import { QUALITY_INFO, evaluate, winPct } from '../engine/analysis'
 import { MISTAKE_INFO, classifyMistake, isMistake, type JudgedMove } from '../engine/mistakes'
 import { parseUci } from '../chess/util'
@@ -251,7 +252,7 @@ export function GameReplay({
             <div className="card replay-info">
               <strong>{label}</strong>
               {m && !mine && <small className="muted">Mossa dell’avversario</small>}
-              {j && <span className="chip" style={{ background: QUALITY_INFO[j.quality].color }}>{QUALITY_INFO[j.quality].icon} {QUALITY_INFO[j.quality].label}</span>}
+              {j && <span className="chip" style={{ background: QUALITY_INFO[j.quality].color }}><QualityIcon q={j.quality} /> {QUALITY_INFO[j.quality].label}</span>}
               {mine && before !== undefined && after !== undefined && (
                 <small>
                   Probabilità di vincere: {Math.round(before)}% → <b>{Math.round(after)}%</b>

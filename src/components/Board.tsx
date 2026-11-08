@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
 import { ALL_SQUARES, coordsToSq, sqToCoords } from '../chess/util'
 import { useBoardPieces, type PieceSprite } from './useBoardPieces'
@@ -25,7 +25,7 @@ export interface BoardProps {
   hint?: { from?: Square; to?: Square } | null
   /** frecce da disegnare; il terzo valore opzionale è il colore (default giallo) */
   arrows?: ([Square, Square] | [Square, Square, string])[]
-  badge?: { square: Square; icon: string; color: string } | null
+  badge?: { square: Square; icon: ReactNode; color: string; kind?: string } | null
   /** mostra a ogni tocco il raggio d'azione del pezzo (anche del nemico) */
   showRange?: boolean
   /** casa che ha appena "ricevuto" una mossa sbagliata (shake) */
@@ -263,7 +263,7 @@ export function Board(props: BoardProps) {
         )}
 
         {badge && (
-          <div className="badge" style={{ ...posStyle(toView(badge.square)), ['--bc' as string]: badge.color }}>
+          <div className="badge" data-q={badge.kind} style={{ ...posStyle(toView(badge.square)), ['--bc' as string]: badge.color }}>
             <span>{badge.icon}</span>
           </div>
         )}

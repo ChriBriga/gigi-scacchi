@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
-import { ArrowCounterClockwise, ArrowLeft, ArrowRight, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold, Rewind, Warning } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ArrowLeft, ArrowRight, BookOpenText, Compass, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold, Rewind, Warning } from '@phosphor-icons/react'
+import { EvalBar } from '../components/EvalBar'
+import { QualityIcon } from '../components/QualityIcon'
 import { Board, type Tint } from '../components/Board'
 import { BotAvatar } from '../components/BotAvatar'
 import { Confetti, MoveList, PlayerBar, type MoveRow } from '../components/GameParts'
@@ -10,7 +12,8 @@ import { GameReplay } from '../components/GameReplay'
 import { MISTAKE_INFO, buildRecord, classifyMistake } from '../engine/mistakes'
 import { chooseBotMove, type Bot } from '../engine/bots'
 import { STYLES } from '../engine/style'
-import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, type Quality } from '../engine/analysis'
+import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, winPct, type Quality } from '../engine/analysis'
+import { adviceFor, type Advice } from '../chess/advice'
 import { dangerTints, hangingPieces, mateInOne, threatsFor } from '../chess/danger'
 import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
@@ -85,7 +88,9 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   const [lastBy, setLastBy] = useState<'me' | 'opp'>(lastSaved && lastSaved.color !== color ? 'opp' : 'me')
   const [botSan, setBotSan] = useState<string | null>([...(resumed.current ?? [])].reverse().find((m) => m.color !== color)?.san ?? null)
   const [phase, setPhase] = useState<Phase>(resumed.current && game.current.turn() !== color ? 'thinking' : 'player')
-  const [badge, setBadge] = useState<{ square: Square; icon: string; color: string } | null>(null)
+  const [advice, setAdvice] = useState<Advice | null>(null)
+  const [opening, setOpening] = useState<string | null>(null)
+  const [badge, setBadge] = useState<{ square: Square; icon: ReactNode; color: string; kind?: string } | null>(null)
   const [coach, setCoach] = useState<{ text: string; mood: Mood }>(() => {
     const ev: CoachEvent = resumed.current ? 'resume' : 'start'
     // contro un bot con uno stile, il consiglio per affrontarlo si aggiunge alla frase d'inizio (una volta, a inizio partita)
@@ -278,17 +283,30 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
         : { text: 'Nessuna minaccia immediata: niente pezzi in presa né matti in arrivo. Ora pensa a cosa vuoi fare tu.', mood: 'cool' },
     )
   }
+  /** "Cosa faccio?": la routine di ogni mossa e i consigli della fase, calcolati sulla posizione. */
+  const toggleAdvice = () => {
+    if (phase !== 'player' || game.current.turn() !== color) return
+    if (advice) {
+      setAdvice(null)
+      return
+    }
+    setAdvice(adviceFor(game.current, color))
+  }
+  const toggleAdviceRef = useRef(toggleAdvice)
+  toggleAdviceRef.current = toggleAdvice
   const showThreatsRef = useRef(showThreats)
   showThreatsRef.current = showThreats
   // scorciatoia da tastiera: T = "cosa minaccia?"
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key !== 't' && e.key !== 'T') return
+      const k = e.key.toLowerCase()
+      if (k !== 't' && k !== 'c') return
       const tag = (e.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       e.preventDefault()
-      showThreatsRef.current()
+      if (k === 't') showThreatsRef.current()
+      else toggleAdviceRef.current()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -312,6 +330,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
       resolvedThreat.current = { asked: pendingThreat.current.asked, kind }
       pendingThreat.current = null
     }
+    setAdvice(null)
     const uci = from + to + (promotion ?? '')
     const rec: MoveRec = { san: mv.san, uci, fenBefore, color }
     ownMoves.current += 1
@@ -327,7 +346,10 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     setPhase('thinking')
 
     const botP = chooseBotMove(g.fen(), bot)
-    const judgeP = settings.liveJudging ? judgeMove(fenBefore, uci).catch(() => undefined) : Promise.resolve(undefined)
+    const histBefore = g.history().slice(0, -1)
+    const prevOwnJ = [...moves].reverse().find((m) => m.color === color)?.judgement
+    const prevWin = prevOwnJ ? winPct(prevOwnJ.cpAfter) : undefined
+    const judgeP = settings.liveJudging ? judgeMove(fenBefore, uci, { history: histBefore, prevWin }).catch(() => undefined) : Promise.resolve(undefined)
     const [botUci, j] = await Promise.all([botP, judgeP, sleep(THINK_MS)]).then(([b, jj]) => [b, jj] as const)
     if (!alive.current) return
 
@@ -335,10 +357,10 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
       rec.judgement = j
       setMoves((m) => m.map((x) => (x === rec || (x.uci === rec.uci && x.fenBefore === rec.fenBefore) ? { ...rec } : x)))
       const info = QUALITY_INFO[j.quality]
-      setBadge({ square: to, icon: info.icon, color: info.color })
+      setBadge({ square: to, icon: <QualityIcon q={j.quality} />, color: info.color, kind: j.quality })
       if (j.quality === 'brilliant') sfx.brilliant()
       else if (isBad(j.quality)) sfx.bad()
-      else if (j.quality === 'best' || j.quality === 'great') sfx.good()
+      else if (j.quality === 'best' || j.quality === 'great' || j.quality === 'excellent') sfx.good()
 
       const hang = hangingPieces(g, color)
       if (isBad(j.quality)) {
@@ -362,6 +384,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
       const prevOwn = [...moves].reverse().find((m) => m.color === color)
       const shuffled = !!prevOwn && prevOwn.uci.slice(0, 2) === to && prevOwn.uci.slice(2, 4) === from
       const best = j.quality === 'best' || j.quality === 'great'
+      const quiet = j.quality === 'book' || j.quality === 'forced'
       const special: CoachEvent | null =
         mv.captured === 'q'
           ? 'queenTake'
@@ -376,9 +399,11 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
       else if (shuffled && !best) say('nonsense')
       else if (j.quality === 'inaccuracy') say('inaccuracy')
       else if (special) say(special)
+      else if (j.quality === 'miss') say('inaccuracy')
+      else if (quiet) setOpening(j.opening ?? null)
       else if (best) say('best')
       else say('good')
-      addXp(j.quality === 'brilliant' ? 8 : j.quality === 'best' ? 3 : 1)
+      addXp(j.quality === 'brilliant' ? 8 : j.quality === 'great' ? 5 : j.quality === 'best' ? 3 : 1)
     }
     applyBot(botUci)
   }
@@ -555,7 +580,9 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     ;(async () => {
       for (const m of todo) {
         try {
-          const j = await judgeMove(m.fenBefore, m.uci)
+          const idx = moves.indexOf(m)
+          const prevJ = moves.slice(0, idx).reverse().find((x) => x.color === color)?.judgement
+          const j = await judgeMove(m.fenBefore, m.uci, { history: moves.slice(0, idx).map((x) => x.san), prevWin: prevJ ? winPct(prevJ.cpAfter) : undefined })
           if (!alive) return
           setMoves((ms) => ms.map((x) => (x.fenBefore === m.fenBefore && x.uci === m.uci ? { ...x, judgement: j } : x)))
         } catch {
@@ -682,6 +709,8 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
             fen={fen}
             active={phase === 'thinking' || phase === 'reply'}
           />
+          <div className={`board-row${settings.evalBar ? ' with-eval' : ''}`}>
+          {settings.evalBar && <EvalBar fen={fen} orientation={color} />}
           <Board
             fen={fen}
             orientation={color}
@@ -698,6 +727,8 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
             badge={badge}
             shake={shake}
           />
+          </div>
+          {opening && phase !== 'over' && <div className="opening-pill"><BookOpenText size={14} weight="fill" /> {opening}</div>}
           <PlayerBar avatar={meAvatar} name="Tu" sub={myTurn ? 'Tocca a te' : undefined} color={color} fen={fen} active={myTurn} />
         </div>
 
@@ -730,7 +761,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
                 <div className="summary">
                   {(Object.keys(counts) as Quality[]).map((q) => (
                     <span key={q} className="chip" style={{ background: QUALITY_INFO[q].color }}>
-                      {QUALITY_INFO[q].icon} {counts[q]}
+                      <QualityIcon q={q} /> {counts[q]}
                     </span>
                   ))}
                 </div>
@@ -776,6 +807,9 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
                   <MagnifyingGlass size={20} weight="bold" /> Perché?
                 </button>
               )}
+              <button className={`btn${advice ? ' on' : ''}`} onClick={toggleAdvice} disabled={phase !== 'player'} title="Cosa faccio ora? (scorciatoia: C)">
+                <Compass size={20} weight="fill" /> Cosa faccio? <kbd className="kbd">C</kbd>
+              </button>
               <button className={`btn${threatView ? ' on' : ''}`} onClick={showThreats} disabled={phase !== 'player'} title="Cosa minaccia l’avversario? (scorciatoia: T)">
                 <Warning size={20} weight="fill" /> Minacce <kbd className="kbd">T</kbd>
               </button>
@@ -790,6 +824,30 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
               >
                 <Flag size={20} weight="fill" /> Resa
               </button>
+            </div>
+          )}
+
+          {advice && phase === 'player' && (
+            <div className="advice">
+              <div className="advice-head">
+                <b>Cosa faccio?</b> <span className="chip">{advice.phaseLabel}</span>
+              </div>
+              <ul className="advice-urgent">
+                {advice.urgent.map((u) => (
+                  <li key={u.text} className={u.level}>
+                    {u.text}
+                  </li>
+                ))}
+              </ul>
+              {advice.tips.map((tp) => (
+                <details key={tp.key} className="advice-tip">
+                  <summary>
+                    <b>{tp.key}</b> {tp.text}
+                  </summary>
+                  <p>{tp.why}</p>
+                </details>
+              ))}
+              <div className="advice-routine">Prima di ogni mossa: 1 cosa ha fatto lui · 2 i miei pezzi · 3 le mie occasioni</div>
             </div>
           )}
 

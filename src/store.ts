@@ -17,6 +17,8 @@ export interface Settings {
   geminiKey: string
   /** giudica ogni mossa durante la partita */
   liveJudging: boolean
+  /** barra di valutazione accanto alla scacchiera (resta sul dispositivo) */
+  evalBar: boolean
   /** accessori indossati da Gigi */
   outfit: Outfit
   /** accessori degli altri coach (Gigi usa `outfit`) */
@@ -142,7 +144,7 @@ export const todayStr = () => new Date().toLocaleDateString('sv-SE')
 const emptyDay = (): DayLog => ({ day: todayStr(), lesson: false, puzzles: 0, game: false })
 
 const defaults = (): AppState => ({
-  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, outfit: {}, outfits: {}, board: 'tema', pieces: 'classico', haptics: true, nickname: '', avatar: 'gigi', coach: 'gigi' },
+  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, evalBar: true, outfit: {}, outfits: {}, board: 'tema', pieces: 'classico', haptics: true, nickname: '', avatar: 'gigi', coach: 'gigi' },
   progress: {
     placementDone: false,
     skill: 10,

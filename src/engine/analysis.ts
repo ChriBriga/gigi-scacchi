@@ -3,15 +3,20 @@ import { UciEngine, type PvLine } from './uci'
 import { getBotEngine } from './bots'
 import { fxTier } from '../perf'
 import { materialFor, opposite, parseUci } from '../chess/util'
+import { openingInfo } from '../chess/openings'
 
-export type Quality = 'brilliant' | 'best' | 'great' | 'good' | 'inaccuracy' | 'mistake' | 'blunder'
+export type Quality = 'brilliant' | 'great' | 'best' | 'excellent' | 'good' | 'book' | 'forced' | 'inaccuracy' | 'miss' | 'mistake' | 'blunder'
 
 export const QUALITY_INFO: Record<Quality, { label: string; icon: string; color: string }> = {
   brilliant: { label: 'Geniale', icon: '!!', color: '#26d6c9' },
-  best: { label: 'Migliore', icon: '★', color: '#7ed957' },
-  great: { label: 'Ottima', icon: '✓', color: '#9be15d' },
-  good: { label: 'Buona', icon: '✓', color: '#c7d96f' },
+  best: { label: 'Migliore', icon: 'star', color: '#7ed957' },
+  great: { label: 'Ottima', icon: '!', color: '#5b9bff' },
+  excellent: { label: 'Eccellente', icon: 'thumb', color: '#9be15d' },
+  good: { label: 'Buona', icon: 'check', color: '#c7d96f' },
+  book: { label: 'Di libro', icon: 'book', color: '#c4a07a' },
+  forced: { label: 'Obbligata', icon: 'forced', color: '#9aa7b5' },
   inaccuracy: { label: 'Imprecisione', icon: '?!', color: '#ffc83d' },
+  miss: { label: 'Occasione mancata', icon: 'miss', color: '#ff7a6b' },
   mistake: { label: 'Errore', icon: '?', color: '#ff8a3d' },
   blunder: { label: 'Svarione', icon: '??', color: '#ff4d5e' },
 }
@@ -85,16 +90,51 @@ export interface Judgement {
   swing: number
   /** c'era un matto forzato e la mossa l'ha lasciato scappare */
   missedMate?: boolean
+  /** nome dell'apertura, se la mossa è "di libro" */
+  opening?: string
+}
+
+export interface JudgeOpts {
+  /** le mosse (SAN) giocate prima di questa, dall'inizio: serve a riconoscere il libro delle aperture */
+  history?: string[]
+  /** probabilità di vittoria di chi muove subito dopo la sua mossa precedente: serve a riconoscere le occasioni mancate */
+  prevWin?: number
+}
+
+const top2Cache = new Map<string, Promise<number | null>>()
+
+/** Di quanti punti di vittoria la seconda mossa migliore è peggiore della prima (null = c'è una sola mossa o il motore non risponde). */
+function secondBestGap(fen: string): Promise<number | null> {
+  const budget = evalBudget()
+  const key = `${fen}|${budget.depth}`
+  let p = top2Cache.get(key)
+  if (!p) {
+    p = getEngine()
+      .search(fen, { depth: budget.depth, movetime: budget.movetime, multipv: 2 })
+      .then((r) => {
+        if (r.lines.length < 2) return null
+        return winPct(r.lines[0].cp) - winPct(r.lines[1].cp)
+      })
+      .catch(() => null)
+    top2Cache.set(key, p)
+    if (top2Cache.size > 100) top2Cache.delete(top2Cache.keys().next().value!)
+  }
+  return p
 }
 
 /** Giudica una mossa confrontando la valutazione prima e dopo. */
-export async function judgeMove(fenBefore: string, uci: string): Promise<Judgement> {
-  const before = await evaluate(fenBefore)
+export async function judgeMove(fenBefore: string, uci: string, opts: JudgeOpts = {}): Promise<Judgement> {
   const chess = new Chess(fenBefore)
   const mover: Color = chess.turn()
   const { from, to, promotion } = parseUci(uci)
+  // una sola mossa legale: non c'è niente da giudicare
+  if (chess.moves().length === 1) {
+    const cpNow = (await evaluate(fenBefore)).cp
+    return { quality: 'forced', loss: 0, bestUci: uci, playedUci: uci, cpAfter: cpNow, bestWasPlayed: true, swing: 0 }
+  }
+  const before = await evaluate(fenBefore)
   const matBefore = materialFor(chess, mover)
-  chess.move({ from, to, promotion })
+  const played = chess.move({ from, to, promotion })
   const fenAfter = chess.fen()
 
   if (chess.isCheckmate()) {
@@ -117,7 +157,7 @@ export async function judgeMove(fenBefore: string, uci: string): Promise<Judgeme
   else if (loss > 12) quality = 'mistake'
   else if (loss > 5.5) quality = 'inaccuracy'
   else if (bestWasPlayed || loss <= 1) quality = 'best'
-  else if (loss <= 2.5) quality = 'great'
+  else if (loss <= 2.5) quality = 'excellent'
   else quality = 'good'
 
   // Geniale: una mossa (quasi) migliore che regala materiale ma resta ottima.
@@ -140,8 +180,27 @@ export async function judgeMove(fenBefore: string, uci: string): Promise<Judgeme
     }
   }
 
+  // Di libro: la posizione è in una linea d'apertura nota (e la mossa non è un disastro)
+  let opening: string | undefined
+  if (opts.history && loss <= 12) {
+    const info = openingInfo([...opts.history, played.san])
+    if (info.book) {
+      quality = 'book'
+      opening = info.name
+    }
+  }
+
+  // Ottima (!): era la mossa migliore e le alternative erano molto peggio (l'unica che regge)
+  if (quality === 'best' && bestWasPlayed && wBefore > 20 && wBefore < 92) {
+    const gap = await secondBestGap(fenBefore)
+    if (gap !== null && gap >= 15) quality = 'great'
+  }
+
+  // Occasione mancata: l'avversario aveva sbagliato e tu non ne hai approfittato
+  if (quality === 'inaccuracy' && opts.prevWin !== undefined && wBefore - opts.prevWin >= 10 && loss >= 7) quality = 'miss'
+
   const missedMate = before.mate !== undefined && before.mate > 0 && !(after.mate !== undefined && after.mate < 0)
-  return { quality, loss, bestUci: before.best, playedUci: uci, cpAfter, bestWasPlayed, swing: wBefore - wAfter, missedMate }
+  return { quality, loss, bestUci: before.best, playedUci: uci, cpAfter, bestWasPlayed, swing: wBefore - wAfter, missedMate, opening }
 }
 
 export async function bestMoveFor(fen: string): Promise<string | undefined> {

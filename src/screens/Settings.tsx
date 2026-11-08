@@ -312,6 +312,10 @@ export function Settings() {
             <input type="checkbox" checked={settings.liveJudging} onChange={(e) => set('liveJudging', e.target.checked)} />
           </label>
           <label className="switch">
+            <span>Barra di valutazione accanto alla scacchiera</span>
+            <input type="checkbox" checked={settings.evalBar} onChange={(e) => set('evalBar', e.target.checked)} />
+          </label>
+          <label className="switch">
             <span>
               <SpeakerHigh size={18} weight="duotone" style={{ verticalAlign: -3, marginRight: 6 }} />
               Suoni
