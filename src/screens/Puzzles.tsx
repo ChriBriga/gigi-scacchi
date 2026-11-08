@@ -21,7 +21,7 @@ export interface Puzzle {
   alts?: string[]
   /** (difesa) la mossa con cui l'avversario ti minacciava: si mostra a puzzle risolto */
   threat?: string
-  /** (schemi di matto) quale schema: smother | arabian | kiss */
+  /** (schemi di matto) smother | arabian | kiss; (finali) kp | kpd | race | rook | rookd | rookp */
   kind?: string
 }
 
@@ -57,7 +57,18 @@ const KIND_NOTE: Record<string, string> = {
   arabian: 'Matto arabo: torre e cavallo, il re è bloccato nell’angolo.',
   kiss: 'Bacio della morte: la donna dà matto accanto al re, protetta da un altro pezzo.',
 }
-const noteFor = (p: Puzzle): string => (p.theme === 'matepat' ? (KIND_NOTE[p.kind ?? ''] ?? '') : (NOTE[p.theme] ?? ''))
+/** I finali di scuola (campo `kind`): cosa chiedere prima e cosa ricordare dopo. */
+const ENDGAME_KIND: Record<string, { tip: string; note: string }> = {
+  kp: { tip: 'Re e pedone contro re: una sola mossa vince. Pensa al re e all’opposizione, non solo al pedone.', note: 'Re e pedone: il re va davanti al pedone, e chi ha l’opposizione decide. Le altre mosse pareggiavano.' },
+  kpd: { tip: 'Tocca a te difendere: una sola mossa salva la patta. Cerca di prendere l’opposizione.', note: 'Difesa di finale: il re davanti al pedone (opposizione) vale la patta. Ogni altra mossa perdeva.' },
+  race: { tip: 'Corsa fra pedoni: conta i tempi. Chi promuove per primo, e con che scacco?', note: 'Corsa dei pedoni: contare le mosse (la regola del quadrato) dice chi arriva prima.' },
+  rook: { tip: 'Finale di torre e pedone: una sola mossa vince. Pensa alla torre attiva e al re vicino al pedone.', note: 'Finale di torre: torre attiva e re vicino al pedone valgono più del materiale.' },
+  rookd: { tip: 'Finale di torre: tocca a te difendere. Una sola mossa salva la patta.', note: 'Difesa di torre: una torre attiva (o uno scacco al momento giusto) salva la patta.' },
+  rookp: { tip: 'Torre contro pedone avanzato: una sola mossa decide. Ferma il pedone o aiuta il re?', note: 'Torre contro pedone: ferma il pedone con la torre o taglia il re. Il tempismo decide.' },
+}
+const noteFor = (p: Puzzle): string =>
+  p.theme === 'matepat' ? (KIND_NOTE[p.kind ?? ''] ?? '') : p.theme === 'endgame' && p.kind && ENDGAME_KIND[p.kind] ? ENDGAME_KIND[p.kind].note : (NOTE[p.theme] ?? '')
+const tipFor = (p: Puzzle): string => (p.theme === 'endgame' && p.kind && ENDGAME_KIND[p.kind] ? ENDGAME_KIND[p.kind].tip : THEME_INFO[p.theme].tip)
 
 /** Sceglie il prossimo puzzle: dà più peso ai temi in cui sbagli di più e a quelli adatti al tuo livello. */
 export function pickPuzzle(p: Progress, exclude: string[] = [], themes?: Puzzle['theme'][]): Puzzle {
@@ -111,7 +122,7 @@ export function PuzzleRunner({
   const [failed, setFailed] = useState(false)
   const [hintLevel, setHintLevel] = useState(0)
   const [shake, setShake] = useState(false)
-  const [coach, setCoach] = useState<{ text: string; mood: Mood }>({ text: puzzle ? THEME_INFO[puzzle.theme].tip : '', mood: 'cool' })
+  const [coach, setCoach] = useState<{ text: string; mood: Mood }>({ text: puzzle ? tipFor(puzzle) : '', mood: 'cool' })
   const [lastMove, setLastMove] = useState<[Square, Square] | null>(null)
   const game = useRef<Chess | null>(puzzle ? new Chess(puzzle.fen) : null)
 
@@ -123,7 +134,7 @@ export function PuzzleRunner({
     setFailed(false)
     setHintLevel(0)
     setLastMove(null)
-    setCoach({ text: THEME_INFO[puzzle.theme].tip, mood: 'cool' })
+    setCoach({ text: tipFor(puzzle), mood: 'cool' })
     game.current = new Chess(puzzle.fen)
   }, [puzzle])
 

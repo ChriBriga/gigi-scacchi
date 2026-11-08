@@ -12,7 +12,10 @@ const di = args.indexOf('--depth')
 const DEPTH = di >= 0 ? Number(args[di + 1]) : 18
 const files = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--depth')
 /** quanti puzzle al massimo per tema nuovo */
-const CAP = { backrank: 25, matepat: 20, pin: 25, skewer: 15, discover: 20, defend: 30, endgame: 25 }
+const CAP = { backrank: 25, matepat: 20, pin: 25, skewer: 15, discover: 20, defend: 30, endgame: 25 + 48 }
+/** nei finali: al massimo così tanti per tipo (kp, kpd, race, rook, rookd, rookp), per avere varietà */
+const KIND_CAP = 10
+const kindTaken = {}
 
 const FILE = 'src/data/puzzles.json'
 const all = JSON.parse(readFileSync(FILE, 'utf8'))
@@ -32,6 +35,7 @@ const why = {}
 
 for (const c of cands) {
   if (!(c.theme in CAP) || taken[c.theme] >= CAP[c.theme]) continue
+  if (c.theme === 'endgame' && c.kind && (kindTaken[c.kind] ?? 0) >= KIND_CAP) continue
   if (have.has(key(c.fen))) {
     why.presente = (why.presente ?? 0) + 1
     continue
@@ -56,6 +60,7 @@ for (const c of cands) {
   added.push(p)
   have.add(key(c.fen))
   taken[c.theme]++
+  if (c.theme === 'endgame' && c.kind) kindTaken[c.kind] = (kindTaken[c.kind] ?? 0) + 1
 }
 
 console.log('Aggiunti:', JSON.stringify(taken))
