@@ -1,12 +1,13 @@
 import type { Voice } from '../lines'
 import type { CoreEvent } from './gigi-core'
+import type { QualityEvent } from './gigi-quality'
 
 /**
  * Gigi il piccione, battute dei momenti particolari: mosse senza senso, catture, arrocco,
  * ritiri, pisolini, prime volte, punzecchiature nella Home e saluti che dipendono da ora e memoria.
  * Segnaposto: {bot} = avversario, {n} = numero (giorni di serie o di assenza, ritiri).
  */
-export const GIGI_EXTRA: Omit<Voice, CoreEvent> = {
+export const GIGI_EXTRA: Omit<Voice, CoreEvent | QualityEvent> = {
   nonsense: {
     gentle: [
       'Mmh? Hai spostato il pezzo avanti e indietro: sicuro del piano?',

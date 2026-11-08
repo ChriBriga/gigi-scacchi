@@ -399,8 +399,13 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
       else if (shuffled && !best) say('nonsense')
       else if (j.quality === 'inaccuracy') say('inaccuracy')
       else if (special) say(special)
-      else if (j.quality === 'miss') say('inaccuracy')
-      else if (quiet) setOpening(j.opening ?? null)
+      else if (j.quality === 'miss') say('miss')
+      else if (j.quality === 'book') {
+        // parla solo quando compare un'apertura nuova: niente chiacchiere ad ogni mossa di libro
+        if (j.opening && j.opening !== opening) say('book')
+        setOpening(j.opening ?? opening)
+      } else if (quiet) setOpening(j.opening ?? opening)
+      else if (j.quality === 'great') say('great')
       else if (best) say('best')
       else say('good')
       addXp(j.quality === 'brilliant' ? 8 : j.quality === 'great' ? 5 : j.quality === 'best' ? 3 : 1)
@@ -808,7 +813,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
                 </button>
               )}
               <button className={`btn${advice ? ' on' : ''}`} onClick={toggleAdvice} disabled={phase !== 'player'} title="Cosa faccio ora? (scorciatoia: C)">
-                <Compass size={20} weight="fill" /> Cosa faccio? <kbd className="kbd">C</kbd>
+                <Compass size={20} weight="fill" /> Consigli <kbd className="kbd">C</kbd>
               </button>
               <button className={`btn${threatView ? ' on' : ''}`} onClick={showThreats} disabled={phase !== 'player'} title="Cosa minaccia l’avversario? (scorciatoia: T)">
                 <Warning size={20} weight="fill" /> Minacce <kbd className="kbd">T</kbd>

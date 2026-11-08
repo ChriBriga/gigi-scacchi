@@ -8,6 +8,9 @@ export type CoachEvent =
   // giudizio delle mosse
   | 'brilliant'
   | 'best'
+  | 'great'
+  | 'book'
+  | 'miss'
   | 'good'
   | 'inaccuracy'
   | 'mistake'
@@ -61,6 +64,9 @@ export type Mood = 'happy' | 'neutral' | 'angry' | 'shocked' | 'cool' | 'confuse
 export const EVENT_MOOD: Record<CoachEvent, Mood> = {
   brilliant: 'shocked',
   best: 'cool',
+  great: 'shocked',
+  book: 'smug',
+  miss: 'confused',
   good: 'happy',
   inaccuracy: 'smug',
   mistake: 'angry',
