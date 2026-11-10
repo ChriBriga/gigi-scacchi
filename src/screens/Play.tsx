@@ -51,9 +51,9 @@ function draftFrom(rec: MoveRec, tag: string): NotebookDraft | null {
 type Phase = 'player' | 'thinking' | 'reply' | 'decide' | 'over'
 
 /** pausa minima prima della mossa dell'avversario, così la sua mossa non è istantanea */
-const THINK_MS = 900
+const THINK_MS = 400
 /** durata dell'animazione del pezzo che si muove (vedi .board.slow in styles.css) */
-const SLIDE_MS = 700
+const SLIDE_MS = 300
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 const DANGER_CYCLE: DangerMode[] = ['off', 'threats', 'full']
@@ -217,7 +217,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     started.current = true
     if (game.current.turn() !== color) {
       setPhase('thinking')
-      Promise.all([chooseBotMove(game.current.fen(), bot), sleep(700)]).then(([uci]) => {
+      Promise.all([chooseBotMove(game.current.fen(), bot), sleep(THINK_MS)]).then(([uci]) => {
         if (alive.current) applyBot(uci)
       })
     } else evaluate(game.current.fen()).catch(() => undefined)
@@ -493,7 +493,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     setQuiz(null)
     setBadge(null)
     setPhase('thinking')
-    sleep(450).then(() => {
+    sleep(250).then(() => {
       if (alive.current) applyBot(botUci)
     })
   }
@@ -684,7 +684,8 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     })
   }
 
-  const movable = phase === 'player' ? color : null
+  // mentre l'avversario pensa puoi già prendere in mano un pezzo: la mossa parte solo quando tocca a te (vedi onUserMove)
+  const movable = phase === 'player' || phase === 'thinking' || phase === 'reply' ? color : null
 
   const moveRows: MoveRow[] = moves.map((m) => ({ san: m.san, color: m.color, quality: m.color === color ? m.judgement?.quality : undefined }))
   const oppColor: Color = opposite(color)

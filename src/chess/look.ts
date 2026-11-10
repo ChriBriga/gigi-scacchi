@@ -23,11 +23,13 @@ export interface BoardStyle {
   name: string
   light: string
   dark: string
+  /** colore di ultima mossa e selezione, se quello giallo di base non si vede bene su questi colori */
+  hl?: string
 }
 
 export const BOARD_STYLES: BoardStyle[] = [
   { id: 'tema', name: 'Come il tema', light: '', dark: '' },
-  { id: 'classico', name: 'Torneo', light: '#f0d9b5', dark: '#b58863' },
+  { id: 'classico', name: 'Torneo', light: '#f0d9b5', dark: '#b58863', hl: 'rgba(155, 199, 0, 0.45)' },
   { id: 'verde', name: 'Prato', light: '#eeeed2', dark: '#769656' },
   { id: 'azzurro', name: 'Cielo', light: '#dee3e6', dark: '#8ca2ad' },
   { id: 'rosa', name: 'Confetto', light: '#ffe4ee', dark: '#e07aa6' },

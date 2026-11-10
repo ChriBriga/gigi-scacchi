@@ -13,7 +13,7 @@ import { getState, touchDay, update, useApp } from '../store'
 import { sfx } from '../sound'
 
 /** durata dell'animazione del pezzo dell'avversario (vedi .board.slow in styles.css) */
-const SLIDE_MS = 700
+const SLIDE_MS = 300
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 /** Quanti pezzi (donne, torri, alfieri, cavalli) ha un colore: serve a capire se il pedone è stato promosso. */
@@ -109,7 +109,7 @@ export function DrillPlay({ drill, onExit, onNext }: { drill: Drill; onExit: () 
 
     setPhase('thinking')
     const my = ++token.current
-    const [uci] = await Promise.all([chooseBotMove(g.fen(), bot), sleep(450)])
+    const [uci] = await Promise.all([chooseBotMove(g.fen(), bot), sleep(350)])
     if (!alive.current || my !== token.current) return
     const r = parseUci(uci)
     const bm = g.move({ from: r.from, to: r.to, promotion: r.promotion })
@@ -197,7 +197,7 @@ export function DrillPlay({ drill, onExit, onNext }: { drill: Drill; onExit: () 
           <Board
             fen={fen}
             orientation={me}
-            movable={phase === 'player' ? me : null}
+            movable={phase === 'over' ? null : me}
             onMove={onUserMove}
             lastMove={last}
             lastBy={lastBy}

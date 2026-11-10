@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
-import { ALL_SQUARES, coordsToSq, sqToCoords } from '../chess/util'
+import { ALL_SQUARES, PIECE_NAME, coordsToSq, sqToCoords } from '../chess/util'
 import { useBoardPieces, type PieceSprite } from './useBoardPieces'
 import { boardStyleOf, pieceUrl } from '../chess/look'
 import { useAppSelector } from '../store'
@@ -34,6 +34,26 @@ export interface BoardProps {
   onPick?: (sq: Square) => void
 }
 
+/** colore delle frecce e dei cerchi disegnati con il tasto destro */
+const DRAW_COLOR = '#3b9dff'
+/** evidenza di ultima mossa e selezione quando la scacchiera non ne indica una sua */
+const DEFAULT_HL = 'rgba(255, 214, 64, 0.5)'
+const NO_DRAWN: { arrows: [Square, Square][]; circles: Square[] } = { arrows: [], circles: [] }
+
+/** Il trascinamento in corso: vive in un ref, così muovere il mouse non fa ridisegnare la scacchiera. */
+interface DragInfo {
+  sq: Square
+  id: number
+  el: HTMLElement | null
+  /** punto in cui è iniziato il tocco (coordinate della finestra) */
+  cx: number
+  cy: number
+  rect: DOMRect
+  moved: boolean
+  wasSel: boolean
+  touch: boolean
+}
+
 export function Board(props: BoardProps) {
   const { fen, orientation = 'w', movable, onMove, lastMove, lastBy, slowMove, tints, rings, marks, hint, arrows, badge, showRange, shake, onPick } = props
   const pieceSet = useAppSelector((s) => s.settings.pieces)
@@ -44,9 +64,18 @@ export function Board(props: BoardProps) {
   const sprites = useBoardPieces(fen)
   const ghosts = useGhosts(sprites)
   const boardRef = useRef<HTMLDivElement>(null)
+  const overRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<DragInfo | null>(null)
+  const drawRef = useRef<{ from: Square; to: Square } | null>(null)
+  const snapTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [selected, setSelected] = useState<Square | null>(null)
-  const [drag, setDrag] = useState<{ sq: Square; x: number; y: number; moved: boolean; wasSel: boolean } | null>(null)
+  /** il pezzo che si sta trascinando (cambia solo quando il trascinamento inizia e finisce) */
+  const [dragId, setDragId] = useState<{ id: number; touch: boolean } | null>(null)
+  /** il pezzo appena lasciato cadere: arriva sulla casa di scatto, senza scivolare */
+  const [snapId, setSnapId] = useState<number | null>(null)
   const [promo, setPromo] = useState<{ from: Square; to: Square } | null>(null)
+  const [drawn, setDrawn] = useState(NO_DRAWN)
+  const [drawing, setDrawing] = useState<{ from: Square; to: Square } | null>(null)
 
   const chess = useMemo(() => {
     try {
@@ -82,18 +111,20 @@ export function Board(props: BoardProps) {
     return coordsToSq(isFlipped ? 7 - col : col, isFlipped ? 7 - row : row)
   }
 
-  const tryMove = (from: Square, to: Square) => {
-    if (!chess || !onMove) return
+  /** prova a giocare la mossa; dice se era legale (la promozione apre prima la scelta del pezzo) */
+  const tryMove = (from: Square, to: Square): boolean => {
+    if (!chess || !onMove) return false
     const piece = chess.get(from)
-    if (!piece) return
+    if (!piece) return false
     const legal = chess.moves({ square: from, verbose: true }).filter((m) => m.to === to)
-    if (legal.length === 0) return
+    if (legal.length === 0) return false
     if (legal[0].promotion) {
       setPromo({ from, to })
     } else {
       onMove(from, to)
     }
     setSelected(null)
+    return true
   }
 
   const canTouch = (sq: Square) => {
@@ -103,7 +134,53 @@ export function Board(props: BoardProps) {
     return !!showRange
   }
 
+  const hideOver = () => {
+    if (overRef.current) overRef.current.style.opacity = '0'
+  }
+  const cancelDrag = () => {
+    dragRef.current = null
+    hideOver()
+    setDragId(null)
+  }
+
+  /** Sposta il pezzo trascinato scrivendo direttamente sul suo elemento: nessun ridisegno di React. */
+  const place = (d: DragInfo, clientX: number, clientY: number) => {
+    const r = d.rect
+    const x = Math.max(0, Math.min(r.width, clientX - r.left))
+    const y = Math.max(0, Math.min(r.height, clientY - r.top))
+    d.el?.style.setProperty('--px', `${x}px`)
+    d.el?.style.setProperty('--py', `${y}px`)
+    const o = overRef.current
+    if (!o) return
+    const inside = clientX >= r.left && clientX < r.right && clientY >= r.top && clientY < r.bottom
+    if (inside) {
+      const col = Math.min(7, Math.floor((x / r.width) * 8))
+      const row = Math.min(7, Math.floor((y / r.height) * 8))
+      o.style.translate = `${col * 100}% ${row * 100}%`
+      o.style.opacity = '1'
+    } else o.style.opacity = '0'
+  }
+
+  const capture = (pointerId: number) => {
+    try {
+      boardRef.current?.setPointerCapture(pointerId)
+    } catch {
+      /* puntatore non più attivo: il trascinamento funziona lo stesso dentro la scacchiera */
+    }
+  }
+
   const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse' && e.button === 2) {
+      // tasto destro: freccia (trascinando) o cerchio (click) per ragionare sulla posizione
+      const sq = fromPoint(e.clientX, e.clientY)
+      if (!sq) return
+      drawRef.current = { from: sq, to: sq }
+      setDrawing({ from: sq, to: sq })
+      capture(e.pointerId)
+      return
+    }
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    if (drawn !== NO_DRAWN) setDrawn(NO_DRAWN)
     if (onPick) {
       const picked = fromPoint(e.clientX, e.clientY)
       if (picked) onPick(picked)
@@ -117,67 +194,162 @@ export function Board(props: BoardProps) {
       return
     }
     if (canTouch(sq)) {
-      const r = boardRef.current!.getBoundingClientRect()
-      setDrag({ sq, x: e.clientX - r.left, y: e.clientY - r.top, moved: false, wasSel: sq === selected })
+      const board = boardRef.current!
+      const id = sprites.find((s) => s.square === sq)?.id ?? -1
+      dragRef.current = {
+        sq,
+        id,
+        el: board.querySelector<HTMLElement>(`[data-pid="${id}"]`),
+        cx: e.clientX,
+        cy: e.clientY,
+        rect: board.getBoundingClientRect(),
+        moved: false,
+        wasSel: sq === selected,
+        touch: e.pointerType !== 'mouse',
+      }
       setSelected(sq)
-      boardRef.current?.setPointerCapture(e.pointerId)
+      capture(e.pointerId)
     } else {
       setSelected(null)
     }
   }
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!drag) return
-    const r = boardRef.current!.getBoundingClientRect()
-    const x = e.clientX - r.left
-    const y = e.clientY - r.top
-    const moved = drag.moved || Math.hypot(x - drag.x, y - drag.y) > 6
-    setDrag({ ...drag, x, y, moved })
+    const dr = drawRef.current
+    if (dr) {
+      const sq = fromPoint(e.clientX, e.clientY)
+      if (sq && sq !== dr.to) {
+        drawRef.current = { from: dr.from, to: sq }
+        setDrawing({ from: dr.from, to: sq })
+      }
+      return
+    }
+    const d = dragRef.current
+    if (!d) return
+    // tasto destro mentre trascini: il pezzo torna a posto
+    if (e.pointerType === 'mouse' && e.buttons & 2) {
+      cancelDrag()
+      return
+    }
+    if (!d.moved) {
+      if (Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < (d.touch ? 8 : 3)) return
+      d.moved = true
+      place(d, e.clientX, e.clientY)
+      setDragId({ id: d.id, touch: d.touch })
+      return
+    }
+    place(d, e.clientX, e.clientY)
   }
   const onPointerUp = (e: React.PointerEvent) => {
-    if (!drag) return
-    const d = drag
-    setDrag(null)
+    const dr = drawRef.current
+    if (dr) {
+      drawRef.current = null
+      setDrawing(null)
+      setDrawn((cur) => {
+        if (dr.from === dr.to) {
+          const has = cur.circles.includes(dr.from)
+          return { arrows: cur.arrows, circles: has ? cur.circles.filter((c) => c !== dr.from) : [...cur.circles, dr.from] }
+        }
+        const has = cur.arrows.some((a) => a[0] === dr.from && a[1] === dr.to)
+        return { circles: cur.circles, arrows: has ? cur.arrows.filter((a) => !(a[0] === dr.from && a[1] === dr.to)) : [...cur.arrows, [dr.from, dr.to]] }
+      })
+      return
+    }
+    const d = dragRef.current
+    if (!d) return
+    dragRef.current = null
+    hideOver()
     if (!d.moved) {
       if (d.wasSel) setSelected(null)
       return
     }
+    setDragId(null)
     const sq = fromPoint(e.clientX, e.clientY)
-    if (sq && sq !== d.sq && chess?.get(d.sq)?.color === movable) tryMove(d.sq, sq)
+    if (sq && sq !== d.sq && chess?.get(d.sq)?.color === movable && tryMove(d.sq, sq)) {
+      // lasciato su una casa valida: il pezzo è già lì, non deve scivolare
+      setSnapId(d.id)
+      clearTimeout(snapTimer.current)
+      snapTimer.current = setTimeout(() => setSnapId(null), 90)
+    }
+  }
+  const onPointerCancel = () => {
+    drawRef.current = null
+    setDrawing(null)
+    if (dragRef.current) cancelDrag()
   }
 
+  // posizione nuova o scacchiera bloccata: via la selezione e il trascinamento che non valgono più, e i disegni
+  useEffect(() => {
+    setDrawn(NO_DRAWN)
+    setPromo(null)
+    setSelected((s) => (s && !canTouch(s) ? null : s))
+    const d = dragRef.current
+    if (d && (!canTouch(d.sq) || !sprites.some((s) => s.id === d.id && s.square === d.sq))) cancelDrag()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fen, movable])
+
+  // Esc chiude la scelta della promozione
+  useEffect(() => {
+    if (!promo) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPromo(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [promo])
+
+  useEffect(() => () => clearTimeout(snapTimer.current), [])
+
   const kingInCheck = chess?.inCheck() ? ALL_SQUARES.find((s) => chess.get(s)?.type === 'k' && chess.get(s)?.color === chess.turn()) : undefined
+
+  const boardVars = boardStyle.light
+    ? ({ ['--light' as string]: boardStyle.light, ['--dark' as string]: boardStyle.dark, ['--board-hl' as string]: boardStyle.hl ?? DEFAULT_HL } as React.CSSProperties)
+    : undefined
+
+  // frecce da mostrare: quelle chieste da fuori più quelle disegnate a mano
+  const allArrows: [Square, Square, string][] = [
+    ...(arrows ?? []).map(([a, b, c]) => [a, b, c ?? '#ffd23f'] as [Square, Square, string]),
+    ...drawn.arrows.map(([a, b]) => [a, b, DRAW_COLOR] as [Square, Square, string]),
+    ...(drawing && drawing.from !== drawing.to ? [[drawing.from, drawing.to, DRAW_COLOR] as [Square, Square, string]] : []),
+  ]
+  const allCircles = drawing && drawing.from === drawing.to && !drawn.circles.includes(drawing.from) ? [...drawn.circles, drawing.from] : drawn.circles
+  const canMoveSel = !!selected && !!movable && chess?.get(selected)?.color === movable
 
   return (
     <div className={`board-wrap${shake ? ' shake' : ''}${fancy && kingInCheck ? ' in-check' : ''}`}>
       <div
         ref={boardRef}
-        className={`board${slowMove ? ' slow' : ''}`}
-        style={boardStyle.light ? ({ ['--light' as string]: boardStyle.light, ['--dark' as string]: boardStyle.dark } as React.CSSProperties) : undefined}
+        className={`board${slowMove ? ' slow' : ''}${dragId ? ' grabbing' : ''}`}
+        style={boardVars}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => setDrag(null)}
+        onPointerCancel={onPointerCancel}
+        onContextMenu={(e) => e.preventDefault()}
       >
         {ALL_SQUARES.map((sq) => {
           const { col, row } = toView(sq)
           const dark = (sqToCoords(sq).col + sqToCoords(sq).row) % 2 === 1
           const tint = tints?.[sq]
           const isLast = lastMove && (lastMove[0] === sq || lastMove[1] === sq)
+          const isTarget = targets.includes(sq)
           return (
             <div
               key={sq}
-              className={`sq ${dark ? 'dark' : 'light'}${isLast ? (lastBy === 'opp' ? (lastMove![1] === sq ? ' last-opp to' : ' last-opp from') : ` last${lastMove![1] === sq ? ' last-to' : ''}`) : ''}${selected === sq ? ' sel' : ''}${kingInCheck === sq ? ' check' : ''}${marks?.includes(sq) ? ' mark' : ''}`}
+              className={`sq ${dark ? 'dark' : 'light'}${isLast ? (lastBy === 'opp' ? (lastMove![1] === sq ? ' last-opp to' : ' last-opp from') : ` last${lastMove![1] === sq ? ' last-to' : ''}`) : ''}${selected === sq ? ' sel' : ''}${kingInCheck === sq ? ' check' : ''}${marks?.includes(sq) ? ' mark' : ''}${!onPick && canTouch(sq) ? ' grab' : ''}${onPick || (isTarget && canMoveSel) ? ' tgt' : ''}`}
               style={{ left: `${col * 12.5}%`, top: `${row * 12.5}%` }}
             >
               {tint && <div className={`tint ${tint.kind}`} style={{ opacity: Math.min(0.8, 0.3 + tint.n * 0.12) }} />}
               {row === 7 && <span className="coord file">{sq[0]}</span>}
               {col === 0 && <span className="coord rank">{sq[1]}</span>}
-              {targets.includes(sq) && <div className={chess?.get(sq) ? 'capture-ring' : 'dot'} />}
+              {isTarget && <div className={chess?.get(sq) ? 'capture-ring' : 'dot'} />}
               {rings?.includes(sq) && <div className="danger-ring" />}
               {fancy && lastMove && lastMove[1] === sq && <div key={fen} className="ripple" />}
             </div>
           )
         })}
+
+        {/* la casa sopra cui stai tenendo il pezzo: si sposta senza passare da React */}
+        <div ref={overRef} className="drag-over" />
 
         {hint?.from && (
           <div className="hint-sq" style={posStyle(toView(hint.from))} />
@@ -185,17 +357,18 @@ export function Board(props: BoardProps) {
         {hint?.to && <div className="hint-sq to" style={posStyle(toView(hint.to))} />}
 
         {sprites.map((p) => {
-          const { col, row } = toView(p.square)
-          const dragging = drag?.moved && drag.sq === p.square
-          // i pezzi si spostano con `translate` (compositor) e non con left/top (ricalcolo del layout a ogni frame)
-          const style: React.CSSProperties = dragging
-            ? { translate: `${((drag!.x / (boardRef.current?.clientWidth ?? 1)) * 8 - 0.5) * 100}% ${((drag!.y / (boardRef.current?.clientHeight ?? 1)) * 8 - 0.5) * 100}%` }
-            : { translate: `${col * 100}% ${row * 100}%` }
+          // durante la scelta della promozione il pedone sta già sulla casa d'arrivo
+          const { col, row } = toView(promo && promo.from === p.square ? promo.to : p.square)
+          const dragging = dragId?.id === p.id
+          // i pezzi si spostano con `translate` (compositor) e non con left/top (ricalcolo del layout a ogni frame);
+          // quello trascinato segue le variabili --px/--py, aggiornate a mano a ogni movimento del puntatore
+          const translate = dragging ? 'calc(var(--px) - 50%) calc(var(--py) - 50%)' : `${col * 100}% ${row * 100}%`
           return (
             <div
               key={p.id}
-              className={`piece${dragging ? ' dragging' : ''}${lastMove && lastMove[1] === p.square && !dragging ? ' mover' : ''}`}
-              style={{ ...style, backgroundImage: `url(${PIECE_URL(p.color, p.type)})` }}
+              data-pid={p.id}
+              className={`piece${dragging ? ` dragging${dragId!.touch ? ' touch' : ''}` : ''}${snapId === p.id ? ' snap' : ''}${lastMove && lastMove[1] === p.square && !dragging ? ' mover' : ''}`}
+              style={{ translate, backgroundImage: `url(${PIECE_URL(p.color, p.type)})` }}
             />
           )
         })}
@@ -212,45 +385,32 @@ export function Board(props: BoardProps) {
         })}
         {fancy && ghosts.map((g) => <Burst key={`burst-${g.id}`} sprite={g} pos={toView(g.square)} />)}
 
-        {lastBy === 'opp' && lastMove && (
-          <svg key={lastMove.join('')} className="arrows trail" viewBox="0 0 8 8">
-            <defs>
-              <marker id="ah-opp" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
-                <path d="M0,0 L4,2 L0,4 z" fill="#ff5a36" />
-              </marker>
-            </defs>
-            <line
-              x1={toView(lastMove[0]).col + 0.5}
-              y1={toView(lastMove[0]).row + 0.5}
-              x2={toView(lastMove[1]).col + 0.5}
-              y2={toView(lastMove[1]).row + 0.5}
-              stroke="#ff5a36"
-              strokeWidth="0.15"
-              strokeLinecap="round"
-              markerEnd="url(#ah-opp)"
-            />
-          </svg>
-        )}
-
-        {arrows && arrows.length > 0 && (
+        {(allArrows.length > 0 || allCircles.length > 0) && (
           <svg className="arrows" viewBox="0 0 8 8">
             <defs>
-              {[...new Set(arrows.map((a) => a[2] ?? '#ffd23f'))].map((c) => (
+              {[...new Set(allArrows.map((a) => a[2]))].map((c) => (
                 <marker key={c} id={`ah-${c.replace('#', '')}`} markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
                   <path d="M0,0 L4,2 L0,4 z" fill={c} />
                 </marker>
               ))}
             </defs>
-            {arrows.map(([a, b, color = '#ffd23f'], i) => {
+            {allCircles.map((sq) => {
+              const v = toView(sq)
+              return <circle key={sq} cx={v.col + 0.5} cy={v.row + 0.5} r="0.43" fill="none" stroke={DRAW_COLOR} strokeWidth="0.09" opacity="0.9" />
+            })}
+            {allArrows.map(([a, b, color], i) => {
               const va = toView(a)
               const vb = toView(b)
+              // la linea si ferma un po' prima, così la punta della freccia arriva al centro della casa e non oltre
+              const len = Math.hypot(vb.col - va.col, vb.row - va.row) || 1
+              const cut = 0.26 / len
               return (
                 <line
                   key={i}
                   x1={va.col + 0.5}
                   y1={va.row + 0.5}
-                  x2={vb.col + 0.5}
-                  y2={vb.row + 0.5}
+                  x2={vb.col + 0.5 - (vb.col - va.col) * cut}
+                  y2={vb.row + 0.5 - (vb.row - va.row) * cut}
                   stroke={color}
                   strokeWidth="0.16"
                   strokeLinecap="round"
@@ -269,18 +429,37 @@ export function Board(props: BoardProps) {
         )}
 
         {promo && (
-          <div className="promo">
-            {(['q', 'r', 'b', 'n'] as PieceSymbol[]).map((t) => (
-              <button
-                key={t}
-                style={{ backgroundImage: `url(${PIECE_URL(chess?.get(promo.from)?.color ?? 'w', t)})` }}
-                onPointerDown={(e) => {
-                  e.stopPropagation()
-                  onMove?.(promo.from, promo.to, t)
-                  setPromo(null)
-                }}
-              />
-            ))}
+          // la scelta compare sulla casa d'arrivo, in colonna; un tocco fuori (o Esc) annulla la mossa
+          <div
+            className="promo"
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              setPromo(null)
+            }}
+          >
+            <div
+              className={`promo-col${toView(promo.to).row < 4 ? '' : ' up'}`}
+              style={{ ['--c' as string]: toView(promo.to).col } as React.CSSProperties}
+              onPointerDown={(e) => e.stopPropagation()}
+              role="group"
+              aria-label="Scegli il pezzo della promozione"
+            >
+              {(['q', 'n', 'r', 'b'] as PieceSymbol[]).map((t) => (
+                <button
+                  key={t}
+                  aria-label={PIECE_NAME[t]}
+                  style={{ backgroundImage: `url(${PIECE_URL(chess?.get(promo.from)?.color ?? 'w', t)})` }}
+                  onClick={() => {
+                    const { from, to } = promo
+                    setPromo(null)
+                    onMove?.(from, to, t)
+                  }}
+                />
+              ))}
+              <button className="promo-x" aria-label="Annulla la mossa" onClick={() => setPromo(null)}>
+                ✕
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -322,7 +501,7 @@ function useGhosts(sprites: PieceSprite[]): PieceSprite[] {
     // cambio di posizione completo (nuovo puzzle, nuova lezione): niente fantasmi
     if (gone.length === 0 || gone.length > 2 || before.length - sprites.length !== gone.length) return
     setGhosts((g) => [...g, ...gone])
-    const t = setTimeout(() => setGhosts((g) => g.filter((x) => !gone.includes(x))), 900)
+    const t = setTimeout(() => setGhosts((g) => g.filter((x) => !gone.includes(x))), 520)
     return () => clearTimeout(t)
   }, [sprites])
   return ghosts
