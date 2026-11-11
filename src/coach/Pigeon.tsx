@@ -1,4 +1,4 @@
-import { memo, useId, useMemo } from 'react'
+import { memo, useEffect, useId, useMemo, useRef } from 'react'
 import type { Mood } from './lines'
 import { useAppSelector } from '../store'
 import { DEFAULT_CROWN, outfitOf, validOutfit, type Outfit } from './outfits'
@@ -151,6 +151,36 @@ const CREST: Record<string, { top: string; bottom: string; edge: string }> = {
  */
 export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach, still, talk }: { mood?: Mood; size?: number; outfit?: Outfit; view?: string; coach?: CoachId; still?: boolean; talk?: boolean }) {
   const uid = useId().replace(/:/g, '')
+  const svgRef = useRef<SVGSVGElement>(null)
+  // gli occhi seguono il dito o il cursore (se l'utente non ha chiesto meno animazioni)
+  useEffect(() => {
+    if (still || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    let raf = 0
+    let timer = 0
+    const onMove = (e: PointerEvent) => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const el = svgRef.current
+        if (!el) return
+        const r = el.getBoundingClientRect()
+        const dx = e.clientX - (r.left + r.width / 2)
+        const dy = e.clientY - (r.top + r.height * 0.35)
+        const d = Math.hypot(dx, dy) || 1
+        const k = Math.min(1, d / 180)
+        el.style.setProperty('--lx', ((dx / d) * k * 2.4).toFixed(2))
+        el.style.setProperty('--ly', ((dy / d) * k * 1.8).toFixed(2))
+        el.classList.add('track')
+        window.clearTimeout(timer)
+        timer = window.setTimeout(() => svgRef.current?.classList.remove('track'), 4000)
+      })
+    }
+    window.addEventListener('pointermove', onMove, { passive: true })
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      cancelAnimationFrame(raf)
+      window.clearTimeout(timer)
+    }
+  }, [still])
   const id = (n: string) => `${n}-${uid}`
   const url = (n: string) => `url(#${id(n)})`
   // si ridisegna solo se cambia il coach attivo o l'abbigliamento, non a ogni salvataggio dei progressi
@@ -171,7 +201,7 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
   const cheek = mood === 'happy' ? 0.7 : mood === 'sad' ? 0.15 : mood === 'smug' ? 0.55 : 0.4
 
   return (
-    <svg key={`${who}-${mood}`} className={`pigeon mood-${mood} coach-${who}${still ? ' still' : ''}${talk ? ' talking' : ''}`} width={size} height={size} viewBox={view ?? '0 0 160 160'} aria-hidden="true">
+    <svg ref={svgRef} key={`${who}-${mood}`} className={`pigeon mood-${mood} coach-${who}${still ? ' still' : ''}${talk ? ' talking' : ''}`} width={size} height={size} viewBox={view ?? '0 0 160 160'} aria-hidden="true">
       <defs>
         <linearGradient id={id('body')} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={S.body[0]} />
@@ -467,7 +497,13 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
                   <circle cx="90" cy="5.5" r="2.9" />
                   <circle cx="99" cy="11.5" r="2.9" />
                 </g>
+                <path d="M65 35 L61 13 L66 27 L70 7 L75.5 26 L80 1 L84.5 26 L90 7 L94 27 L99 13 L95 35 Z" fill={url('side')} />
+                <path d="M63 33 Q80 39 97 33 L96.5 40 Q80 46 63.5 40 Z" fill={url('side')} />
+                <path d="M63.5 36 Q80 42 96.5 36" stroke="#fff" strokeWidth="1.2" fill="none" opacity=".45" strokeLinecap="round" />
+                <path d="M68.5 31 L71 13 M77.5 31 L80 12 M86.5 31 L89 13" stroke="#fff" strokeWidth="1.3" strokeLinecap="round" opacity=".35" />
+                <path d="M96 36.5 Q80 43.5 64 36.5 L63.6 40 Q80 46 96.4 40 Z" fill="#7a4a00" opacity=".25" />
                 <circle cx="79" cy="-1.6" r="1" fill="#fff" opacity=".9" />
+                <path className="pg-gem" d="M71 20 l1.2 3 l3 1.2 l-3 1.2 l-1.2 3 l-1.2 -3 l-3 -1.2 l3 -1.2 z" fill="#fff" />
                 <circle cx="80" cy="37.5" r="2.8" fill="#ff4d6a" stroke="#fff" strokeWidth="1" />
                 <circle cx="70" cy="36.5" r="1.7" fill="#3fe0d0" />
                 <circle cx="90" cy="36.5" r="1.7" fill="#3fe0d0" />
@@ -748,7 +784,7 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
         <g key={cx} className="pg-eye">
           <circle cx={cx} cy={cy} r={r} fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
           <path d={`M${cx - r + 0.6} ${cy - 1.5} A${r} ${r} 0 0 1 ${cx + r - 0.6} ${cy - 1.5}`} fill="none" stroke="#2a1230" strokeWidth="1.8" strokeLinecap="round" opacity=".3" />
-          <g className={mood === 'neutral' ? 'pg-look' : undefined}>
+          <g className="pg-look">
             <circle cx={cx + (mood === 'angry' ? 1 : 0)} cy={mood === 'angry' ? cy + 2 : cy + 1} r={iris} fill={mood === 'angry' ? p.irisAngry : p.irisG} />
             <circle cx={cx + (mood === 'angry' ? 1 : 0)} cy={mood === 'angry' ? cy + 2 : cy + 1} r={pupil} fill="#2a1230" />
             <circle cx={cx + 2.4} cy={cy - 2} r="2" fill="#fff" />

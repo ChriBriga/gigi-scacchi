@@ -4484,3 +4484,48 @@ html:not([data-fx='low']) .dlg::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .pg-tuft { animation: none; }
 }
+  transition: transform 0.14s ease-out;
+}
+.mood-neutral .pg-look {
+.pigeon.track .pg-look {
+  animation: none;
+  transform: translate(calc(var(--lx, 0) * 1px), calc(var(--ly, 0) * 1px));
+}
+.pigeon.still .pg-gem,
+
+/* corona: luccichio ogni tanto; smug: sguardo dall'alto; shocked: le ali scattano in su */
+.pg-gem {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pg-gem 6s ease-in-out infinite;
+}
+.mood-smug .pg-all {
+  animation: pg-smug 4.4s ease-in-out infinite;
+}
+.mood-shocked .pg-wing-l {
+  animation: pg-startle-l 0.5s var(--ease-spring) both;
+}
+.mood-shocked .pg-wing-r {
+  animation: pg-startle-r 0.5s var(--ease-spring) both;
+}
+@keyframes pg-gem {
+  0%, 70%, 100% { transform: scale(0) rotate(0); opacity: 0; }
+  80% { transform: scale(1.1) rotate(20deg); opacity: 1; }
+  90% { transform: scale(0.4) rotate(40deg); opacity: 0.7; }
+}
+@keyframes pg-smug {
+  0%, 100% { transform: rotate(0) translateY(0); }
+  50% { transform: rotate(2.2deg) translateY(-1.5px); }
+}
+@keyframes pg-startle-l {
+  from { transform: rotate(0); }
+  to { transform: rotate(14deg) translateY(-2px); }
+}
+@keyframes pg-startle-r {
+  from { transform: rotate(0); }
+  to { transform: rotate(-14deg) translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-gem, .mood-smug .pg-all, .mood-shocked .pg-wing-l, .mood-shocked .pg-wing-r { animation: none; }
+  .pg-gem { opacity: 0; }
+}
