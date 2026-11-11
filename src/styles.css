@@ -796,22 +796,32 @@ main {
   flex-direction: column;
   gap: 14px;
 }
-@media (min-width: 1180px) {
+@media (min-width: 960px) {
+  /* con una scacchiera sullo schermo i margini della pagina si stringono */
+  .app:has(.game-shell) main {
+    padding: 18px 28px 20px;
+  }
+  .app:has(.game-shell) .page {
+    max-width: 1300px;
+  }
   .game-shell {
-    grid-template-columns: auto minmax(340px, 410px);
+    grid-template-columns: auto minmax(300px, 400px);
     justify-content: center;
-    align-items: start;
-    gap: 32px;
+    align-items: stretch;
+    gap: 24px;
     justify-items: stretch;
   }
+  /* lato della scacchiera: quello che resta in altezza (barre dei giocatori comprese) o in larghezza (barra laterale + pannello) */
   .game-main {
-    width: clamp(360px, min(calc(100dvh - 275px), calc(100vw - 716px)), 820px);
+    width: clamp(320px, min(calc(100dvh - 196px), calc(100vw - var(--side-w, 264px) - 390px)), 860px);
     max-width: none;
   }
+  /* senza barra di valutazione la scacchiera resta della stessa misura */
+  .board-row:not(.with-eval) {
+    padding: 0 12px;
+  }
   .game-side {
-    position: sticky;
-    top: 0;
-    max-height: calc(100dvh - 60px);
+    min-height: 0;
   }
   .game-side .coach {
     flex-direction: column;
@@ -822,8 +832,8 @@ main {
     align-self: center;
   }
   .game-side .coach-avatar svg {
-    width: 150px;
-    height: 150px;
+    width: 104px;
+    height: 104px;
   }
   .game-side .coach-bubble {
     border-radius: 22px;
@@ -838,6 +848,12 @@ main {
     border-radius: 14px 3px 3px 3px;
   }
 }
+@media (min-width: 960px) and (min-height: 860px) {
+  .game-side .coach-avatar svg {
+    width: 150px;
+    height: 150px;
+  }
+}
 .game-side .actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
@@ -846,6 +862,268 @@ main {
 .game-side .actions .btn {
   padding: 10px 8px;
   font-size: 0.95rem;
+  min-height: 44px;
+}
+
+/* --- Partita: pannello a fianco con posti fissi --- */
+/* il fumetto tiene sempre lo spazio di tre righe: una battuta corta o lunga non sposta il resto */
+.play-side .coach-text {
+  min-height: calc(1.38em * 3);
+}
+/* tre colonne fisse: Aiuto, Consigli, Minacce / Perché? (largo), Altro */
+.play-side .actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.play-side .actions .wide {
+  grid-column: span 2;
+}
+.more {
+  position: relative;
+  display: grid;
+}
+.more-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  width: max-content;
+  min-width: 250px;
+  max-width: min(320px, 86vw);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  animation: menu-in 0.12s ease-out;
+  transform-origin: 100% 100%;
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(4px);
+  }
+}
+.more-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  font-weight: 700;
+}
+.more-menu > button:hover {
+  background: var(--surface-3);
+}
+.more-menu > button span {
+  flex: 1;
+}
+.more-menu > button b {
+  color: var(--accent);
+  font-weight: 800;
+}
+.more-menu > button.danger {
+  color: var(--bad);
+}
+.more-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 10px;
+  font-weight: 700;
+}
+.more-confirm span {
+  flex: 1 1 100%;
+}
+/* le mosse: intestazione (apertura) + lista che occupa lo spazio che resta */
+.moves-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 10px 12px 12px;
+}
+.moves-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.moves-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.moves-keys {
+  flex: none;
+}
+@media (min-width: 960px) {
+  .play-side .moves-card {
+    order: 1;
+    flex: 1 1 0;
+    min-height: 130px;
+  }
+  .play-side .legend {
+    order: 2;
+  }
+  .play-side .actions {
+    order: 3;
+  }
+  .play-side .move-list {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+  }
+}
+/* "torna alla partita" mentre rivedi le mosse: sta nella tua barra, senza cambiarne l'altezza */
+.back-live {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -2px 0 -2px 4px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 99px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 800;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  animation: menu-in 0.15s ease-out;
+}
+/* risultato a fine partita */
+.result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 16px;
+}
+.result-head strong {
+  display: block;
+  font-family: 'Fredoka Variable', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.result-card.win .result-head strong {
+  color: var(--good);
+}
+.result-card.draw .result-head strong {
+  color: var(--accent);
+}
+.result-head small {
+  color: var(--muted);
+}
+.result-card .review-note {
+  margin: 0;
+}
+.result-card .review-note.summary {
+  border-left-color: var(--accent);
+}
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}
+.result-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+}
+
+/* barra laterale a sole icone quando c'è una scacchiera e lo schermo è stretto: lo spazio va alla scacchiera */
+@media (min-width: 960px) and (max-width: 1279px) {
+  .app:has(.game-shell) {
+    --side-w: 76px;
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+  .app:has(.game-shell) .sidebar {
+    padding: 18px 10px 14px;
+    align-items: center;
+    overflow-x: hidden;
+  }
+  .app:has(.game-shell) .profile-head {
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+  }
+  /* pannello stretto: le lettere delle scorciatoie non ci stanno (restano nel suggerimento al passaggio del mouse) */
+  .play-side .actions .kbd {
+    display: none;
+  }
+  .app:has(.game-shell) .logo {
+    padding: 0;
+  }
+  .app:has(.game-shell) .logo-text,
+  .app:has(.game-shell) .nav-label,
+  .app:has(.game-shell) .profile-id,
+  .app:has(.game-shell) .side-foot .stats {
+    display: none;
+  }
+  .app:has(.game-shell) .nav-item {
+    padding: 12px;
+    justify-content: center;
+  }
+  .app:has(.game-shell) .nav-item.on::before {
+    left: -10px;
+  }
+  .app:has(.game-shell) .side-foot {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+}
+/* telefono e tablet, in partita: niente barra in basso, scacchiera a tutta larghezza */
+@media (max-width: 959px) {
+  .app.in-game .tabs {
+    display: none;
+  }
+  .app.in-game main {
+    padding: 10px 8px calc(14px + env(safe-area-inset-bottom));
+  }
+  .app.in-game .topbar {
+    padding: 0 4px;
+  }
+  .app.in-game .board-wrap {
+    padding: 5px;
+    border-radius: 13px;
+  }
+  .app.in-game .board {
+    border-radius: 8px;
+  }
+  .app.in-game .board-row {
+    gap: 5px;
+  }
+  .app.in-game .eval-bar {
+    width: 10px;
+    border-radius: 6px;
+  }
+  .app.in-game .eval-num {
+    display: none;
+  }
+  .mv {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
 }
 
 .player-bar {
@@ -887,6 +1165,9 @@ main {
 .pb-info small {
   color: var(--muted);
   font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .pb-captured {
   margin-left: auto;
@@ -954,8 +1235,35 @@ main {
 .mv {
   display: inline-flex;
   align-items: center;
+  justify-self: start;
   gap: 6px;
+  min-height: 24px;
+  padding: 1px 7px;
+  margin-left: -7px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
   font-weight: 700;
+  transition: background 0.12s;
+}
+.mv:disabled {
+  cursor: default;
+}
+.mv:hover:not(:disabled):not(.on) {
+  background: rgba(255, 255, 255, 0.1);
+}
+.mv.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+/* figurina al posto della lettera del pezzo */
+.fig {
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0 0 0 -3px;
+  vertical-align: -0.26em;
 }
 .mv i {
   width: 9px;
@@ -3347,8 +3655,6 @@ html[data-fx='high'] .page-fx {
   margin: 0;
   font-size: 0.95rem;
 }
-
-.opening-pill{display:flex;align-items:center;gap:6px;width:fit-content;align-self:center;margin:2px auto 0;padding:3px 12px;border-radius:999px;background:color-mix(in srgb,#c4a07a 22%,var(--surface-2));font-size:.82rem;font-weight:700;color:var(--ink,inherit);text-align:center}
 
 .advice{background:var(--surface-2);border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin-top:10px;font-size:.9rem}
 .advice-head{display:flex;gap:8px;align-items:center;margin-bottom:6px}

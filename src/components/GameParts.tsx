@@ -47,6 +47,7 @@ export function PlayerBar({
   color,
   fen,
   active,
+  extra,
 }: {
   avatar: React.ReactNode
   name: string
@@ -55,6 +56,8 @@ export function PlayerBar({
   color: Color
   fen: string
   active?: boolean
+  /** un tasto a destra della barra (non ne cambia l'altezza) */
+  extra?: React.ReactNode
 }) {
   const cap = useMemo(() => captured(fen), [fen])
   const mine = color === 'w' ? cap.w : cap.b
@@ -65,7 +68,8 @@ export function PlayerBar({
       <div className="pb-avatar">{avatar}</div>
       <div className="pb-info">
         <strong>{name}</strong>
-        {sub && <small>{sub}</small>}
+        {/* la riga c'è sempre (anche vuota): così il nome non sale e scende quando compare "Tocca a te" */}
+        <small>{sub || ' '}</small>
       </div>
       <div className="pb-captured" aria-label="Pezzi catturati">
         {mine.map((t, i) => (
@@ -73,6 +77,7 @@ export function PlayerBar({
         ))}
         {adv > 0 && <span className="pb-adv">+{adv}</span>}
       </div>
+      {extra}
     </div>
   )
 }
@@ -83,40 +88,71 @@ export interface MoveRow {
   quality?: Quality
 }
 
-export function MoveList({ moves }: { moves: MoveRow[] }) {
-  const end = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = end.current?.parentElement
-    if (el) el.scrollTop = el.scrollHeight
-  }, [moves.length])
+const FIGURINE: Record<string, PieceSymbol> = { K: 'k', Q: 'q', R: 'r', B: 'b', N: 'n' }
 
-  const rows: { n: number; w?: MoveRow; b?: MoveRow }[] = []
+/** Una mossa in notazione con le figurine al posto delle lettere inglesi (N, B, R, Q, K). */
+export function San({ san }: { san: string }) {
+  return (
+    <>
+      {san.split(/([KQRBN])/).map((part, i) =>
+        FIGURINE[part] ? <img key={i} className="fig" src={pieceUrl('w', FIGURINE[part])} alt={part} draggable={false} /> : part,
+      )}
+    </>
+  )
+}
+
+/**
+ * Lista delle mosse. `current` è quante mosse sono state giocate nella posizione che si sta guardando
+ * (di base l'ultima); con `onSelect` ogni mossa si può toccare per rivedere quella posizione.
+ */
+export function MoveList({ moves, current, onSelect }: { moves: MoveRow[]; current?: number; onSelect?: (ply: number) => void }) {
+  const box = useRef<HTMLDivElement>(null)
+  const cur = current ?? moves.length
+  // la mossa che stai guardando resta in vista (si scorre solo la lista, mai la pagina)
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const on = el.querySelector<HTMLElement>('.mv.on')
+    if (!on) {
+      el.scrollTop = 0
+      return
+    }
+    const r = on.getBoundingClientRect()
+    const c = el.getBoundingClientRect()
+    if (r.top < c.top) el.scrollTop -= c.top - r.top + 4
+    else if (r.bottom > c.bottom) el.scrollTop += r.bottom - c.bottom + 4
+  }, [moves.length, cur])
+
+  const rows: { n: number; w?: MoveRow; b?: MoveRow; wPly?: number; bPly?: number }[] = []
   moves.forEach((m, i) => {
     const n = Math.floor(i / 2) + 1
-    if (m.color === 'w') rows.push({ n, w: m })
-    else if (rows.length && !rows[rows.length - 1].b && rows[rows.length - 1].w) rows[rows.length - 1].b = m
-    else rows.push({ n, b: m })
+    if (m.color === 'w') rows.push({ n, w: m, wPly: i + 1 })
+    else if (rows.length && !rows[rows.length - 1].b && rows[rows.length - 1].w) {
+      rows[rows.length - 1].b = m
+      rows[rows.length - 1].bPly = i + 1
+    } else rows.push({ n, b: m, bPly: i + 1 })
   })
-  const cell = (m?: MoveRow) =>
-    m ? (
-      <span className="mv">
-        {m.san}
+  const cell = (m?: MoveRow, ply?: number) =>
+    m && ply ? (
+      <button className={`mv${ply === cur ? ' on' : ''}`} onClick={onSelect ? () => onSelect(ply) : undefined} disabled={!onSelect} aria-current={ply === cur ? 'step' : undefined}>
+        <span className="san">
+          <San san={m.san} />
+        </span>
         {m.quality && <i style={{ background: QUALITY_INFO[m.quality].color }} title={QUALITY_INFO[m.quality].label} />}
-      </span>
+      </button>
     ) : (
       <span className="mv" />
     )
   return (
-    <div className="move-list">
+    <div className="move-list" ref={box}>
       {rows.length === 0 && <p className="muted">Le mosse compariranno qui.</p>}
       {rows.map((r) => (
         <div className="mv-row" key={r.n}>
           <span className="mv-n">{r.n}.</span>
-          {cell(r.w)}
-          {cell(r.b)}
+          {cell(r.w, r.wPly)}
+          {cell(r.b, r.bPly)}
         </div>
       ))}
-      <div ref={end} />
     </div>
   )
 }

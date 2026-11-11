@@ -78,7 +78,10 @@ export function App() {
 
   let content
   let narrow = false
-  if (overlay?.kind === 'game') content = <Play key={overlay.key} bot={overlay.bot} color={overlay.color} resume={overlay.resume} onExit={close} />
+  if (overlay?.kind === 'game') {
+    const g = overlay
+    content = <Play key={g.key} bot={g.bot} color={g.color} resume={g.resume} onExit={close} onRematch={() => setOverlay({ kind: 'game', bot: g.bot, color: g.color, key: Date.now() })} />
+  }
   else if (overlay?.kind === 'lesson') content = <LessonPlayer key={overlay.lesson.id} lesson={overlay.lesson} onExit={close} />
   else if (overlay?.kind === 'drill') {
     const d = overlay.drill
@@ -127,14 +130,14 @@ export function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${overlay?.kind === 'game' || overlay?.kind === 'drill' ? ' in-game' : ''}`}>
       <aside className="sidebar">
         <Logo size={48} />
         <nav className="nav">
           {TABS.map(({ id, Icon, label }) => (
-            <button key={id} className={`nav-item${tab === id && !overlay ? ' on' : ''}`} onClick={() => goTab(id)}>
+            <button key={id} className={`nav-item${tab === id && !overlay ? ' on' : ''}`} onClick={() => goTab(id)} title={label}>
               <Icon size={24} weight={tab === id && !overlay ? 'fill' : 'duotone'} />
-              {label}
+              <span className="nav-label">{label}</span>
             </button>
           ))}
         </nav>

@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
-import { ArrowCounterClockwise, ArrowLeft, ArrowRight, BookOpenText, Compass, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold, Rewind, Warning } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ArrowLeft, ArrowRight, ArrowUUpLeft, ArrowsClockwise, BookOpenText, Compass, DotsThree, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold, Rewind, Warning } from '@phosphor-icons/react'
 import { EvalBar } from '../components/EvalBar'
 import { QualityIcon } from '../components/QualityIcon'
 import { Board, type Tint } from '../components/Board'
@@ -70,7 +70,7 @@ function isBad(q: Quality) {
   return q === 'mistake' || q === 'blunder'
 }
 
-export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; resume?: SavedGame; onExit: () => void }) {
+export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; color: Color; resume?: SavedGame; onExit: () => void; onRematch?: () => void }) {
   const app = useApp()
   const settings = app.settings
   const game = useRef<Chess>(null as unknown as Chess)
@@ -126,6 +126,10 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   const resolvedThreat = useRef<{ asked: boolean; kind: 'handled' | 'missed' } | null>(null)
   const seenThreatFens = useRef(new Set<string>())
   const [threatView, setThreatView] = useState<{ rings: Square[]; arrows: [Square, Square, string][] } | null>(null)
+  /** quante mosse sono state giocate nella posizione che stai rivedendo; null = la posizione attuale */
+  const [viewPly, setViewPly] = useState<number | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [resignAsk, setResignAsk] = useState(false)
 
   useEffect(() => {
     alive.current = true
@@ -256,7 +260,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
 
   /** "Cosa minaccia?": evidenzia cosa vuole fare l'avversario e lo dice a parole. Non rivela la mossa giusta. */
   const showThreats = () => {
-    if (phase !== 'player' || game.current.turn() !== color) return
+    if (phase !== 'player' || viewPly !== null || game.current.turn() !== color) return
     if (threatView) {
       setThreatView(null)
       return
@@ -285,7 +289,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   }
   /** "Cosa faccio?": la routine di ogni mossa e i consigli della fase, calcolati sulla posizione. */
   const toggleAdvice = () => {
-    if (phase !== 'player' || game.current.turn() !== color) return
+    if (phase !== 'player' || viewPly !== null || game.current.turn() !== color) return
     if (advice) {
       setAdvice(null)
       return
@@ -296,14 +300,37 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   toggleAdviceRef.current = toggleAdvice
   const showThreatsRef = useRef(showThreats)
   showThreatsRef.current = showThreats
-  // scorciatoia da tastiera: T = "cosa minaccia?"
+  /** Rivedi la posizione dopo `ply` mosse; arrivato all'ultima si torna alla partita. */
+  const goPly = (ply: number) => {
+    const n = moves.length
+    const p = Math.max(0, Math.min(n, ply))
+    setViewPly(p >= n ? null : p)
+  }
+  const navRef = useRef({ goPly, cur: 0, blocked: false })
+  navRef.current = { goPly, cur: viewPly ?? moves.length, blocked: reviewOpen || replayOpen }
+  // a ogni mossa nuova si torna a guardare la posizione attuale
+  useEffect(() => setViewPly(null), [moves.length])
+  // scorciatoie da tastiera: ← → (Inizio/Fine) per rivedere le mosse, T = "cosa minaccia?", C = consigli, Esc chiude il menu
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return
-      const k = e.key.toLowerCase()
-      if (k !== 't' && k !== 'c') return
       const tag = (e.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const nav = navRef.current
+      if (nav.blocked) return
+      const step = e.key === 'ArrowLeft' ? nav.cur - 1 : e.key === 'ArrowRight' ? nav.cur + 1 : e.key === 'Home' ? 0 : e.key === 'End' ? Infinity : null
+      if (step !== null) {
+        e.preventDefault()
+        nav.goPly(step)
+        return
+      }
+      if (e.key === 'Escape') {
+        setMenuOpen(false)
+        setResignAsk(false)
+        return
+      }
+      const k = e.key.toLowerCase()
+      if (k !== 't' && k !== 'c') return
       e.preventDefault()
       if (k === 't') showThreatsRef.current()
       else toggleAdviceRef.current()
@@ -311,6 +338,18 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+  // il menu "Altro" si chiude toccando fuori
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement | null)?.closest?.('.more')) {
+        setMenuOpen(false)
+        setResignAsk(false)
+      }
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [menuOpen])
 
   const onUserMove = async (from: Square, to: Square, promotion?: PieceSymbol) => {
     const g = game.current
@@ -499,7 +538,7 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
   }
 
   const showHint = async () => {
-    if (phase !== 'player') return
+    if (phase !== 'player' || viewPly !== null) return
     const best = await bestMoveFor(game.current.fen())
     if (!best) return
     const { from, to } = parseUci(best)
@@ -696,6 +735,21 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
     </span>
   )
 
+  // rivedere le mosse già giocate: la scacchiera mostra quella posizione e resta ferma finché non torni all'ultima
+  const vp = viewPly !== null && viewPly < moves.length ? viewPly : null
+  const viewing = vp !== null
+  const viewedMove = vp !== null && vp > 0 ? moves[vp - 1] : undefined
+  const shownFen = vp !== null ? moves[vp].fenBefore : fen
+  const shownLast: [Square, Square] | null = viewing ? (viewedMove ? [viewedMove.uci.slice(0, 2) as Square, viewedMove.uci.slice(2, 4) as Square] : null) : last
+  const shownBy: 'me' | 'opp' = viewing ? (viewedMove && viewedMove.color !== color ? 'opp' : 'me') : lastBy
+  const viewedJ = viewedMove?.color === color ? viewedMove.judgement : undefined
+  const shownBadge = viewing
+    ? viewedMove && viewedJ
+      ? { square: viewedMove.uci.slice(2, 4) as Square, icon: <QualityIcon q={viewedJ.quality} />, color: QUALITY_INFO[viewedJ.quality].color, kind: viewedJ.quality }
+      : null
+    : badge
+  const busy = phase !== 'player' || viewing
+
   return (
     <div className="screen play">
       <div className="topbar">
@@ -712,33 +766,46 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
             name={bot.name}
             sub={phase === 'thinking' ? 'Sta pensando…' : botSan ? `Ha giocato ${botSan}` : bot.style !== 'balanced' ? `Avversario · stile ${STYLES[bot.style].label.toLowerCase()}` : 'Avversario'}
             color={oppColor}
-            fen={fen}
+            fen={shownFen}
             active={phase === 'thinking' || phase === 'reply'}
           />
           <div className={`board-row${settings.evalBar ? ' with-eval' : ''}`}>
-          {settings.evalBar && <EvalBar fen={fen} orientation={color} />}
-          <Board
-            fen={fen}
-            orientation={color}
-            movable={movable}
-            onMove={onUserMove}
-            lastMove={last}
-            lastBy={lastBy}
-            slowMove={lastBy === 'opp'}
-            tints={quiz && !quiz.done ? undefined : tints}
-            rings={quiz ? (quiz.done ? quiz.targets : []) : threatView ? [...new Set([...rings, ...threatView.rings])] : rings}
-            arrows={quiz?.done && quiz.refute ? [[quiz.refute[0], quiz.refute[1], '#ffb347']] : threatView && threatView.arrows.length ? threatView.arrows : undefined}
-            onPick={quiz && !quiz.done ? onQuizPick : undefined}
-            hint={hint}
-            badge={badge}
-            shake={shake}
-          />
+            {settings.evalBar && <EvalBar fen={shownFen} orientation={color} />}
+            <Board
+              fen={shownFen}
+              orientation={color}
+              movable={viewing ? null : movable}
+              onMove={onUserMove}
+              lastMove={shownLast}
+              lastBy={shownBy}
+              slowMove={!viewing && lastBy === 'opp'}
+              tints={viewing || (quiz && !quiz.done) ? undefined : tints}
+              rings={viewing ? [] : quiz ? (quiz.done ? quiz.targets : []) : threatView ? [...new Set([...rings, ...threatView.rings])] : rings}
+              arrows={viewing ? undefined : quiz?.done && quiz.refute ? [[quiz.refute[0], quiz.refute[1], '#ffb347']] : threatView && threatView.arrows.length ? threatView.arrows : undefined}
+              onPick={!viewing && quiz && !quiz.done ? onQuizPick : undefined}
+              hint={viewing ? null : hint}
+              badge={shownBadge}
+              shake={shake}
+            />
           </div>
-          {opening && phase !== 'over' && <div className="opening-pill"><BookOpenText size={14} weight="fill" /> {opening}</div>}
-          <PlayerBar avatar={meAvatar} name="Tu" sub={myTurn ? 'Tocca a te' : undefined} color={color} fen={fen} active={myTurn} />
+          <PlayerBar
+            avatar={meAvatar}
+            name="Tu"
+            sub={viewing ? 'Stai rivedendo le mosse' : myTurn ? 'Tocca a te' : undefined}
+            color={color}
+            fen={shownFen}
+            active={myTurn && !viewing}
+            extra={
+              viewing && (
+                <button className="back-live" onClick={() => setViewPly(null)}>
+                  <ArrowUUpLeft size={16} weight="bold" /> Torna alla partita
+                </button>
+              )
+            }
+          />
         </div>
 
-        <div className="game-side">
+        <div className="game-side play-side">
           <CoachBubble text={coach.text} mood={coach.mood}>
             {phase === 'decide' && takeback && (
               <div className="row">
@@ -762,74 +829,129 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
                 </button>
               </div>
             )}
-            {phase === 'over' && result && (
-              <div className="result">
+          </CoachBubble>
+
+          {phase === 'over' && result && (
+            <div className={`card result-card ${result.outcome}`}>
+              <div className="result-head">
+                <strong>{result.outcome === 'win' ? 'Hai vinto!' : result.outcome === 'lose' ? 'Hai perso' : 'Patta'}</strong>
+                <small>
+                  {result.reason === 'patta' ? '' : `per ${result.reason} · `}contro {bot.name}
+                </small>
+              </div>
+              {Object.keys(counts).length > 0 && (
                 <div className="summary">
                   {(Object.keys(counts) as Quality[]).map((q) => (
-                    <span key={q} className="chip" style={{ background: QUALITY_INFO[q].color }}>
+                    <span key={q} className="chip" style={{ background: QUALITY_INFO[q].color }} title={QUALITY_INFO[q].label}>
                       <QualityIcon q={q} /> {counts[q]}
                     </span>
                   ))}
                 </div>
-                {cleanNote && <p className="review-note clean">✨ Partita pulita: nessuna mossa ritirata, +15 XP. {cleanNote}</p>}
-                {threatStats.current.seen > 0 && (
-                  <p className="review-note">
-                    🛡️ Minacce dell’avversario: {threatStats.current.seen} · parate {threatStats.current.handled}
-                    {threatStats.current.missed > 0 ? ` · ignorate ${threatStats.current.missed}` : ''}
-                    {threatStats.current.asked > 0 ? ` · aiuto T usato ${threatStats.current.asked} ${threatStats.current.asked === 1 ? 'volta' : 'volte'}` : ''}
-                  </p>
-                )}
-                {analysing && <p className="review-note">{coachInfo(currentCoach()).name} sta riguardando la partita…</p>}
+              )}
+              {cleanNote && <p className="review-note clean">✨ Partita pulita: nessuna mossa ritirata, +15 XP. {cleanNote}</p>}
+              {threatStats.current.seen > 0 && (
+                <p className="review-note">
+                  🛡️ Minacce dell’avversario: {threatStats.current.seen} · parate {threatStats.current.handled}
+                  {threatStats.current.missed > 0 ? ` · ignorate ${threatStats.current.missed}` : ''}
+                  {threatStats.current.asked > 0 ? ` · aiuto T usato ${threatStats.current.asked} ${threatStats.current.asked === 1 ? 'volta' : 'volte'}` : ''}
+                </p>
+              )}
+              {analysing && <p className="review-note">{coachInfo(currentCoach()).name} sta riguardando la partita…</p>}
+              {!analysing && reviewItems.length === 0 && moves.some((m) => m.judgement) && <p className="review-note">Nessun errore grave da rivedere. Niente male!</p>}
+              {notebookNote && <p className="review-note">{notebookNote}</p>}
+              {summary === 'loading' && <p className="review-note">{coachInfo(currentCoach()).name} sta scrivendo il commento…</p>}
+              {summary && summary !== 'loading' && <p className="review-note summary">{summary}</p>}
+              <div className="result-actions">
                 {!analysing && reviewItems.length > 0 && (
                   <button className="btn primary" onClick={() => setReviewOpen(true)}>
                     <GraduationCap size={18} weight="bold" /> Rivedi {reviewItems.length === 1 ? 'il tuo errore' : `i tuoi ${reviewItems.length} errori`}
                   </button>
                 )}
-                {!analysing && reviewItems.length === 0 && moves.some((m) => m.judgement) && <p className="review-note">Nessun errore grave da rivedere. Niente male!</p>}
-                {notebookNote && <p className="review-note">{notebookNote}</p>}
-                {summary === 'loading' && <p className="review-note">{coachInfo(currentCoach()).name} sta scrivendo il commento…</p>}
-                {summary && summary !== 'loading' && <p className="review-note summary">{summary}</p>}
                 {!analysing && moves.length >= 2 && (
                   <button className="btn" onClick={() => setReplayOpen(true)}>
                     <Rewind size={18} weight="bold" /> Rivedi tutta la partita
                   </button>
                 )}
-                <div className="row">
-                  <button className="btn primary" onClick={onExit}>
+                <div className="result-row">
+                  {onRematch && (
+                    <button className="btn" onClick={onRematch}>
+                      <ArrowsClockwise size={18} weight="bold" /> Rivincita
+                    </button>
+                  )}
+                  <button className={`btn${!analysing && reviewItems.length > 0 ? '' : ' primary'}`} onClick={onExit}>
                     Continua <ArrowRight size={18} weight="bold" />
                   </button>
                 </div>
               </div>
-            )}
-          </CoachBubble>
+            </div>
+          )}
 
           {phase !== 'over' && (
+            // quattro tasti sempre nello stesso posto; il resto (mappa del pericolo, resa) sta nel menu "Altro"
             <div className="actions">
-              <button className="btn" onClick={showHint} disabled={phase !== 'player'}>
+              <button className="btn" onClick={showHint} disabled={busy}>
                 <Lightbulb size={20} weight="fill" /> Aiuto{hintLevel ? ` ${hintLevel}/3` : ''}
               </button>
-              {lastUserMove?.judgement && phase === 'player' && (
-                <button className="btn" onClick={() => explain(lastUserMove)}>
-                  <MagnifyingGlass size={20} weight="bold" /> Perché?
-                </button>
-              )}
-              <button className={`btn${advice ? ' on' : ''}`} onClick={toggleAdvice} disabled={phase !== 'player'} title="Cosa faccio ora? (scorciatoia: C)">
+              <button className={`btn${advice ? ' on' : ''}`} onClick={toggleAdvice} disabled={busy} title="Cosa faccio ora? (scorciatoia: C)">
                 <Compass size={20} weight="fill" /> Consigli <kbd className="kbd">C</kbd>
               </button>
-              <button className={`btn${threatView ? ' on' : ''}`} onClick={showThreats} disabled={phase !== 'player'} title="Cosa minaccia l’avversario? (scorciatoia: T)">
+              <button className={`btn${threatView ? ' on' : ''}`} onClick={showThreats} disabled={busy} title="Cosa minaccia l’avversario? (scorciatoia: T)">
                 <Warning size={20} weight="fill" /> Minacce <kbd className="kbd">T</kbd>
               </button>
-              <button className="btn" onClick={cycleDanger}>
-                <MapTrifold size={20} weight="duotone" /> Mappa: {DANGER_LABEL[settings.danger]}
-              </button>
               <button
-                className="btn"
-                onClick={() => {
-                  if (confirm('Ti arrendi?')) finish('lose', 'resa')
-                }}
+                className="btn wide"
+                onClick={() => lastUserMove && explain(lastUserMove)}
+                disabled={busy || !lastUserMove?.judgement}
+                title="Perché la mia ultima mossa è stata giudicata così?"
               >
-                <Flag size={20} weight="fill" /> Resa
+                <MagnifyingGlass size={20} weight="bold" /> Perché?
               </button>
+              <div className="more">
+                <button
+                  className={`btn${menuOpen ? ' on' : ''}`}
+                  onClick={() => {
+                    setMenuOpen((o) => !o)
+                    setResignAsk(false)
+                  }}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  title="Mappa del pericolo, resa"
+                >
+                  <DotsThree size={22} weight="bold" /> Altro
+                </button>
+                {menuOpen && (
+                  <div className="more-menu" role="menu">
+                    <button role="menuitem" onClick={cycleDanger}>
+                      <MapTrifold size={20} weight="duotone" />
+                      <span>Mappa del pericolo</span>
+                      <b>{DANGER_LABEL[settings.danger]}</b>
+                    </button>
+                    {resignAsk ? (
+                      <div className="more-confirm">
+                        <span>Ti arrendi davvero?</span>
+                        <button
+                          className="btn small"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            setResignAsk(false)
+                            finish('lose', 'resa')
+                          }}
+                        >
+                          Sì, mi arrendo
+                        </button>
+                        <button className="btn small" onClick={() => setResignAsk(false)}>
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button role="menuitem" className="danger" onClick={() => setResignAsk(true)}>
+                        <Flag size={20} weight="fill" />
+                        <span>Arrenditi</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -876,8 +998,23 @@ export function Play({ bot, color, resume, onExit }: { bot: Bot; color: Color; r
             </div>
           )}
 
-          <div className="card" style={{ padding: 12 }}>
-            <MoveList moves={moveRows} />
+          <div className="card moves-card">
+            <div className="moves-head">
+              <span className="moves-title">
+                {opening ? (
+                  <>
+                    <BookOpenText size={14} weight="fill" /> {opening}
+                  </>
+                ) : (
+                  'Mosse'
+                )}
+              </span>
+              <span className="moves-keys" title="Frecce ← → per rivedere le mosse; Fine per tornare all’ultima">
+                <kbd className="kbd">←</kbd>
+                <kbd className="kbd">→</kbd>
+              </span>
+            </div>
+            <MoveList moves={moveRows} current={vp ?? undefined} onSelect={goPly} />
           </div>
         </div>
       </div>
