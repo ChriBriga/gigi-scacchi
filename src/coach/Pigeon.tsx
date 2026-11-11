@@ -676,6 +676,8 @@ function Eyes({ mood, p }: { mood: Mood; p: EyeColors }) {
         <path d="M53 47 H79 V57 Q79 69 66 69 Q53 69 53 57 Z" fill="#14091f" />
         <path d="M81 47 H107 V57 Q107 69 94 69 Q81 69 81 57 Z" fill="#14091f" />
         <path d="M77 50 H83" stroke="#14091f" strokeWidth="3" strokeLinecap="round" />
+        <path d="M53 47 H79 V57 Q79 69 66 69 Q53 69 53 57 Z M81 47 H107 V57 Q107 69 94 69 Q81 69 81 57 Z" fill="none" stroke="#5a4a8a" strokeWidth="1.3" strokeLinejoin="round" opacity=".8" />
+        <path d="M55 59 Q57 67 66 67.5 Q75 67 77 59 M83 59 Q85 67 94 67.5 Q103 67 105 59" stroke="#4a8fd6" strokeWidth="1.6" fill="none" strokeLinecap="round" opacity=".45" />
         <path d="M58 52 L66 52 M86 52 L94 52" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" opacity=".7" />
         <path d="M58 57 L62 57 M86 57 L90 57" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".45" />
       </g>
@@ -686,6 +688,8 @@ function Eyes({ mood, p }: { mood: Mood; p: EyeColors }) {
       <g stroke="#2a1230" strokeWidth="4.2" strokeLinecap="round" fill="none">
         <path d="M58 58 Q67 46 76 58" />
         <path d="M84 58 Q93 46 102 58" />
+        <path d="M58.5 57.5 l-3.6 2.6 M60.5 54 l-3.8 .6 M101.5 57.5 l3.6 2.6 M99.5 54 l3.8 .6" strokeWidth="2.2" />
+        <path d="M62 53.5 Q67 50.5 72 53.5 M88 53.5 Q93 50.5 98 53.5" stroke="#fff" strokeWidth="1.3" opacity=".35" />
       </g>
     )
   }
@@ -694,7 +698,8 @@ function Eyes({ mood, p }: { mood: Mood; p: EyeColors }) {
       <g stroke="#2a1230" strokeWidth="4.2" strokeLinecap="round" fill="none">
         <path d="M58 56 Q67 64 76 56" />
         <path d="M84 56 Q93 64 102 56" />
-        <path d="M56 59 l-3 2.5 M60 61 l-1.5 3.5 M104 59 l3 2.5 M100 61 l1.5 3.5" strokeWidth="2.2" opacity=".7" />
+        <path d="M56 59 l-3 2.5 M60 61 l-1.5 3.5 M64 62.5 l-.5 3.4 M104 59 l3 2.5 M100 61 l1.5 3.5 M96 62.5 l.5 3.4" strokeWidth="2.2" opacity=".75" />
+        <path d="M60 53 Q67 55.5 74 53 M86 53 Q93 55.5 100 53" stroke="#2a1230" strokeWidth="2" opacity=".18" />
       </g>
     )
   }
