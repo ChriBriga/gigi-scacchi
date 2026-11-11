@@ -317,7 +317,7 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
       const tag = (e.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       const nav = navRef.current
-      if (nav.blocked) return
+      if (nav.blocked || document.querySelector('dialog[open]')) return
       const step = e.key === 'ArrowLeft' ? nav.cur - 1 : e.key === 'ArrowRight' ? nav.cur + 1 : e.key === 'Home' ? 0 : e.key === 'End' ? Infinity : null
       if (step !== null) {
         e.preventDefault()

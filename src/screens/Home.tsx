@@ -4,6 +4,7 @@ import { BookOpen, CaretRight, Check, Binoculars, Fire, FlagCheckered, Lightning
 import { clearSavedGame, loadSavedGame, type SavedGame } from '../savedGame'
 import { Avatar } from '../components/Avatar'
 import { Hero } from '../components/Hero'
+import { confirmDialog } from '../ui/Dialog'
 import { BotAvatar } from '../components/BotAvatar'
 import { LessonIcon } from '../components/icons'
 import { pickGreeting } from '../coach/greeting'
@@ -72,13 +73,20 @@ export function Home({
           <span className="plan-info">
             <strong>Partita in corso contro {savedBot.name}</strong>
             <small>
-              {Math.ceil(saved.moves.length / 2) === 1 ? '1 mossa giocata' : `${Math.ceil(saved.moves.length / 2)} mosse giocate`} ·{saved.color === 'w' ? 'hai il Bianco' : 'hai il Nero'}
+              {Math.ceil(saved.moves.length / 2) === 1 ? '1 mossa giocata' : `${Math.ceil(saved.moves.length / 2)} mosse giocate`} · {saved.color === 'w' ? 'hai il Bianco' : 'hai il Nero'}
             </small>
           </span>
           <button
             className="ghost"
-            onClick={() => {
-              if (confirm('Abbandoni la partita lasciata a metà? Non conterà come sconfitta.')) {
+            onClick={async () => {
+              const yes = await confirmDialog({
+                title: 'Abbandonare la partita?',
+                text: `La partita contro ${savedBot.name} viene cancellata. Non conterà come sconfitta.`,
+                ok: 'Abbandona',
+                cancel: 'Tienila',
+                danger: true,
+              })
+              if (yes) {
                 clearSavedGame()
                 setSaved(null)
               }

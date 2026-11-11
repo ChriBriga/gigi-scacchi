@@ -159,6 +159,16 @@ export function GameReview({
   const bestFen = useMemo(() => (item?.judgement.bestUci ? playUci(item.fenBefore, item.judgement.bestUci) : undefined), [item])
   const playedFen = useMemo(() => (item ? playUci(item.fenBefore, item.uci) : undefined), [item])
 
+  // Esc chiude la revisione, come le altre finestre
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // se sopra c'è una finestra di dialogo o la scelta della promozione, Esc chiude quella
+      if (e.key === 'Escape' && !document.querySelector('dialog[open], .promo')) onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   if (!item) return null
   const q = QUALITY_INFO[item.judgement.quality]
   const bestUci = item.judgement.bestUci!

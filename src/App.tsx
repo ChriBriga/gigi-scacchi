@@ -1,6 +1,6 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Color } from 'chess.js'
-import { BookOpen, Checkerboard, Fire, Gear, House, PuzzlePiece, Star, type Icon } from '@phosphor-icons/react'
+import { BookOpen, Checkerboard, Fire, Gear, House, Keyboard, PuzzlePiece, Star, type Icon } from '@phosphor-icons/react'
 import { Home } from './screens/Home'
 import { Logo } from './components/Logo'
 import { Avatar, useProfile } from './components/Avatar'
@@ -11,6 +11,9 @@ import type { Puzzle } from './screens/Puzzles'
 import { nextDrill, type Drill } from './data/drills'
 import { currentStreak, levelName, useApp } from './store'
 import { THEMES } from './themes'
+import { DialogHost, confirmDialog } from './ui/Dialog'
+import { ToastHost, toast } from './ui/Toast'
+import { Shortcuts } from './ui/Shortcuts'
 
 // le schermate pesanti si caricano solo quando servono (la Home e la barra restano subito pronte)
 const Play = lazy(() => import('./screens/Play').then((m) => ({ default: m.Play })))
@@ -58,11 +61,94 @@ export function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', info?.themeColor ?? '#0e0720')
   }, [settings.theme])
 
+  const [help, setHelp] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
+
+  // --- Tasto indietro (browser e telefono) ---------------------------------------------------
+  // La cronologia tiene solo "a che profondità sei": 0 = Oggi, +1 un'altra scheda, +1 una schermata aperta sopra
+  // (partita, lezione, puzzle…). Indietro chiude prima la schermata, poi torna a Oggi, poi esce dall'app.
+  const depth = (tab !== 'home' ? 1 : 0) + (overlay ? 1 : 0)
+  const histDepth = useRef<number>(typeof history.state?.d === 'number' ? (history.state.d as number) : 0)
+  /** quanti "indietro" abbiamo chiesto noi: il loro evento popstate non va trattato come un tasto premuto */
+  const ownPops = useRef(0)
+  const navNow = useRef({ tab, overlay })
+  navNow.current = { tab, overlay }
+  useEffect(() => {
+    if (depth > histDepth.current) {
+      for (let d = histDepth.current + 1; d <= depth; d++) history.pushState({ d }, '')
+    } else if (depth < histDepth.current) {
+      ownPops.current++
+      history.go(depth - histDepth.current)
+    }
+    histDepth.current = depth
+  }, [depth])
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      if (ownPops.current > 0) {
+        ownPops.current--
+        return
+      }
+      const d = typeof e.state?.d === 'number' ? (e.state.d as number) : 0
+      histDepth.current = d
+      const now = navNow.current
+      const tabDepth = now.tab !== 'home' ? 1 : 0
+      if (now.overlay && d <= tabDepth) setOverlay(null)
+      if (d === 0 && now.tab !== 'home') setTab('home')
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  // --- Scroll: ogni schermata parte dall'alto; tornando indietro a una scheda la ritrovi dove l'avevi lasciata ---
+  const screenKey = overlay
+    ? `ov:${overlay.kind}:${overlay.kind === 'game' || overlay.kind === 'puzzles5' ? overlay.key : overlay.kind === 'lesson' ? overlay.lesson.id : overlay.kind === 'drill' ? overlay.drill.id : ''}`
+    : `tab:${tab}`
+  const scrolls = useRef<Record<string, number>>({})
+  const shownKey = useRef(screenKey)
+  useLayoutEffect(() => {
+    const from = shownKey.current
+    shownKey.current = screenKey
+    const m = mainRef.current
+    if (!m || from === screenKey) return
+    const back = from.startsWith('ov:') && screenKey.startsWith('tab:')
+    m.scrollTop = back ? (scrolls.current[screenKey] ?? 0) : 0
+  }, [screenKey])
+
+  // uscendo da una partita non finita: due parole per dire che non è persa
+  const wasGame = useRef(false)
+  useEffect(() => {
+    const isGame = overlay?.kind === 'game'
+    if (wasGame.current && !isGame && loadSavedGame()) toast('Partita salvata: la riprendi da Oggi')
+    wasGame.current = isGame
+  }, [overlay])
+
+  // "?" apre l'elenco delle scorciatoie
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey) return
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      e.preventDefault()
+      setHelp(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const close = () => setOverlay(null)
-  const startGame = (bot: Bot, color: Color) => {
+  const startGame = async (bot: Bot, color: Color) => {
     // una partita nuova prende il posto di quella lasciata a metà: meglio chiederlo
     const saved = loadSavedGame()
-    if (saved && !confirm(`Hai una partita in corso contro ${botById(saved.botId)?.name ?? 'un avversario'}. Se ne inizi un'altra, quella va persa. Continuare?`)) return
+    if (saved) {
+      const yes = await confirmDialog({
+        title: 'Iniziare una partita nuova?',
+        text: `Hai una partita in corso contro ${botById(saved.botId)?.name ?? 'un avversario'}. Se ne inizi un’altra, quella va persa.`,
+        ok: 'Inizia la nuova',
+        cancel: 'Torna indietro',
+        danger: true,
+      })
+      if (!yes) return
+    }
     clearSavedGame()
     setOverlay({ kind: 'game', bot, color, key: Date.now() })
   }
@@ -141,6 +227,11 @@ export function App() {
             </button>
           ))}
         </nav>
+        <button className="nav-help" onClick={() => setHelp(true)} title="Scorciatoie da tastiera (?)">
+          <Keyboard size={20} weight="duotone" />
+          <span className="nav-label">Scorciatoie</span>
+          <kbd className="kbd">?</kbd>
+        </button>
         <div className="side-foot card profile">
           <button className="profile-head" onClick={() => goTab('settings')} title="Cambia nome e avatar">
             <Avatar size={46} ring />
@@ -160,10 +251,15 @@ export function App() {
         </div>
       </aside>
 
-      <main>
+      <main
+        ref={mainRef}
+        onScroll={(e) => {
+          scrolls.current[shownKey.current] = e.currentTarget.scrollTop
+        }}
+      >
         <div className={`page${narrow ? ' narrow' : ''}`}>
           <Suspense fallback={<div className="screen-loading" aria-label="Carico…" />}>
-            <div className="page-fx" key={overlay ? overlay.kind : tab}>
+            <div className="page-fx" key={screenKey}>
               {content}
             </div>
           </Suspense>
@@ -178,6 +274,10 @@ export function App() {
           </button>
         ))}
       </nav>
+
+      {help && <Shortcuts onClose={() => setHelp(false)} />}
+      <DialogHost />
+      <ToastHost />
     </div>
   )
 }

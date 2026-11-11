@@ -144,6 +144,7 @@ export function GameReplay({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (trying) return
+      if (document.querySelector('dialog[open]')) return
       if (e.key === 'ArrowLeft') go(ply - 1)
       else if (e.key === 'ArrowRight') go(ply + 1)
       else if (e.key === 'Home') go(0)
