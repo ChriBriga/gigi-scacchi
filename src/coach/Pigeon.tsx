@@ -269,9 +269,11 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
         {/* coda: si intravede a destra, sotto il corpo (la gallina ha un pennacchio all'insù) */}
         {who === 'gallina' ? (
           <g className="pg-tail">
-            <path d="M104 126 Q128 84 146 90 Q152 108 128 134 Z" fill={S.tail} />
-            <path d="M108 130 Q140 96 156 110 Q154 128 124 142 Z" fill={S.tail2} />
-            <path d="M100 136 Q130 118 152 136 Q142 150 108 148 Z" fill={S.tail} />
+            <g stroke={S.line} strokeOpacity=".8" strokeWidth="1.7" strokeLinejoin="round">
+              <path d="M104 126 Q128 84 146 90 Q152 108 128 134 Z" fill={S.tail} />
+              <path d="M108 130 Q140 96 156 110 Q154 128 124 142 Z" fill={S.tail2} />
+              <path d="M100 136 Q130 118 152 136 Q142 150 108 148 Z" fill={S.tail} />
+            </g>
             <path d="M118 124 Q134 104 144 100 M122 134 Q142 118 150 118" stroke={S.tailLine} strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".6" />
           </g>
         ) : (
@@ -339,6 +341,9 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
           {/* ali richiuse sui fianchi */}
           <g className="pg-wing-l">
             <path d="M42 90 C24 106 23 130 29 142 L33 138 L34 148 L39 142 L42 151 C55 143 62 120 58 98 Z" fill={url('wing')} stroke={S.line} strokeOpacity=".85" strokeWidth="1.8" strokeLinejoin="round" />
+            {who === 'gabbiano' && <path d="M28 140 Q36 137 44 141 L42 151 L39 142 L34 148 L33 138 L29 142 Z" fill={S.wingBar} stroke={S.line} strokeOpacity=".85" strokeWidth="1.8" strokeLinejoin="round" />}
+            {who === 'gallina' && <g fill="#fff1d6" opacity=".8"><circle cx="35" cy="106" r="1.8" /><circle cx="44" cy="112" r="1.5" /><circle cx="36" cy="136" r="1.6" /><circle cx="46" cy="130" r="1.4" /><circle cx="38" cy="122" r="1.4" /></g>}
+            {who === 'gufo' && <g fill="#f2e2c4" opacity=".75"><circle cx="36" cy="108" r="2.2" /><circle cx="45" cy="121" r="2" /><circle cx="35" cy="125" r="1.8" /></g>}
             <path d="M43 95 C32 108 30 122 33 132" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" fill="none" opacity=".22" />
             <path d="M33 138 Q38 124 46 104 M39 142 Q46 126 52 106" stroke={S.wingBar} strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35" />
             <path d="M31 118 L50 111 M33 129 L52 122" stroke={S.wingBar} strokeWidth="3" strokeLinecap="round" opacity=".7" />
@@ -346,6 +351,9 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
           </g>
           <g className="pg-wing-r">
             <path d="M118 90 C137 106 137 130 131 142 L127 138 L126 148 L121 142 L118 151 C105 143 98 120 102 98 Z" fill={url('wing')} stroke={S.line} strokeOpacity=".85" strokeWidth="1.8" strokeLinejoin="round" />
+            {who === 'gabbiano' && <path d="M132 140 Q124 137 116 141 L118 151 L121 142 L126 148 L127 138 L131 142 Z" fill={S.wingBar} stroke={S.line} strokeOpacity=".85" strokeWidth="1.8" strokeLinejoin="round" />}
+ {who === 'gallina' && <g fill="#fff1d6" opacity=".8"><circle cx="125" cy="106" r="1.8" /><circle cx="116" cy="112" r="1.5" /><circle cx="124" cy="136" r="1.6" /><circle cx="114" cy="130" r="1.4" /><circle cx="122" cy="122" r="1.4" /></g>}
+            {who === 'gufo' && <g fill="#f2e2c4" opacity=".75"><circle cx="124" cy="108" r="2.2" /><circle cx="115" cy="121" r="2" /><circle cx="125" cy="125" r="1.8" /></g>}
             <path d="M117 95 C128 108 130 122 127 132" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" fill="none" opacity=".12" />
             <path d="M127 138 Q122 124 114 104 M121 142 Q114 126 108 106" stroke={S.wingBar} strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35" />
             <path d="M129 118 L110 111 M127 129 L108 122" stroke={S.wingBar} strokeWidth="3" strokeLinecap="round" opacity=".7" />
@@ -391,9 +399,10 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
             <ellipse cx="68" cy="40" rx="13" ry="7" fill={url('glow')} />
             {/* disco facciale del gufo */}
             {who === 'gufo' && (
-              <g fill="#f6e8cc" opacity=".95">
+              <g fill="#f6e8cc" stroke="#a97c47" strokeOpacity=".45" strokeWidth="1.4">
                 <circle cx="67" cy="55" r="14" />
                 <circle cx="93" cy="55" r="14" />
+                <path d="M72 60 Q80 52 88 60 Q86 70 80 72 Q74 70 72 60 Z" strokeWidth="0" />
               </g>
             )}
             <g clipPath={url('headclip')} opacity={Math.min(1, cheek * 1.5)}>
@@ -590,8 +599,11 @@ function Beak({ mood, who, fill, talk }: { mood: Mood; who: CoachId; fill: strin
   const bottom = Math.max(yl, yr, ym + d) + (d ? 4.6 : 6.4)
   const edge = '#a24d08'
   const lower = `M70 ${yl} ${seam(d)} C91.5 ${bottom - 2.5} 87 ${bottom} 80 ${bottom} C73 ${bottom} 68.5 ${bottom - 2.5} 70 ${yl} Z`
+  const gull = who === 'gabbiano'
+  const owl = who === 'gufo'
+  const beakT = gull ? 'translate(80 58.5) scale(1.06 1.2) translate(-80 -58.5)' : owl ? 'translate(80 60) scale(0.8 0.9) translate(-80 -60)' : who === 'gallina' ? 'translate(80 60) scale(0.9 0.92) translate(-80 -60)' : undefined
   return (
-    <g strokeLinejoin="round" strokeLinecap="round">
+    <g strokeLinejoin="round" strokeLinecap="round" transform={beakT}>
       {dIn > 0 && (
         <>
           {/* dentro la bocca (a forma di lente, chiusa agli angoli) e lingua */}
@@ -607,6 +619,8 @@ function Beak({ mood, who, fill, talk }: { mood: Mood; who: CoachId; fill: strin
       </g>
       {/* linea della bocca */}
       <path d={`M70 ${yl} ${seam(d)}`} fill="none" stroke="#8a3d05" strokeWidth="1.3" opacity={d ? 0 : 0.75} />
+      {/* il becco del gabbiano e del gufo ha la punta ricurva sopra la mandibola */}
+      {(gull || owl) && !d && <path d={`M75.5 ${bottom - 3.4} Q80 ${bottom + 2.2} 84.5 ${bottom - 3.4} Q80 ${bottom - 2.4} 75.5 ${bottom - 3.4} Z`} fill={fill} stroke={edge} strokeOpacity=".7" strokeWidth="1" />}
       {/* metà superiore */}
       <path d={`M70 ${yl} C67.5 64 74 58.5 80 58.5 C86 58.5 92.5 64 90 ${yr} ${seamBack(0)} Z`} fill={fill} stroke={edge} strokeOpacity=".7" strokeWidth="1.2" />
       <path d="M73 64.5 Q76 61.2 80.5 61" stroke="#fff" strokeWidth="1.7" fill="none" opacity=".55" />
