@@ -265,6 +265,10 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
           <stop offset="0" stopColor="#0a0620" stopOpacity=".3" />
           <stop offset="1" stopColor="#0a0620" stopOpacity="0" />
         </radialGradient>
+        <radialGradient id={id('eyewhite')} cx=".5" cy=".55" r=".6">
+          <stop offset=".55" stopColor="#fff" />
+          <stop offset="1" stopColor="#d9def5" />
+        </radialGradient>
         <radialGradient id={id('blush')} cx=".5" cy=".5" r=".5">
           <stop offset="0" stopColor="#ff7fae" stopOpacity="1" />
           <stop offset=".6" stopColor="#ff8fb4" stopOpacity=".7" />
@@ -444,7 +448,7 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
             {who === 'gabbiano' && <circle cx="52" cy="70" r="3.4" fill="none" stroke="#ffcf3a" strokeWidth="1.8" />}
 
             {/* occhi */}
-            <Eyes mood={mood} p={{ ...S, irisG: url('iris') }} />
+            <Eyes mood={mood} p={{ ...S, irisG: url('iris'), white: url('eyewhite') }} />
             {mood !== 'cool' && (worn.face ? <FaceItem item={worn.face} /> : who === 'gufo' ? <FaceItem item="tondi" /> : null)}
 
             {/* bargigli della gallina */}
@@ -664,7 +668,7 @@ function Beak({ mood, who, fill, talk }: { mood: Mood; who: CoachId; fill: strin
   )
 }
 
-function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; lid: string; irisG: string } }) {
+function Eyes({ mood, p }: { mood: Mood; p: EyeColors }) {
   const eyes = [67, 93]
   if (mood === 'cool') {
     return (
@@ -697,18 +701,8 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
   if (mood === 'confused') {
     return (
       <g>
-        <g className="pg-eye">
-          <circle cx="67" cy="55" r="10.5" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
-          <circle cx="70" cy="56" r="6.6" fill={p.irisG} />
-          <circle cx="71" cy="56" r="3.4" fill="#2a1230" />
-          <circle cx="73" cy="53.5" r="2" fill="#fff" />
-        </g>
-        <g className="pg-eye">
-          <circle cx="93" cy="57" r="7.6" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
-          <circle cx="91" cy="58" r="4.8" fill={p.irisG} />
-          <circle cx="90.6" cy="58" r="2.4" fill="#2a1230" />
-          <circle cx="92" cy="56.2" r="1.5" fill="#fff" />
-        </g>
+        <Ball cx={67} cy={55} r={10.5} ix={3} iy={1} ir={6.6} pr={3.4} p={p} />
+        <Ball cx={93} cy={57} r={7.6} ix={-2} iy={1} ir={4.8} pr={2.4} p={p} />
         <g stroke="#2a1230" strokeWidth="3.4" strokeLinecap="round" fill="none">
           <path d="M56 37 Q67 29 78 35" />
           <path d="M84 49 L102 42" />
@@ -720,13 +714,7 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
     return (
       <g>
         {eyes.map((cx) => (
-          <g key={cx} className="pg-eye">
-            <circle cx={cx} cy={56} r="10" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
-            <circle cx={cx} cy={58} r="7.4" fill={p.irisG} />
-            <circle cx={cx} cy={58} r="4.2" fill="#2a1230" />
-            <circle cx={cx + 2.6} cy={55} r="2.8" fill="#fff" />
-            <circle cx={cx - 2.4} cy={61} r="1.3" fill="#fff" opacity=".85" />
-          </g>
+          <Ball key={cx} cx={cx} cy={56} r={10} iy={2} ir={7.4} pr={4.2} p={p} wet />
         ))}
         <g stroke="#2a1230" strokeWidth="3.4" strokeLinecap="round" fill="none">
           <path d="M55 46 Q66 42 77 35" />
@@ -739,12 +727,7 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
     return (
       <g>
         {eyes.map((cx) => (
-          <g key={cx} className="pg-eye">
-            <circle cx={cx} cy={55} r="9.5" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
-            <circle cx={cx + 3.2} cy={52} r="6.2" fill={p.irisG} />
-            <circle cx={cx + 3.8} cy={51.4} r="3" fill="#2a1230" />
-            <circle cx={cx + 5.2} cy={49.6} r="1.8" fill="#fff" />
-          </g>
+          <Ball key={cx} cx={cx} cy={55} r={9.5} ix={3.2} iy={-3} ir={6.2} pr={3} p={p} />
         ))}
         <g stroke="#2a1230" strokeWidth="3.2" strokeLinecap="round" fill="none">
           <path d="M57 43 Q66 41 76 43" />
@@ -758,10 +741,7 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
       <g>
         {eyes.map((cx) => (
           <g key={cx}>
-            <circle cx={cx} cy={55} r="9.5" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
-            <circle cx={cx + 2} cy={57} r="6.2" fill={p.irisG} />
-            <circle cx={cx + 2} cy={57} r="3.3" fill="#2a1230" />
-            <circle cx={cx + 3.4} cy={55} r="1.5" fill="#fff" />
+            <Ball cx={cx} cy={55} r={9.5} ix={2} iy={2} ir={6.2} pr={3.3} p={p} />
             <path d={`M${cx - 10.5} 55.5 A10.5 10.5 0 0 1 ${cx + 10.5} 55.5 Z`} fill={p.lid} />
             <path d={`M${cx - 10.5} 55.5 H${cx + 10.5}`} stroke="#2a1230" strokeWidth="3.2" strokeLinecap="round" />
           </g>
@@ -774,32 +754,21 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
     )
   }
   const big = mood === 'shocked'
+  const angry = mood === 'angry'
   const r = big ? 11.5 : 9.5
-  const iris = big ? 6.4 : 6.6
-  const pupil = big ? 2.4 : 3.6
-  const cy = 55
   return (
     <g>
       {eyes.map((cx) => (
-        <g key={cx} className="pg-eye">
-          <circle cx={cx} cy={cy} r={r} fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
-          <path d={`M${cx - r + 0.6} ${cy - 1.5} A${r} ${r} 0 0 1 ${cx + r - 0.6} ${cy - 1.5}`} fill="none" stroke="#2a1230" strokeWidth="1.8" strokeLinecap="round" opacity=".3" />
-          <g className="pg-look">
-            <circle cx={cx + (mood === 'angry' ? 1 : 0)} cy={mood === 'angry' ? cy + 2 : cy + 1} r={iris} fill={mood === 'angry' ? p.irisAngry : p.irisG} />
-            <circle cx={cx + (mood === 'angry' ? 1 : 0)} cy={mood === 'angry' ? cy + 2 : cy + 1} r={pupil} fill="#2a1230" />
-            <circle cx={cx + 2.4} cy={cy - 2} r="2" fill="#fff" />
-            <circle cx={cx - 2} cy={cy + 4} r="1" fill="#fff" opacity=".8" />
-          </g>
-        </g>
+        <Ball key={cx} cx={cx} cy={55} r={r} ix={angry ? 1 : 0} iy={angry ? 2 : 1} ir={big ? 6.4 : 6.6} pr={big ? 2.4 : 3.6} p={p} look irisFill={angry ? p.irisAngry : undefined} />
       ))}
-      {mood === 'angry' && (
+      {angry && (
         <g>
           <path d="M54 43 L76 52 L76 43 Z" fill={p.lid} />
           <path d="M106 43 L84 52 L84 43 Z" fill={p.lid} />
           <path d="M54 44 L76 53 M106 44 L84 53" stroke="#2a1230" strokeWidth="4.2" strokeLinecap="round" />
         </g>
       )}
-      {mood === 'shocked' && (
+      {big && (
         <g stroke="#2a1230" strokeWidth="3.4" strokeLinecap="round" fill="none">
           <path d="M57 36 Q67 31 76 36" />
           <path d="M84 36 Q93 31 103 36" />
@@ -811,6 +780,37 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
           <path d="M84 41 Q93 37 102 41" />
         </g>
       )}
+    </g>
+  )
+}
+
+interface EyeColors {
+  iris: string
+  irisAngry: string
+  lid: string
+  irisG: string
+  white: string
+}
+
+/** Un occhio: bianco sfumato con ombra della palpebra, iride con anello scuro, pupilla e due riflessi. */
+function Ball({ cx, cy, r, ix = 0, iy = 0, ir, pr, p, look, wet, irisFill }: { cx: number; cy: number; r: number; ix?: number; iy?: number; ir: number; pr: number; p: EyeColors; look?: boolean; wet?: boolean; irisFill?: string }) {
+  const x = cx + ix
+  const y = cy + iy
+  const sh = cy - r * 0.45
+  const sw = r * 0.893
+  return (
+    <g className="pg-eye">
+      <circle cx={cx} cy={cy} r={r} fill={p.white} stroke="#2a1230" strokeOpacity=".45" strokeWidth="1.3" />
+      <g className={look ? 'pg-look' : undefined}>
+        <circle cx={x} cy={y} r={ir} fill={irisFill ?? p.irisG} />
+        <circle cx={x} cy={y} r={ir} fill="none" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1" />
+        <circle cx={x} cy={y} r={pr} fill="#2a1230" />
+        <circle cx={x + ir * 0.38} cy={y - ir * 0.4} r={Math.max(1.3, ir * 0.32)} fill="#fff" />
+        <circle cx={x - ir * 0.36} cy={y + ir * 0.46} r={Math.max(0.8, ir * 0.15)} fill="#fff" opacity=".85" />
+      </g>
+      {/* ombra della palpebra sul bianco */}
+      <path d={`M${cx - sw} ${sh} A${r} ${r} 0 0 1 ${cx + sw} ${sh} Z`} fill="#3a2a6a" opacity=".13" />
+      {wet && <path d={`M${cx - r * 0.7} ${cy + r * 0.62} Q${cx} ${cy + r * 0.95} ${cx + r * 0.7} ${cy + r * 0.62}`} stroke="#bfe6ff" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".8" />}
     </g>
   )
 }
