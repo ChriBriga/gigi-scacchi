@@ -51,7 +51,7 @@ export function Hero({ greeting, tod }: { greeting: { text: string; mood: Mood }
         <TodIcon size={26} weight="fill" />
       </span>
       <button className="hero-gigi" onClick={poke} aria-label={`${coachName}: toccalo per farlo parlare`}>
-        <Pigeon mood={say.mood} size={240} />
+        <Pigeon mood={say.mood} size={240} talk={shown.length < say.text.length} />
         <span className="hero-floor" />
       </button>
       <div className="hero-bubble">

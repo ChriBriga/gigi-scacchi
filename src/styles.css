@@ -4426,3 +4426,61 @@ html:not([data-fx='low']) .dlg::backdrop {
     scale: 1 !important;
   }
 }
+
+/* Gigi: sguardo che vaga, coda che scatta, becco che parla */
+.pg-look {
+  animation: pg-look 9s ease-in-out infinite;
+}
+.pg-tail {
+  transform-box: fill-box;
+  transform-origin: 0% 60%;
+  animation: pg-tail 7s ease-in-out infinite;
+}
+.pg-beak-low {
+  transform-box: fill-box;
+}
+.pg-talk {
+  animation: pg-talk 0.26s ease-in-out infinite alternate;
+}
+.pigeon.still .pg-look,
+.pigeon.still .pg-tail,
+.pigeon.still .pg-talk {
+  animation: none;
+}
+@keyframes pg-look {
+  0%, 18%, 100% { transform: translate(0, 0); }
+  24%, 40% { transform: translate(-2.2px, 0.3px); }
+  46%, 62% { transform: translate(2.2px, -0.4px); }
+  68%, 82% { transform: translate(0.4px, -1.4px); }
+}
+@keyframes pg-tail {
+  0%, 86%, 100% { transform: rotate(0); }
+  90% { transform: rotate(-7deg); }
+  94% { transform: rotate(3deg); }
+}
+@keyframes pg-talk {
+  from { transform: translateY(0); }
+  to { transform: translateY(3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-look, .pg-tail, .pg-talk { animation: none; }
+}
+
+.pg-tuft {
+  transform-box: fill-box;
+  transform-origin: 70% 90%;
+  animation: pg-tuft 4.6s ease-in-out infinite;
+}
+.pg-tuft.t2 {
+  animation-delay: -1.6s;
+}
+.pigeon.still .pg-tuft {
+  animation: none;
+}
+@keyframes pg-tuft {
+  0%, 100% { transform: rotate(0); }
+  50% { transform: rotate(5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-tuft { animation: none; }
+}

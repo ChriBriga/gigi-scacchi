@@ -47,7 +47,7 @@ export function CoachBubble({
   return (
     <div className="coach">
       <div className="coach-avatar">
-        <Pigeon mood={mood} size={size} />
+        <Pigeon mood={mood} size={size} talk={shown.length < text.length} />
       </div>
       <div className="coach-bubble">
         <span className="coach-name">{label}</span>

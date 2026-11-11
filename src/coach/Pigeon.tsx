@@ -29,6 +29,8 @@ interface Species {
   beak: [string, string]
   stroke: string
   headStroke: string
+  /** colore scuro del contorno */
+  line: string
   /** colori degli occhi: iride, iride arrabbiata e palpebra */
   iris: string
   irisAngry: string
@@ -53,6 +55,7 @@ const SPECIES: Record<CoachId, Species> = {
     beak: ['#ffcf86', '#f08f3a'],
     stroke: '#5a669f',
     headStroke: '#7b88c0',
+    line: '#303a78',
     iris: '#ff9a1f',
     irisAngry: '#ff6a1f',
     lid: '#a9b4de',
@@ -73,6 +76,7 @@ const SPECIES: Record<CoachId, Species> = {
     beak: ['#ffe27a', '#f5b82e'],
     stroke: '#8a94ab',
     headStroke: '#9aa4bf',
+    line: '#46506e',
     iris: '#ffe14a',
     irisAngry: '#ffb000',
     lid: '#e3e8f2',
@@ -93,6 +97,7 @@ const SPECIES: Record<CoachId, Species> = {
     beak: ['#f6c968', '#c98a1f'],
     stroke: '#6b4726',
     headStroke: '#6b4726',
+    line: '#3d2410',
     iris: '#ffb347',
     irisAngry: '#ff7a1f',
     lid: '#c79a62',
@@ -113,6 +118,7 @@ const SPECIES: Record<CoachId, Species> = {
     beak: ['#ffd870', '#f0a020'],
     stroke: '#b58a52',
     headStroke: '#c9a06a',
+    line: '#85591f',
     iris: '#b8683a',
     irisAngry: '#d9482a',
     lid: '#f0d8b4',
@@ -143,7 +149,7 @@ const CREST: Record<string, { top: string; bottom: string; edge: string }> = {
  * I coach (Gigi il piccione, Capitan Gabbiano, Professor Gufo, Nonna Gallina): mascotte in SVG con
  * espressioni, accessori e animazioni idle. Le animazioni sono in CSS (classi pg-*), così costano pochissimo.
  */
-export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach, still }: { mood?: Mood; size?: number; outfit?: Outfit; view?: string; coach?: CoachId; still?: boolean }) {
+export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit, view, coach, still, talk }: { mood?: Mood; size?: number; outfit?: Outfit; view?: string; coach?: CoachId; still?: boolean; talk?: boolean }) {
   const uid = useId().replace(/:/g, '')
   const id = (n: string) => `${n}-${uid}`
   const url = (n: string) => `url(#${id(n)})`
@@ -157,7 +163,6 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
   const worn: Outfit = validOutfit(who, outfit ?? savedOutfit)
   const hat = worn.crown ?? DEFAULT_CROWN[who]
 
-  const open = mood === 'happy' || mood === 'shocked'
   const crown = CROWN[hat] ?? CROWN.oro
   const pirate = PIRATE_HAT[hat] ?? PIRATE_HAT.tricorno
   const cap = GRAD_CAP[hat] ?? GRAD_CAP.tocco
@@ -166,7 +171,7 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
   const cheek = mood === 'happy' ? 0.7 : mood === 'sad' ? 0.15 : mood === 'smug' ? 0.55 : 0.4
 
   return (
-    <svg key={`${who}-${mood}`} className={`pigeon mood-${mood} coach-${who}${still ? ' still' : ''}`} width={size} height={size} viewBox={view ?? '0 0 160 160'} aria-hidden="true">
+    <svg key={`${who}-${mood}`} className={`pigeon mood-${mood} coach-${who}${still ? ' still' : ''}${talk ? ' talking' : ''}`} width={size} height={size} viewBox={view ?? '0 0 160 160'} aria-hidden="true">
       <defs>
         <linearGradient id={id('body')} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={S.body[0]} />
@@ -215,6 +220,29 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
           <stop offset="0" stopColor={crest.top} />
           <stop offset="1" stopColor={crest.bottom} />
         </linearGradient>
+        <linearGradient id={id('side')} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#fff" stopOpacity=".26" />
+          <stop offset=".38" stopColor="#fff" stopOpacity="0" />
+          <stop offset=".68" stopColor="#0a0620" stopOpacity="0" />
+          <stop offset="1" stopColor="#0a0620" stopOpacity=".26" />
+        </linearGradient>
+        <radialGradient id={id('iris')} cx=".38" cy=".3" r=".85">
+          <stop offset="0" style={{ stopColor: `color-mix(in srgb, ${S.iris}, white 55%)` }} />
+          <stop offset=".55" stopColor={S.iris} />
+          <stop offset="1" style={{ stopColor: `color-mix(in srgb, ${S.iris}, #5a1a00 35%)` }} />
+        </radialGradient>
+        <radialGradient id={id('shadow')} cx=".5" cy=".5" r=".5">
+          <stop offset="0" stopColor="#0a0620" stopOpacity=".3" />
+          <stop offset="1" stopColor="#0a0620" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={id('blush')} cx=".5" cy=".5" r=".5">
+          <stop offset="0" stopColor="#ff7fae" stopOpacity="1" />
+          <stop offset=".6" stopColor="#ff8fb4" stopOpacity=".7" />
+          <stop offset="1" stopColor="#ff8fb4" stopOpacity="0" />
+        </radialGradient>
+        <clipPath id={id('headclip')}>
+          <ellipse cx="80" cy="57" rx="27" ry="26" />
+        </clipPath>
         <radialGradient id={id('glow')} cx=".5" cy=".5" r=".5">
           <stop offset="0" stopColor="#fff" stopOpacity=".34" />
           <stop offset="1" stopColor="#fff" stopOpacity="0" />
@@ -240,24 +268,31 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
 
         {/* coda: si intravede a destra, sotto il corpo (la gallina ha un pennacchio all'insù) */}
         {who === 'gallina' ? (
-          <g>
+          <g className="pg-tail">
             <path d="M104 126 Q128 84 146 90 Q152 108 128 134 Z" fill={S.tail} />
             <path d="M108 130 Q140 96 156 110 Q154 128 124 142 Z" fill={S.tail2} />
             <path d="M100 136 Q130 118 152 136 Q142 150 108 148 Z" fill={S.tail} />
             <path d="M118 124 Q134 104 144 100 M122 134 Q142 118 150 118" stroke={S.tailLine} strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".6" />
           </g>
         ) : (
-          <g>
-            <path d="M98 114 Q128 108 151 124 Q158 136 146 147 Q120 151 94 145 Z" fill={S.tail} />
+          <g className="pg-tail">
+            <path d="M98 114 Q128 108 151 124 Q158 136 146 147 Q120 151 94 145 Z" fill={S.tail} stroke={S.line} strokeOpacity=".8" strokeWidth="1.8" strokeLinejoin="round" />
             <path d="M137 119 Q153 128 151 139 Q149 145 143 148 Q150 134 137 119 Z" fill={S.tail2} />
+            <path d="M120 118 Q140 122 150 132 M114 128 Q134 134 146 143" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" fill="none" opacity=".18" />
             <path d="M108 124 Q124 124 138 132 M106 134 Q122 135 134 141" stroke={S.tailLine} strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".6" />
           </g>
         )}
 
         {/* zampe */}
-        <g stroke={S.legs} strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" fill="none">
-          <path d="M66 140 V149 M59 152 L66 149 L73 152" />
-          <path d="M94 140 V149 M87 152 L94 149 L101 152" />
+        <g strokeLinecap="round" strokeLinejoin="round" fill="none">
+          <g strokeWidth="6.4" style={{ stroke: `color-mix(in srgb, ${S.legs}, black 45%)` }}>
+            <path d="M66 140 V149 M58 152.5 L66 149 L74 152.5" />
+            <path d="M94 140 V149 M86 152.5 L94 149 L102 152.5" />
+          </g>
+          <g strokeWidth="4" stroke={S.legs}>
+            <path d="M66 140 V149 M58 152.5 L66 149 L74 152.5" />
+            <path d="M94 140 V149 M86 152.5 L94 149 L102 152.5" />
+          </g>
         </g>
 
         <g className="pg-body">
@@ -265,13 +300,25 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
           <path
             d="M63 70 C42 76 28 98 30 122 C32 142 54 149 80 149 C106 149 128 142 130 122 C132 98 118 76 97 70 Z"
             fill={url('body')}
-            stroke={S.stroke}
-            strokeOpacity=".35"
-            strokeWidth="1.5"
+            stroke={S.line}
+            strokeOpacity=".85"
+            strokeWidth="2"
+            strokeLinejoin="round"
           />
+          <path d="M63 70 C42 76 28 98 30 122 C32 142 54 149 80 149 C106 149 128 142 130 122 C132 98 118 76 97 70 Z" fill={url('side')} />
+          <path d="M60 75 C45 81 34 98 35 120" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" fill="none" opacity=".3" />
+          <path d="M101 75 C116 81 126 98 125 120" stroke="#0a0620" strokeWidth="2.2" strokeLinecap="round" fill="none" opacity=".1" />
           {/* petto chiaro con piumette */}
           <path d="M80 86 C58 88 44 106 47 126 C50 142 66 146 80 146 C94 146 110 142 113 126 C116 106 102 88 80 86 Z" fill={url('breast')} />
           <ellipse cx="68" cy="108" rx="9" ry="5" fill="#fff" opacity=".55" transform="rotate(-25 68 108)" />
+          {(who === 'gigi' || who === 'gabbiano') && (
+            <g stroke={S.stroke} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity=".4">
+              <path d="M64 100 q4 4 8 0 M76 98 q4 4 8 0 M88 100 q4 4 8 0" />
+              <path d="M58 112 q4 4 8 0 M70 112 q4 4 8 0 M82 112 q4 4 8 0 M94 112 q4 4 8 0" />
+              <path d="M62 124 q4 4 8 0 M74 125 q4 4 8 0 M86 125 q4 4 8 0 M98 124 q4 4 8 0" />
+              <path d="M68 136 q4 4 8 0 M80 137 q4 4 8 0 M92 136 q4 4 8 0" />
+            </g>
+          )}
 
           {/* il gufo ha il petto a pallini */}
           {who === 'gufo' && (
@@ -291,12 +338,16 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
 
           {/* ali richiuse sui fianchi */}
           <g className="pg-wing-l">
-            <path d="M42 90 C24 106 24 136 40 150 C54 144 62 120 58 98 Z" fill={url('wing')} stroke={S.wingStroke} strokeOpacity=".5" strokeWidth="1.2" />
+            <path d="M42 90 C24 106 23 130 29 142 L33 138 L34 148 L39 142 L42 151 C55 143 62 120 58 98 Z" fill={url('wing')} stroke={S.line} strokeOpacity=".85" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M43 95 C32 108 30 122 33 132" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" fill="none" opacity=".22" />
+            <path d="M33 138 Q38 124 46 104 M39 142 Q46 126 52 106" stroke={S.wingBar} strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35" />
             <path d="M31 118 L50 111 M33 129 L52 122" stroke={S.wingBar} strokeWidth="3" strokeLinecap="round" opacity=".7" />
             <path d="M35 104 q5 4 10 -1 M35 140 q5 3 10 -2" stroke={S.wingFeather} strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".55" />
           </g>
           <g className="pg-wing-r">
-            <path d="M118 90 C136 106 136 136 120 150 C106 144 98 120 102 98 Z" fill={url('wing')} stroke={S.wingStroke} strokeOpacity=".5" strokeWidth="1.2" />
+            <path d="M118 90 C137 106 137 130 131 142 L127 138 L126 148 L121 142 L118 151 C105 143 98 120 102 98 Z" fill={url('wing')} stroke={S.line} strokeOpacity=".85" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M117 95 C128 108 130 122 127 132" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" fill="none" opacity=".12" />
+            <path d="M127 138 Q122 124 114 104 M121 142 Q114 126 108 106" stroke={S.wingBar} strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35" />
             <path d="M129 118 L110 111 M127 129 L108 122" stroke={S.wingBar} strokeWidth="3" strokeLinecap="round" opacity=".7" />
             <path d="M125 104 q-5 4 -10 -1 M125 140 q-5 3 -10 -2" stroke={S.wingFeather} strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".55" />
           </g>
@@ -307,6 +358,10 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
               <path
                 d="M48 80 Q80 64 112 80 C114 90 108 97 100 98 q-5 5 -10 0 q-5 5 -10 0 q-5 5 -10 0 q-5 5 -10 0 C52 97 46 90 48 80 Z"
                 fill={url('collar')}
+                stroke="#2c2a78"
+                strokeOpacity=".5"
+                strokeWidth="1.4"
+                strokeLinejoin="round"
               />
               <path d="M58 82 Q80 72 102 82" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" fill="none" opacity=".4" />
             </>
@@ -321,7 +376,18 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
                 <path d="M106 40 L114 12 L90 32 Z" />
               </g>
             )}
-            <ellipse cx="80" cy="57" rx="28" ry="27" fill={url('head')} stroke={S.headStroke} strokeOpacity=".35" strokeWidth="1.5" />
+            {/* ciuffetti di piume che spuntano ai lati della corona (solo Gigi) */}
+            {who === 'gigi' && (
+              <g stroke={S.line} strokeOpacity=".85" strokeWidth="1.6" strokeLinejoin="round" fill={url('head')}>
+                <path className="pg-tuft" d="M58 42 Q49 41 47 34 Q55 33 62 38 Z" />
+                <path className="pg-tuft t2" d="M60 38 Q53 34 54 27 Q60 29 64 35 Z" />
+                <path className="pg-tuft" d="M102 42 Q111 41 113 34 Q105 33 98 38 Z" />
+                <path className="pg-tuft t2" d="M100 38 Q107 34 106 27 Q100 29 96 35 Z" />
+              </g>
+            )}
+            <ellipse cx="80" cy="87" rx="30" ry="8" fill={url('shadow')} />
+            <ellipse cx="80" cy="57" rx="28" ry="27" fill={url('head')} stroke={S.line} strokeOpacity=".85" strokeWidth="2" />
+            <ellipse cx="80" cy="57" rx="28" ry="27" fill={url('side')} />
             <ellipse cx="68" cy="40" rx="13" ry="7" fill={url('glow')} />
             {/* disco facciale del gufo */}
             {who === 'gufo' && (
@@ -330,45 +396,23 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
                 <circle cx="93" cy="55" r="14" />
               </g>
             )}
-            <circle cx="56" cy="67" r="5.5" fill="#ff8fb4" opacity={cheek} />
-            <circle cx="104" cy="67" r="5.5" fill="#ff8fb4" opacity={cheek} />
+            <g clipPath={url('headclip')} opacity={Math.min(1, cheek * 1.5)}>
+              <ellipse cx="60" cy="67" rx="8" ry="5.6" fill={url('blush')} />
+              <ellipse cx="100" cy="67" rx="8" ry="5.6" fill={url('blush')} />
+            </g>
+            <path d="M58 38 Q50 48 53 62" stroke="#fff" strokeWidth="2" strokeLinecap="round" fill="none" opacity=".32" />
+            <path d="M103 38 Q109 50 106 64" stroke="#0a0620" strokeWidth="2" strokeLinecap="round" fill="none" opacity=".1" />
             {who === 'gabbiano' && <circle cx="52" cy="70" r="3.4" fill="none" stroke="#ffcf3a" strokeWidth="1.8" />}
 
             {/* occhi */}
-            <Eyes mood={mood} p={S} />
+            <Eyes mood={mood} p={{ ...S, irisG: url('iris') }} />
             {mood !== 'cool' && (worn.face ? <FaceItem item={worn.face} /> : who === 'gufo' ? <FaceItem item="tondi" /> : null)}
 
             {/* bargigli della gallina */}
             {who === 'gallina' && <path d="M75 76 Q80 98 85 76 Z" fill={url('comb')} stroke="#a3162b" strokeWidth="1.2" strokeLinejoin="round" />}
 
-            {/* becco (il piccione ha la cera bianca in cima, il gabbiano la macchia rossa) */}
-            {open ? (
-              <>
-                <path d="M70 66 Q80 59 90 66 Q89 74 80 76 Q71 74 70 66 Z" fill={url('beak')} />
-                <path d="M72 75 Q80 92 88 75 Z" fill="#7a1f2e" />
-                <path d="M75 77 Q80 87 85 77 Q80 81 75 77 Z" fill="#f06a7e" />
-                {who === 'gigi' && <path d="M75.5 61.5 Q80 57.5 84.5 61.5 Q83.5 65 80 65.5 Q76.5 65 75.5 61.5 Z" fill="#efe7ff" />}
-                {who === 'gabbiano' && <circle cx="86" cy="72" r="2.2" fill="#e8312a" />}
-              </>
-            ) : (
-              <>
-                <path d="M70 66 Q80 59 90 66 Q89 78 80 81 Q71 78 70 66 Z" fill={url('beak')} />
-                <path d="M74 73 Q80 75.5 86 73" stroke="#b9601a" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity=".6" />
-                {who === 'gigi' && <path d="M75.5 61.5 Q80 57.5 84.5 61.5 Q83.5 65 80 65.5 Q76.5 65 75.5 61.5 Z" fill="#efe7ff" />}
-                {who === 'gabbiano' && <circle cx="85" cy="76" r="2.3" fill="#e8312a" />}
-              </>
-            )}
-            {mood === 'cool' && <path d="M73 77 Q82 81 90 73" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
-            {mood === 'angry' && <path d="M73 79 Q80 75 87 79" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
-            {mood === 'sad' && <path className="pg-lip" d="M73 80 Q80 75.5 87 80" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
-            {mood === 'confused' && <path d="M72 77 q3.5 -3.6 7 0 t7 0" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
-            {mood === 'thinking' && <path d="M75 76 Q82 74 91 77" stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
-            {mood === 'smug' && (
-              <g stroke="#a24d08" strokeWidth="1.8" fill="none" strokeLinecap="round">
-                <path d="M73 77 Q82 82 91 73" />
-                <path d="M91 73 q2 -.5 3 -2.6" />
-              </g>
-            )}
+            {/* becco = bocca: due metà (superiore e inferiore), la linea di separazione è la bocca e cambia con l'umore */}
+            <Beak mood={mood} who={who} fill={url('beak')} talk={!!talk && !still} />
             {mood === 'sleepy' && <circle className="pg-snot" cx="90.5" cy="74" r="4.6" fill="#cfeaff" stroke="#fff" strokeWidth="1.4" opacity=".9" />}
           </g>
 
@@ -519,7 +563,58 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
   )
 })
 
-function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; lid: string } }) {
+/** Forma della bocca per ogni umore: altezza dei due angoli e del centro (più in basso = sorriso), apertura e curva. */
+const MOUTH: Record<Mood, { yl: number; ym: number; yr: number; d: number; c?: [number, number] }> = {
+  neutral: { yl: 71, ym: 73, yr: 71, d: 0 },
+  happy: { yl: 70, ym: 73, yr: 70, d: 7 },
+  shocked: { yl: 72, ym: 72, yr: 72, d: 9 },
+  sad: { yl: 75.5, ym: 72.5, yr: 75.5, d: 0 },
+  angry: { yl: 75, ym: 73, yr: 75, d: 1.6 },
+  cool: { yl: 75, ym: 76, yr: 71, d: 0 },
+  smug: { yl: 74.5, ym: 75, yr: 69.5, d: 0 },
+  confused: { yl: 73, ym: 73, yr: 73, d: 0, c: [69, 77] },
+  thinking: { yl: 76, ym: 74, yr: 75, d: 0 },
+  sleepy: { yl: 71, ym: 73, yr: 71, d: 1.4 },
+}
+
+function Beak({ mood, who, fill, talk }: { mood: Mood; who: CoachId; fill: string; talk: boolean }) {
+  const m = MOUTH[mood] ?? MOUTH.neutral
+  const { yl, ym, yr } = m
+  // mentre parla la mandibola si muove: la bocca chiusa ha comunque l'interno pronto dietro
+  const d = m.d
+  const dIn = d || (talk ? 3 : 0)
+  const [c1, c2] = m.c ?? [ym, ym]
+  // la mandibola inferiore ruota attorno agli angoli: gli estremi restano fermi, solo il centro scende
+  const seam = (dy: number) => `Q75 ${c1 + dy} 80 ${ym + dy} Q85 ${c2 + dy} 90 ${yr}`
+  const seamBack = (dy: number) => `Q85 ${c2 + dy} 80 ${ym + dy} Q75 ${c1 + dy} 70 ${yl}`
+  const bottom = Math.max(yl, yr, ym + d) + (d ? 4.6 : 6.4)
+  const edge = '#a24d08'
+  const lower = `M70 ${yl} ${seam(d)} C91.5 ${bottom - 2.5} 87 ${bottom} 80 ${bottom} C73 ${bottom} 68.5 ${bottom - 2.5} 70 ${yl} Z`
+  return (
+    <g strokeLinejoin="round" strokeLinecap="round">
+      {dIn > 0 && (
+        <>
+          {/* dentro la bocca (a forma di lente, chiusa agli angoli) e lingua */}
+          <path d={`M70 ${yl} ${seam(0)} ${seamBack(dIn)} Z`} fill="#7a1f2e" />
+          {dIn >= 5 && <ellipse className="pg-tongue" cx="80" cy={ym + d} rx="4.6" ry="3.6" fill="#f06a7e" />}
+        </>
+      )}
+      {/* metà inferiore */}
+      <g className={talk && !d ? "pg-beak-low pg-talk" : "pg-beak-low"}>
+        <path d={lower} fill={fill} stroke={edge} strokeOpacity=".7" strokeWidth="1.2" />
+        <path d={lower} fill="#7a3a00" opacity=".16" />
+        {who === 'gabbiano' && <circle cx="85" cy={bottom - 2.8} r="2" fill="#e8312a" />}
+      </g>
+      {/* linea della bocca */}
+      <path d={`M70 ${yl} ${seam(d)}`} fill="none" stroke="#8a3d05" strokeWidth="1.3" opacity={d ? 0 : 0.75} />
+      {/* metà superiore */}
+      <path d={`M70 ${yl} C67.5 64 74 58.5 80 58.5 C86 58.5 92.5 64 90 ${yr} ${seamBack(0)} Z`} fill={fill} stroke={edge} strokeOpacity=".7" strokeWidth="1.2" />
+      <path d="M73 64.5 Q76 61.2 80.5 61" stroke="#fff" strokeWidth="1.7" fill="none" opacity=".55" />
+    </g>
+  )
+}
+
+function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; lid: string; irisG: string } }) {
   const eyes = [67, 93]
   if (mood === 'cool') {
     return (
@@ -553,14 +648,14 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
     return (
       <g>
         <g className="pg-eye">
-          <circle cx="67" cy="55" r="10.5" fill="#fff" />
-          <circle cx="70" cy="56" r="6.6" fill={p.iris} />
+          <circle cx="67" cy="55" r="10.5" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
+          <circle cx="70" cy="56" r="6.6" fill={p.irisG} />
           <circle cx="71" cy="56" r="3.4" fill="#2a1230" />
           <circle cx="73" cy="53.5" r="2" fill="#fff" />
         </g>
         <g className="pg-eye">
-          <circle cx="93" cy="57" r="7.6" fill="#fff" />
-          <circle cx="91" cy="58" r="4.8" fill={p.iris} />
+          <circle cx="93" cy="57" r="7.6" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
+          <circle cx="91" cy="58" r="4.8" fill={p.irisG} />
           <circle cx="90.6" cy="58" r="2.4" fill="#2a1230" />
           <circle cx="92" cy="56.2" r="1.5" fill="#fff" />
         </g>
@@ -576,8 +671,8 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
       <g>
         {eyes.map((cx) => (
           <g key={cx} className="pg-eye">
-            <circle cx={cx} cy={56} r="10" fill="#fff" />
-            <circle cx={cx} cy={58} r="7.4" fill={p.iris} />
+            <circle cx={cx} cy={56} r="10" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
+            <circle cx={cx} cy={58} r="7.4" fill={p.irisG} />
             <circle cx={cx} cy={58} r="4.2" fill="#2a1230" />
             <circle cx={cx + 2.6} cy={55} r="2.8" fill="#fff" />
             <circle cx={cx - 2.4} cy={61} r="1.3" fill="#fff" opacity=".85" />
@@ -595,8 +690,8 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
       <g>
         {eyes.map((cx) => (
           <g key={cx} className="pg-eye">
-            <circle cx={cx} cy={55} r="9.5" fill="#fff" />
-            <circle cx={cx + 3.2} cy={52} r="6.2" fill={p.iris} />
+            <circle cx={cx} cy={55} r="9.5" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
+            <circle cx={cx + 3.2} cy={52} r="6.2" fill={p.irisG} />
             <circle cx={cx + 3.8} cy={51.4} r="3" fill="#2a1230" />
             <circle cx={cx + 5.2} cy={49.6} r="1.8" fill="#fff" />
           </g>
@@ -613,8 +708,8 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
       <g>
         {eyes.map((cx) => (
           <g key={cx}>
-            <circle cx={cx} cy={55} r="9.5" fill="#fff" />
-            <circle cx={cx + 2} cy={57} r="6.2" fill={p.iris} />
+            <circle cx={cx} cy={55} r="9.5" fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
+            <circle cx={cx + 2} cy={57} r="6.2" fill={p.irisG} />
             <circle cx={cx + 2} cy={57} r="3.3" fill="#2a1230" />
             <circle cx={cx + 3.4} cy={55} r="1.5" fill="#fff" />
             <path d={`M${cx - 10.5} 55.5 A10.5 10.5 0 0 1 ${cx + 10.5} 55.5 Z`} fill={p.lid} />
@@ -637,11 +732,14 @@ function Eyes({ mood, p }: { mood: Mood; p: { iris: string; irisAngry: string; l
     <g>
       {eyes.map((cx) => (
         <g key={cx} className="pg-eye">
-          <circle cx={cx} cy={cy} r={r} fill="#fff" />
-          <circle cx={cx + (mood === 'angry' ? 1 : 0)} cy={mood === 'angry' ? cy + 2 : cy + 1} r={iris} fill={mood === 'angry' ? p.irisAngry : p.iris} />
-          <circle cx={cx + (mood === 'angry' ? 1 : 0)} cy={mood === 'angry' ? cy + 2 : cy + 1} r={pupil} fill="#2a1230" />
-          <circle cx={cx + 2.4} cy={cy - 2} r="2" fill="#fff" />
-          <circle cx={cx - 2} cy={cy + 4} r="1" fill="#fff" opacity=".8" />
+          <circle cx={cx} cy={cy} r={r} fill="#fff" stroke="#2a1230" strokeOpacity=".4" strokeWidth="1.3" />
+          <path d={`M${cx - r + 0.6} ${cy - 1.5} A${r} ${r} 0 0 1 ${cx + r - 0.6} ${cy - 1.5}`} fill="none" stroke="#2a1230" strokeWidth="1.8" strokeLinecap="round" opacity=".3" />
+          <g className={mood === 'neutral' ? 'pg-look' : undefined}>
+            <circle cx={cx + (mood === 'angry' ? 1 : 0)} cy={mood === 'angry' ? cy + 2 : cy + 1} r={iris} fill={mood === 'angry' ? p.irisAngry : p.irisG} />
+            <circle cx={cx + (mood === 'angry' ? 1 : 0)} cy={mood === 'angry' ? cy + 2 : cy + 1} r={pupil} fill="#2a1230" />
+            <circle cx={cx + 2.4} cy={cy - 2} r="2" fill="#fff" />
+            <circle cx={cx - 2} cy={cy + 4} r="1" fill="#fff" opacity=".8" />
+          </g>
         </g>
       ))}
       {mood === 'angry' && (
