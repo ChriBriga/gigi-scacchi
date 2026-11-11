@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Color } from 'chess.js'
-import { Check, Crown, Handshake, Medal, Shuffle, Star, StarHalf, type Icon } from '@phosphor-icons/react'
+import { Check, Crown, Handshake, Medal, Play, Shuffle, Star, StarHalf, type Icon } from '@phosphor-icons/react'
 import { DRILLS, type Drill, type DrillGoal } from '../data/drills'
 import { BOTS, recommendedBot, starsOf, type Bot } from '../engine/bots'
 import { STYLES } from '../engine/style'
@@ -9,6 +9,26 @@ import { useApp } from '../store'
 
 function Dot({ light }: { light: boolean }) {
   return <span style={{ width: 14, height: 14, borderRadius: '50%', background: light ? '#fff' : '#1b1033', border: '2px solid #888', display: 'inline-block' }} />
+}
+
+function Stars({ bot, size }: { bot: Bot; size: number }) {
+  return (
+    <span className="stars" title={`${starsOf(bot)} stelle`}>
+      {Array.from({ length: Math.floor(starsOf(bot)) }, (_, i) => (
+        <Star key={i} size={size} weight="fill" />
+      ))}
+      {starsOf(bot) % 1 !== 0 && <StarHalf size={size} weight="fill" />}
+    </span>
+  )
+}
+
+function StylePill({ bot }: { bot: Bot }) {
+  if (bot.style === 'balanced') return null
+  return (
+    <span className="style-pill" title={`${STYLES[bot.style].blurb} ${STYLES[bot.style].tip}`}>
+      Stile {STYLES[bot.style].label.toLowerCase()}
+    </span>
+  )
 }
 
 const GOAL_ICON: Record<DrillGoal, Icon> = { mate: Crown, promote: Medal, draw: Handshake }
@@ -64,6 +84,8 @@ export function PlaySetup({
   const skill = app.progress.skill
   const rec = suggested ?? recommendedBot(skill).id
   const beaten = app.progress.botsBeaten
+  const recBot = BOTS.find((b) => b.id === rec) ?? recommendedBot(skill)
+  const start = (b: Bot) => onStart(b, colorPick === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : colorPick)
 
   return (
     <div className="screen">
@@ -79,50 +101,51 @@ export function PlaySetup({
         <DrillList onDrill={onDrill} />
       ) : (
         <>
-      <h2>Scegli l’avversario</h2>
-      <p className="sub">Parti da quello consigliato e sali di livello man mano che li batti.</p>
-      <div className="seg" style={{ maxWidth: 460 }}>
-        <button className={colorPick === 'w' ? 'on' : ''} onClick={() => setColorPick('w')}>
-          <Dot light /> Bianco
-        </button>
-        <button className={colorPick === 'b' ? 'on' : ''} onClick={() => setColorPick('b')}>
-          <Dot light={false} /> Nero
-        </button>
-        <button className={colorPick === 'r' ? 'on' : ''} onClick={() => setColorPick('r')}>
-          <Shuffle size={18} weight="bold" /> Casuale
+      <div className="rec-card">
+        <span className="rec-label">Consigliato per te</span>
+        <div className="rec-main">
+          <BotAvatar id={recBot.id} size={88} />
+          <span className="rec-info">
+            <strong>{recBot.name}</strong>
+            <Stars bot={recBot} size={16} />
+            <small>{recBot.tagline}</small>
+            <StylePill bot={recBot} />
+          </span>
+        </div>
+        <div className="seg">
+          <button className={colorPick === 'w' ? 'on' : ''} onClick={() => setColorPick('w')}>
+            <Dot light /> Bianco
+          </button>
+          <button className={colorPick === 'b' ? 'on' : ''} onClick={() => setColorPick('b')}>
+            <Dot light={false} /> Nero
+          </button>
+          <button className={colorPick === 'r' ? 'on' : ''} onClick={() => setColorPick('r')}>
+            <Shuffle size={18} weight="bold" /> Casuale
+          </button>
+        </div>
+        <button className="btn primary big" onClick={() => start(recBot)}>
+          <Play size={22} weight="fill" /> Gioca
         </button>
       </div>
-      <div className="bots">
+      <h3 className="ladder-title">Tutti gli avversari</h3>
+      <div className="ladder">
         {BOTS.map((b) => (
-          <button
-            key={b.id}
-            className={`bot-card${b.id === rec ? ' rec' : ''}`}
-            onClick={() => onStart(b, colorPick === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : colorPick)}
-          >
-            <BotAvatar id={b.id} size={58} />
-            <span className="bot-info">
+          <button key={b.id} className={`ladder-row${b.id === rec ? ' rec' : ''}`} onClick={() => start(b)}>
+            <span className="ladder-rank">{b.rank}</span>
+            <BotAvatar id={b.id} size={40} />
+            <span className="ladder-name">
               <strong>{b.name}</strong>
               <small>{b.tagline}</small>
-              {b.style !== 'balanced' && (
-                <span className="style-pill" title={`${STYLES[b.style].blurb} ${STYLES[b.style].tip}`}>
-                  Stile {STYLES[b.style].label.toLowerCase()}
-                </span>
-              )}
             </span>
-            <span className="bot-meta">
-              <span className="stars" title={`${starsOf(b)} stelle`}>
-                {Array.from({ length: Math.floor(starsOf(b)) }, (_, i) => (
-                  <Star key={i} size={13} weight="fill" />
-                ))}
-                {starsOf(b) % 1 !== 0 && <StarHalf size={13} weight="fill" />}
-              </span>
-              {beaten.includes(b.id) ? (
+            <StylePill bot={b} />
+            <Stars bot={b} size={13} />
+            <span className="ladder-state">
+              {beaten.includes(b.id) && (
                 <span className="badge-pill ok">
                   <Check size={12} weight="bold" /> battuto
                 </span>
-              ) : b.id === rec ? (
-                <span className="badge-pill tip">consigliato</span>
-              ) : null}
+              )}
+              {b.id === rec && <span className="badge-pill tip">consigliato</span>}
             </span>
           </button>
         ))}
