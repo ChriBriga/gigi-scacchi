@@ -299,6 +299,21 @@ export function Board(props: BoardProps) {
 
   useEffect(() => () => clearTimeout(snapTimer.current), [])
 
+  // il coach guarda dove è arrivata l'ultima mossa (la mossa che compare dopo che il pezzo si è mosso)
+  const lastTo = lastMove?.[1]
+  useEffect(() => {
+    if (!lastTo) return
+    const t = setTimeout(() => {
+      const el = boardRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const { col, row } = toView(lastTo)
+      window.dispatchEvent(new CustomEvent('coach:look', { detail: { x: r.left + ((col + 0.5) * r.width) / 8, y: r.top + ((row + 0.5) * r.height) / 8 } }))
+    }, 260)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastTo, fen])
+
   const kingInCheck = chess?.inCheck() ? ALL_SQUARES.find((s) => chess.get(s)?.type === 'k' && chess.get(s)?.color === chess.turn()) : undefined
 
   const boardVars = boardStyle.light

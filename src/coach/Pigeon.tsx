@@ -157,26 +157,34 @@ export const Pigeon = memo(function Pigeon({ mood = 'neutral', size = 96, outfit
     if (still || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
     let raf = 0
     let timer = 0
+    const lookAt = (x: number, y: number, hold: number) => {
+      const el = svgRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const dx = x - (r.left + r.width / 2)
+      const dy = y - (r.top + r.height * 0.35)
+      const d = Math.hypot(dx, dy) || 1
+      const k = Math.min(1, d / 180)
+      el.style.setProperty('--lx', ((dx / d) * k * 2.4).toFixed(2))
+      el.style.setProperty('--ly', ((dy / d) * k * 1.8).toFixed(2))
+      el.classList.add('track')
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => svgRef.current?.classList.remove('track'), hold)
+    }
     const onMove = (e: PointerEvent) => {
       cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => {
-        const el = svgRef.current
-        if (!el) return
-        const r = el.getBoundingClientRect()
-        const dx = e.clientX - (r.left + r.width / 2)
-        const dy = e.clientY - (r.top + r.height * 0.35)
-        const d = Math.hypot(dx, dy) || 1
-        const k = Math.min(1, d / 180)
-        el.style.setProperty('--lx', ((dx / d) * k * 2.4).toFixed(2))
-        el.style.setProperty('--ly', ((dy / d) * k * 1.8).toFixed(2))
-        el.classList.add('track')
-        window.clearTimeout(timer)
-        timer = window.setTimeout(() => svgRef.current?.classList.remove('track'), 4000)
-      })
+      raf = requestAnimationFrame(() => lookAt(e.clientX, e.clientY, 4000))
+    }
+    // la scacchiera avvisa quando arriva una mossa: il coach la guarda per un momento
+    const onLook = (e: Event) => {
+      const { x, y } = (e as CustomEvent<{ x: number; y: number }>).detail
+      lookAt(x, y, 2600)
     }
     window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('coach:look', onLook)
     return () => {
       window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('coach:look', onLook)
       cancelAnimationFrame(raf)
       window.clearTimeout(timer)
     }
