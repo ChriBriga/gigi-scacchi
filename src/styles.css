@@ -2563,12 +2563,22 @@ main {
 }
 @keyframes pg-blink {
   0%,
-  93%,
+  86%,
   100% {
     transform: scaleY(1);
   }
-  96% {
-    transform: scaleY(0.08);
+  89%,
+  91.5% {
+    transform: scaleY(0.06);
+  }
+  94.5% {
+    transform: scaleY(1);
+  }
+  96.5% {
+    transform: scaleY(0.1);
+  }
+  98.5% {
+    transform: scaleY(1);
   }
 }
 @keyframes pg-wave {
@@ -4429,7 +4439,14 @@ html:not([data-fx='low']) .dlg::backdrop {
 
 /* Gigi: sguardo che vaga, coda che scatta, becco che parla */
 .pg-look {
+  transition: transform 0.14s ease-out;
+}
+.mood-neutral .pg-look {
   animation: pg-look 9s ease-in-out infinite;
+}
+.pigeon.track .pg-look {
+  animation: none;
+  transform: translate(calc(var(--lx, 0) * 1px), calc(var(--ly, 0) * 1px));
 }
 .pg-tail {
   transform-box: fill-box;
@@ -4443,6 +4460,7 @@ html:not([data-fx='low']) .dlg::backdrop {
   animation: pg-talk 0.26s ease-in-out infinite alternate;
 }
 .pigeon.still .pg-look,
+.pigeon.still .pg-gem,
 .pigeon.still .pg-tail,
 .pigeon.still .pg-talk {
   animation: none;
@@ -4484,14 +4502,6 @@ html:not([data-fx='low']) .dlg::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .pg-tuft { animation: none; }
 }
-  transition: transform 0.14s ease-out;
-}
-.mood-neutral .pg-look {
-.pigeon.track .pg-look {
-  animation: none;
-  transform: translate(calc(var(--lx, 0) * 1px), calc(var(--ly, 0) * 1px));
-}
-.pigeon.still .pg-gem,
 
 /* corona: luccichio ogni tanto; smug: sguardo dall'alto; shocked: le ali scattano in su */
 .pg-gem {
