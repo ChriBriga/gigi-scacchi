@@ -3683,24 +3683,80 @@ html[data-fx='high'] .page-fx {
    Rivedi tutta la partita (grafico del vantaggio + mosse)
    ========================================================= */
 .replay-sheet {
-  width: min(960px, 100%);
+  width: min(1100px, 100%);
+  height: calc(100dvh - 32px);
+  overflow: hidden;
 }
 .replay-grid {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'left sum'
+    'left right';
+  gap: 12px 16px;
+}
+.replay-sum {
+  grid-area: sum;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.replay-left {
+  grid-area: left;
+}
+.replay-right {
+  grid-area: right;
+  min-height: 0;
 }
 .replay-left,
 .replay-right {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
+.rs-acc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: none;
+  min-width: 84px;
+  line-height: 1.05;
+}
+.rs-acc b {
+  font-family: 'Fredoka Variable', sans-serif;
+  font-weight: 600;
+  font-size: var(--fs-2xl);
+}
+.rs-acc small {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.rs-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+.rs-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: transform var(--dur-1) var(--ease-out);
+}
+.rs-pill:hover {
+  transform: translateY(-1px);
+}
 .replay-board {
-  width: min(100%, 480px, calc(100dvh - 330px));
-  min-width: 260px;
+  width: min(100%, calc(100dvh - 362px));
+  min-width: 240px;
   margin: 0 auto;
 }
 .replay-controls {
@@ -3708,6 +3764,11 @@ html[data-fx='high'] .page-fx {
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+.replay-controls .btn {
+  min-height: 44px;
+  min-width: 52px;
+  justify-content: center;
 }
 .replay-pos {
   min-width: 64px;
@@ -3721,11 +3782,16 @@ html[data-fx='high'] .page-fx {
   font-size: var(--fs-xs);
   line-height: 1.35;
 }
-.win-graph {
+.win-graph-box {
   width: 100%;
-  height: auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.win-graph {
+  display: block;
   cursor: pointer;
-  touch-action: manipulation;
+  touch-action: none;
+  user-select: none;
 }
 .wg-bg {
   fill: var(--surface-2);
@@ -3734,35 +3800,48 @@ html[data-fx='high'] .page-fx {
   stroke: var(--line);
   stroke-dasharray: 3 4;
 }
-.wg-area {
-  fill: color-mix(in srgb, var(--accent) 20%, transparent);
+.wg-area-up {
+  fill: color-mix(in srgb, var(--good) 28%, transparent);
+}
+.wg-area-down {
+  fill: color-mix(in srgb, var(--bad) 26%, transparent);
 }
 .wg-line {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--ink);
   stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 .wg-cursor {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.wg-now {
+  fill: var(--accent);
   stroke: var(--ink);
-  stroke-width: 1.4;
-  opacity: 0.7;
+  stroke-width: 2;
 }
 .wg-dot {
   stroke: var(--surface);
-  stroke-width: 1.2;
+  stroke-width: 1.4;
 }
 .replay-info {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   align-items: flex-start;
+  min-height: 168px;
+  flex: none;
 }
 .replay-info strong {
   font-family: 'Fredoka Variable', sans-serif;
   font-weight: 500;
   font-size: var(--fs-lg);
+}
+.replay-info .review-note {
+  margin: 0;
+  font-size: var(--fs-base);
 }
 .replay-info .row {
   display: flex;
@@ -3783,9 +3862,50 @@ html[data-fx='high'] .page-fx {
 .replay-info .lg-green {
   background: #6be36b;
 }
+.replay-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  flex: none;
+}
+.replay-keys > strong {
+  font-size: var(--fs-md);
+}
+.rk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  min-height: 36px;
+}
+.rk:hover,
+.rk.on {
+  background: var(--surface-3);
+}
+.rk-n {
+  color: var(--muted);
+  font-weight: 700;
+  min-width: 28px;
+}
+.rk-q {
+  display: inline-flex;
+  padding: 2px 6px;
+}
+.rk-t {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  min-width: 0;
+}
 .replay-moves {
-  max-height: 260px;
+  flex: 1;
+  min-height: 96px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -3825,15 +3945,26 @@ html[data-fx='high'] .page-fx {
   background: var(--accent);
   color: var(--accent-ink);
 }
-@media (max-width: 760px) {
+@media (max-width: 860px) {
+  .replay-sheet {
+    height: auto;
+    overflow: visible;
+  }
   .replay-grid {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
   .replay-board {
-    width: min(100%, 420px);
+    width: min(100%, 440px);
+    min-width: 0;
   }
   .replay-moves {
-    max-height: 180px;
+    flex: none;
+    max-height: 240px;
+  }
+  .replay-info {
+    min-height: 150px;
   }
 }
 

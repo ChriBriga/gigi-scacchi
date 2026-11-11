@@ -1,57 +1,107 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type Square } from 'chess.js'
 import { CaretDoubleLeft, CaretDoubleRight, CaretLeft, CaretRight, Eye, GraduationCap, X } from '@phosphor-icons/react'
 import { Board } from './Board'
 import { GameReview, type ReviewItem } from './GameReview'
 import { QualityIcon } from './QualityIcon'
-import { QUALITY_INFO, evaluate, winPct } from '../engine/analysis'
-import { MISTAKE_INFO, classifyMistake, isMistake, type JudgedMove } from '../engine/mistakes'
+import { San } from './GameParts'
+import { QUALITY_INFO, evaluate, winPct, type Quality } from '../engine/analysis'
+import { MISTAKE_INFO, classifyMistake, isMistake, summarizeOwn, type JudgedMove } from '../engine/mistakes'
 import { parseUci } from '../chess/util'
 import type { Tone } from '../coach/lines'
 
-const W = 320
-const H = 96
-const px = (i: number, n: number) => (n === 0 ? 0 : (i / n) * W)
-const py = (win: number) => H - 6 - (win / 100) * (H - 12)
+const PAD = 8
+const QUALITY_ORDER: Quality[] = ['brilliant', 'great', 'best', 'excellent', 'good', 'book', 'forced', 'inaccuracy', 'miss', 'mistake', 'blunder']
 
-/** Il grafico della partita: la tua probabilità di vincere, mossa dopo mossa. Tocca il grafico per saltare in quel punto. */
+/** Il grafico della partita: la tua probabilità di vincere, mossa dopo mossa. Tocca o trascina per scorrere la partita. */
 function WinGraph({ win, moves, color, ply, onPick }: { win: (number | undefined)[]; moves: JudgedMove[]; color: Color; ply: number; onPick: (i: number) => void }) {
+  const uid = useId().replace(/:/g, '')
+  const box = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ w: 480, h: 130 })
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const measure = () => setSize({ w: Math.max(200, el.clientWidth), h: el.clientWidth < 420 ? 104 : 130 })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const { w: W, h: H } = size
   const n = moves.length
-  let d = ''
-  let pen = false
-  win.forEach((w, i) => {
-    if (w === undefined) {
-      pen = false
+  const px = (i: number) => (n === 0 ? 0 : (i / n) * W)
+  const py = (v: number) => H - PAD - (v / 100) * (H - PAD * 2)
+  const mid = py(50)
+
+  // tratti continui (i buchi restano buchi)
+  const segs: { x: number; y: number }[][] = []
+  let cur: { x: number; y: number }[] = []
+  win.forEach((v, i) => {
+    if (v === undefined) {
+      if (cur.length) segs.push(cur)
+      cur = []
       return
     }
-    d += `${pen ? 'L' : 'M'}${px(i, n).toFixed(1)} ${py(w).toFixed(1)} `
-    pen = true
+    cur.push({ x: px(i), y: py(v) })
   })
-  const first = win.findIndex((w) => w !== undefined)
-  const lastIdx = win.length - 1 - [...win].reverse().findIndex((w) => w !== undefined)
-  const area = d && first >= 0 ? `${d} L${px(lastIdx, n).toFixed(1)} ${H - 6} L${px(first, n).toFixed(1)} ${H - 6} Z` : ''
+  if (cur.length) segs.push(cur)
+  const line = segs.map((s) => s.map((p, k) => `${k ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')).join(' ')
+  const area = segs
+    .map((s) => `M${s[0].x.toFixed(1)} ${mid} ${s.map((p) => `L${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')} L${s[s.length - 1].x.toFixed(1)} ${mid} Z`)
+    .join(' ')
+
+  const dragging = useRef(false)
+  const pick = (e: React.PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    onPick(Math.max(0, Math.min(n, Math.round(((e.clientX - r.left) / r.width) * n))))
+  }
+  const curWin = win[ply]
   return (
-    <svg
-      className="win-graph"
-      viewBox={`0 0 ${W} ${H}`}
-      role="img"
-      aria-label="Grafico della tua probabilità di vincere durante la partita"
-      onClick={(e) => {
-        const r = e.currentTarget.getBoundingClientRect()
-        onPick(Math.max(0, Math.min(n, Math.round(((e.clientX - r.left) / r.width) * n))))
-      }}
-    >
-      <rect x="0" y="0" width={W} height={H} rx="10" className="wg-bg" />
-      <line x1="0" x2={W} y1={py(50)} y2={py(50)} className="wg-mid" />
-      {area && <path d={area} className="wg-area" />}
-      {d && <path d={d} className="wg-line" />}
-      {moves.map((m, i) => {
-        const w = win[i + 1]
-        if (m.color !== color || !m.judgement || !isMistake(m.judgement) || w === undefined) return null
-        return <circle key={i} cx={px(i + 1, n)} cy={py(w)} r="3.6" fill={QUALITY_INFO[m.judgement.quality === 'blunder' ? 'blunder' : 'mistake'].color} className="wg-dot" />
-      })}
-      <line x1={px(ply, n)} x2={px(ply, n)} y1="0" y2={H} className="wg-cursor" />
-    </svg>
+    <div className="win-graph-box" ref={box}>
+      <svg
+        className="win-graph"
+        width={W}
+        height={H}
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label="Grafico della tua probabilità di vincere durante la partita"
+        onPointerDown={(e) => {
+          dragging.current = true
+          e.currentTarget.setPointerCapture(e.pointerId)
+          pick(e)
+        }}
+        onPointerMove={(e) => {
+          if (dragging.current) pick(e)
+        }}
+        onPointerUp={() => (dragging.current = false)}
+        onPointerCancel={() => (dragging.current = false)}
+      >
+        <defs>
+          <clipPath id={`${uid}t`}>
+            <rect x="0" y="0" width={W} height={mid} />
+          </clipPath>
+          <clipPath id={`${uid}b`}>
+            <rect x="0" y={mid} width={W} height={H - mid} />
+          </clipPath>
+        </defs>
+        <rect x="0" y="0" width={W} height={H} rx="10" className="wg-bg" />
+        {area && <path d={area} className="wg-area-up" clipPath={`url(#${uid}t)`} />}
+        {area && <path d={area} className="wg-area-down" clipPath={`url(#${uid}b)`} />}
+        <line x1="0" x2={W} y1={mid} y2={mid} className="wg-mid" />
+        {line && <path d={line} className="wg-line" />}
+        {moves.map((m, i) => {
+          const v = win[i + 1]
+          const q = m.judgement?.quality
+          if (m.color !== color || !q || v === undefined) return null
+          const good = q === 'brilliant' || q === 'great'
+          if (!good && !isMistake(m.judgement!)) return null
+          const c = good ? QUALITY_INFO[q].color : QUALITY_INFO[q === 'blunder' ? 'blunder' : 'mistake'].color
+          return <circle key={i} cx={px(i + 1)} cy={py(v)} r="4" fill={c} className="wg-dot" />
+        })}
+        <line x1={px(ply)} x2={px(ply)} y1="0" y2={H} className="wg-cursor" />
+        {curWin !== undefined && <circle cx={px(ply)} cy={py(curWin)} r="5.5" className="wg-now" />}
+      </svg>
+    </div>
   )
 }
 
@@ -158,10 +208,45 @@ export function GameReplay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ply, n, trying])
 
+  // la lista scorre da sola, ma solo lei (scrollIntoView farebbe scorrere anche la finestra)
   const listRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    listRef.current?.querySelector('.rv-mv.on')?.scrollIntoView({ block: 'nearest' })
+    const box = listRef.current
+    const el = box?.querySelector<HTMLElement>('.rv-mv.on')
+    if (!box || !el) return
+    const top = el.offsetTop - box.offsetTop
+    if (top < box.scrollTop) box.scrollTop = top - 6
+    else if (top + el.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top + el.offsetHeight - box.clientHeight + 6
   }, [ply])
+
+  const summary = useMemo(() => summarizeOwn(moves, color), [moves, color])
+  const pillRef = useRef<{ q: Quality; k: number } | null>(null)
+  const jumpQuality = (q: Quality) => {
+    const list = moves.map((mv, i) => (mv.color === color && mv.judgement?.quality === q ? i + 1 : -1)).filter((i) => i > 0)
+    if (!list.length) return
+    const k = pillRef.current?.q === q ? (pillRef.current.k + 1) % list.length : 0
+    pillRef.current = { q, k }
+    setPly(list[k])
+  }
+
+  // le mosse chiave: i tuoi errori più pesanti e la tua mossa migliore
+  const keys = useMemo(() => {
+    const out: { ply: number; q: Quality; san: string; text: string; w: number; bad: boolean }[] = []
+    moves.forEach((mv, i) => {
+      const jj = mv.judgement
+      if (mv.color !== color || !jj) return
+      const no = Math.floor(i / 2) + 1
+      if (isMistake(jj)) {
+        const k = classifyMistake(mv.fenBefore, mv.uci, jj, no)
+        out.push({ ply: i + 1, q: jj.quality, san: mv.san, text: MISTAKE_INFO[k].label, w: jj.loss + (jj.missedMate ? 40 : 0), bad: true })
+      } else if (jj.quality === 'brilliant' || jj.quality === 'great') {
+        out.push({ ply: i + 1, q: jj.quality, san: mv.san, text: jj.quality === 'brilliant' ? 'La tua mossa più bella' : 'Una gran mossa', w: jj.quality === 'brilliant' ? 2 : 1, bad: false })
+      }
+    })
+    const bads = out.filter((k) => k.bad).sort((a, b) => b.w - a.w).slice(0, 3)
+    const good = out.filter((k) => !k.bad).sort((a, b) => b.w - a.w)[0]
+    return [...bads, ...(good ? [good] : [])].sort((a, b) => a.ply - b.ply)
+  }, [moves, color])
 
   const m = ply > 0 ? moves[ply - 1] : null
   const mine = !!m && m.color === color
@@ -204,7 +289,9 @@ export function GameReplay({
     const q = mv.color === color ? mv.judgement?.quality : undefined
     return (
       <button className={`rv-mv${ply === i + 1 ? ' on' : ''}`} onClick={() => setPly(i + 1)}>
-        {mv.san}
+        <span>
+          <San san={mv.san} />
+        </span>
         {q && <i style={{ background: QUALITY_INFO[q].color }} title={QUALITY_INFO[q].label} />}
       </button>
     )
@@ -216,7 +303,7 @@ export function GameReplay({
         <div className="review-head">
           <div>
             <strong>Rivedi la partita</strong>
-            <small>{busy ? 'Sto finendo di valutare le posizioni…' : 'Frecce ← → per scorrere, tocca il grafico per saltare'}</small>
+            <small>{busy ? 'Sto finendo di valutare le posizioni…' : 'Frecce ← → per scorrere, trascina il grafico per saltare'}</small>
           </div>
           <button className="ghost" onClick={onClose} aria-label="Chiudi">
             <X size={22} weight="bold" />
@@ -224,6 +311,20 @@ export function GameReplay({
         </div>
 
         <div className="replay-grid">
+          <div className="replay-sum">
+            <div className="rs-acc" title="Precisione: quanto le tue mosse si sono avvicinate alle migliori">
+              <b>{summary.acc === null ? '–' : `${summary.acc}%`}</b>
+              <small>Precisione</small>
+            </div>
+            <div className="rs-pills">
+              {QUALITY_ORDER.filter((q) => (summary.q[q] ?? 0) > 0).map((q) => (
+                <button key={q} className="chip rs-pill" style={{ background: QUALITY_INFO[q].color }} onClick={() => jumpQuality(q)} title={`Vai alle mosse: ${QUALITY_INFO[q].label}`}>
+                  <QualityIcon q={q} /> {QUALITY_INFO[q].label} <b>{summary.q[q]}</b>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="replay-left">
             <div className="replay-board">
               <Board fen={fen} orientation={color} movable={null} lastMove={last} lastBy={mine ? 'me' : 'opp'} arrows={arrows} />
@@ -246,7 +347,6 @@ export function GameReplay({
               </button>
             </div>
             <WinGraph win={win} moves={moves} color={color} ply={ply} onPick={setPly} />
-            <p className="replay-cap">La linea è la tua probabilità di vincere: in alto stai vincendo, in basso stai perdendo. I punti colorati sono i tuoi errori.</p>
           </div>
 
           <div className="replay-right">
@@ -280,6 +380,25 @@ export function GameReplay({
                 <small className="replay-cap">
                   <i className="lg-red" /> la tua mossa · <i className="lg-green" /> la mossa migliore
                 </small>
+              )}
+            </div>
+            <div className="card replay-keys">
+              <strong>Mosse chiave</strong>
+              {keys.length === 0 ? (
+                <small className="muted">Nessun momento critico: partita lineare.</small>
+              ) : (
+                keys.map((k) => (
+                  <button key={k.ply} className={`rk${ply === k.ply ? ' on' : ''}`} onClick={() => setPly(k.ply)}>
+                    <span className="rk-n">{Math.floor((k.ply - 1) / 2) + 1}{color === 'w' ? '.' : '…'}</span>
+                    <b>
+                      <San san={k.san} />
+                    </b>
+                    <span className="chip rk-q" style={{ background: QUALITY_INFO[k.q].color }}>
+                      <QualityIcon q={k.q} />
+                    </span>
+                    <span className="rk-t">{k.text}</span>
+                  </button>
+                ))
               )}
             </div>
             <div className="card replay-moves" ref={listRef}>

@@ -148,8 +148,8 @@ export interface JudgedMove {
   judgement?: Judgement
 }
 
-/** Riassume una partita. Restituisce null se ci sono troppe poche mosse giudicate per dirne qualcosa. */
-export function buildRecord(moves: JudgedMove[], color: Color, bot: number, outcome: GameRecord['outcome'], day: string): GameRecord | null {
+/** Conta le tue mosse, quelle giudicate, le qualità e i tipi di errore, e calcola la precisione (null se le mosse giudicate sono meno di 4). */
+export function summarizeOwn(moves: JudgedMove[], color: Color) {
   const q: GameRecord['q'] = {}
   const kinds: GameRecord['kinds'] = {}
   let loss = 0
@@ -168,8 +168,15 @@ export function buildRecord(moves: JudgedMove[], color: Color, bot: number, outc
       kinds[k] = (kinds[k] ?? 0) + 1
     }
   })
-  if (own < 5 || judged < 4) return null
-  return { id: Date.now(), day, bot, color, outcome, moves: own, acc: Math.round(accuracyFrom(loss / judged)), q, kinds }
+  const acc = judged >= 4 ? Math.round(accuracyFrom(loss / judged)) : null
+  return { own, judged, acc, q, kinds }
+}
+
+/** Riassume una partita. Restituisce null se ci sono troppe poche mosse giudicate per dirne qualcosa. */
+export function buildRecord(moves: JudgedMove[], color: Color, bot: number, outcome: GameRecord['outcome'], day: string): GameRecord | null {
+  const { own, judged, acc, q, kinds } = summarizeOwn(moves, color)
+  if (own < 5 || judged < 4 || acc === null) return null
+  return { id: Date.now(), day, bot, color, outcome, moves: own, acc, q, kinds }
 }
 
 export interface WeakSpot {
