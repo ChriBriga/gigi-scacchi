@@ -3844,6 +3844,7 @@ html[data-fx='high'] .page-fx {
     grid-template-areas:
       'label label'
       'main seg'
+      'main mode'
       'main play';
     column-gap: 28px;
     row-gap: 12px;
@@ -3861,6 +3862,9 @@ html[data-fx='high'] .page-fx {
   }
   .rec-play {
     grid-area: play;
+  }
+  .mode-pick {
+    grid-area: mode;
   }
 }
 
@@ -4765,4 +4769,52 @@ html:not([data-fx='low']) .dlg::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .pg-gem, .mood-smug .pg-all, .mood-shocked .pg-wing-l, .mood-shocked .pg-wing-r { animation: none; }
   .pg-gem { opacity: 0; }
+}
+
+/* --- Modi di gioco e medaglie --- */
+.mode-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mode-blurb {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  min-height: calc(1.35em * 2);
+}
+.badge-pill.medal,
+.review-note.medal {
+  --medal: #d08a4e;
+  color: var(--medal);
+}
+.badge-pill.medal {
+  background: color-mix(in srgb, var(--medal) 20%, transparent);
+}
+.badge-pill.medal.m2,
+.review-note.medal.m2 {
+  --medal: #c9d3e0;
+}
+.badge-pill.medal.m3,
+.review-note.medal.m3 {
+  --medal: #ffcf40;
+}
+.review-note.medal {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+.badge-pill.mode-pill {
+  margin-left: auto;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  white-space: nowrap;
+}
+/* senza aiuti restano solo "Perché?" e "Altro" (in Torneo solo "Altro") */
+.play-side .actions.bare {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+.play-side .actions.bare .wide {
+  grid-column: auto;
 }

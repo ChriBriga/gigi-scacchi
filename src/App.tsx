@@ -9,7 +9,7 @@ import { clearSavedGame, loadSavedGame, type SavedGame } from './savedGame'
 import type { Lesson } from './data/lessons'
 import type { Puzzle } from './screens/Puzzles'
 import { nextDrill, type Drill } from './data/drills'
-import { currentStreak, levelName, useApp } from './store'
+import { currentStreak, getState, levelName, useApp, type GameMode } from './store'
 import { THEMES } from './themes'
 import { DialogHost, confirmDialog } from './ui/Dialog'
 import { ToastHost, toast } from './ui/Toast'
@@ -39,7 +39,7 @@ const TABS: { id: Tab; Icon: Icon; label: string }[] = [
 ]
 
 type Overlay =
-  | { kind: 'game'; bot: Bot; color: Color; key: number; resume?: SavedGame }
+  | { kind: 'game'; bot: Bot; color: Color; mode: GameMode; key: number; resume?: SavedGame }
   | { kind: 'lesson'; lesson: Lesson }
   | { kind: 'drill'; drill: Drill }
   | { kind: 'puzzles5'; key: number; themes?: Puzzle['theme'][]; title?: string }
@@ -150,11 +150,11 @@ export function App() {
       if (!yes) return
     }
     clearSavedGame()
-    setOverlay({ kind: 'game', bot, color, key: Date.now() })
+    setOverlay({ kind: 'game', bot, color, mode: getState().settings.gameMode ?? 'training', key: Date.now() })
   }
   const resumeGame = (saved: SavedGame) => {
     const bot = botById(saved.botId)
-    if (bot) setOverlay({ kind: 'game', bot, color: saved.color, key: Date.now(), resume: saved })
+    if (bot) setOverlay({ kind: 'game', bot, color: saved.color, mode: saved.mode ?? 'training', key: Date.now(), resume: saved })
   }
   const openLesson = (lesson: Lesson) => setOverlay({ kind: 'lesson', lesson })
   const goTab = (t: Tab) => {
@@ -166,7 +166,7 @@ export function App() {
   let narrow = false
   if (overlay?.kind === 'game') {
     const g = overlay
-    content = <Play key={g.key} bot={g.bot} color={g.color} resume={g.resume} onExit={close} onRematch={() => setOverlay({ kind: 'game', bot: g.bot, color: g.color, key: Date.now() })} />
+    content = <Play key={g.key} bot={g.bot} color={g.color} mode={g.mode} resume={g.resume} onExit={close} onRematch={() => setOverlay({ kind: 'game', bot: g.bot, color: g.color, mode: g.mode, key: Date.now() })} />
   }
   else if (overlay?.kind === 'lesson') content = <LessonPlayer key={overlay.lesson.id} lesson={overlay.lesson} onExit={close} />
   else if (overlay?.kind === 'drill') {

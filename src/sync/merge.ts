@@ -84,6 +84,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     games: Math.max(a.games, b.games),
     wins: Math.max(a.wins, b.wins),
     botsBeaten: union(a.botsBeaten, b.botsBeaten),
+    medals: maxByKey(a.medals, b.medals, (x, y) => Math.max(x, y)),
     mistakeTags: maxByKey(a.mistakeTags, b.mistakeTags, (x, y) => Math.max(x, y)),
     today,
     modified: Math.max(a.modified ?? 0, b.modified ?? 0),

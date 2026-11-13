@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
-import { ArrowCounterClockwise, ArrowLeft, ArrowRight, ArrowUUpLeft, ArrowsClockwise, BookOpenText, Compass, DotsThree, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold, Rewind, Warning } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ArrowLeft, ArrowRight, ArrowUUpLeft, ArrowsClockwise, BookOpenText, Compass, DotsThree, Flag, GraduationCap, Lightbulb, MagnifyingGlass, MapTrifold, Medal, Rewind, Warning } from '@phosphor-icons/react'
 import { EvalBar } from '../components/EvalBar'
 import { QualityIcon } from '../components/QualityIcon'
 import { Board, type Tint } from '../components/Board'
@@ -19,7 +19,7 @@ import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
 import { explainWithGemini, summarizeGameWithGemini } from '../coach/gemini'
 import { coachInfo } from '../coach/coaches'
-import { addGameRecord, addToNotebook, addXp, bumpMistake, currentCoach, getState, nudgeSkill, rememberGame, todayStr, touchDay, update, useApp, type DangerMode, type NotebookDraft } from '../store'
+import { addGameRecord, addToNotebook, addXp, bumpMistake, currentCoach, gameModeInfo, getState, medalOf, nudgeSkill, rememberGame, todayStr, touchDay, update, useApp, type DangerMode, type GameMode, type NotebookDraft } from '../store'
 import { sfx } from '../sound'
 import { watchFrames } from '../perf'
 import { clearSavedGame, replayMoves, saveGame, type SavedGame, type SavedMove } from '../savedGame'
@@ -70,9 +70,22 @@ function isBad(q: Quality) {
   return q === 'mistake' || q === 'blunder'
 }
 
-export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; color: Color; resume?: SavedGame; onExit: () => void; onRematch?: () => void }) {
+const MODE_NOTE: Record<GameMode, string> = {
+  training: '',
+  nonet: ' Senza rete: se sbagli te lo dico, ma la mossa resta.',
+  tournament: ' Torneo: da qui in poi sto zitto. Ne parliamo alla fine.',
+}
+
+export function Play({ bot, color, mode = 'training', resume, onExit, onRematch }: { bot: Bot; color: Color; mode?: GameMode; resume?: SavedGame; onExit: () => void; onRematch?: () => void }) {
   const app = useApp()
   const settings = app.settings
+  /** Allenamento: avvisi, ritiro della mossa e aiuti. Negli altri modi la mossa resta e gli aiuti spariscono. */
+  const helps = mode === 'training'
+  const silent = mode === 'tournament'
+  /** il giudizio mossa per mossa: sempre in Senza rete, mai in Torneo (lì si guarda tutto alla fine) */
+  const judgeLive = silent ? false : mode === 'nonet' ? true : settings.liveJudging
+  const dangerMode: DangerMode = helps ? settings.danger : 'off'
+  const showEval = settings.evalBar && !silent
   const game = useRef<Chess>(null as unknown as Chess)
   // partita ripresa: si rigiocano le mosse salvate (se qualcosa non torna si ricomincia da capo)
   const resumed = useRef<SavedMove[] | null>(null)
@@ -95,7 +108,7 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
     const ev: CoachEvent = resumed.current ? 'resume' : 'start'
     // contro un bot con uno stile, il consiglio per affrontarlo si aggiunge alla frase d'inizio (una volta, a inizio partita)
     const tip = !resumed.current && bot.style !== 'balanced' ? ` ${STYLES[bot.style].label}: ${STYLES[bot.style].tip}` : ''
-    return { text: sayLine(ev, settings.tone, { bot: bot.name }) + tip, mood: EVENT_MOOD[ev] }
+    return { text: sayLine(ev, settings.tone, { bot: bot.name }) + (silent ? '' : tip) + MODE_NOTE[mode], mood: EVENT_MOOD[ev] }
   })
   const [hintLevel, setHintLevel] = useState(0)
   const [hint, setHint] = useState<{ from?: Square; to?: Square } | null>(null)
@@ -108,6 +121,8 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
   const [analysing, setAnalysing] = useState(false)
   const [analysisReady, setAnalysisReady] = useState(false)
   const [cleanNote, setCleanNote] = useState<string | null>(null)
+  /** medaglia appena conquistata (o migliorata) contro questo bot */
+  const [medalNote, setMedalNote] = useState<string | null>(null)
   const [notebookNote, setNotebookNote] = useState<string | null>(null)
   /** commento di fine partita di Gemini (facoltativo): 'loading' mentre scrive, poi il testo; se non arriva non si vede nulla */
   const [summary, setSummary] = useState<'loading' | string | null>(null)
@@ -158,13 +173,15 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
     else if (outcome === 'lose') sfx.lose()
     rememberGame(bot.id, outcome, retracts.current, badMoves.current, isFirstWin ? 'firstWin' : undefined)
     // partita pulita: giocata davvero (almeno 8 mosse tue), con il giudizio acceso e senza nessun ritiro
-    if (reason !== 'resa' && retracts.current === 0 && ownMoves.current >= 8 && settings.liveJudging) {
+    if (reason !== 'resa' && retracts.current === 0 && ownMoves.current >= 8 && (!helps || settings.liveJudging)) {
       update((s) => {
         s.progress.cleanGames = (s.progress.cleanGames ?? 0) + 1
         s.progress.xp += 15
       })
       setCleanNote(sayLine('cleanGame', settings.tone))
     }
+    const medal = gameModeInfo(mode)
+    if (outcome === 'win' && medal.medal > medalOf(before, bot.id)) setMedalNote(`Medaglia d’${medal.medalName} contro ${bot.name}: vittoria in ${medal.name}.`)
     update((s) => {
       const p = s.progress
       touchDay(p)
@@ -173,6 +190,8 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
       if (outcome === 'win') {
         p.wins += 1
         if (!p.botsBeaten.includes(bot.id)) p.botsBeaten.push(bot.id)
+        const m = (p.medals ??= {})
+        m[String(bot.id)] = Math.max(m[String(bot.id)] ?? 0, medal.medal)
       }
       p.xp += outcome === 'win' ? 40 + Math.round(bot.rank * 2.5) : outcome === 'draw' ? 20 : 10
     })
@@ -201,6 +220,8 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
     setLast([from, to])
     setLastBy('opp')
     setBotSan(mv.san)
+    // se il bot cattura proprio il pezzo appena giudicato, il simbolo del giudizio non deve restare sul suo pezzo
+    setBadge((b) => (b && b.square === to ? null : b))
     setMoves((m) => [...m, { san: mv.san, uci, fenBefore, color: opposite(color) }])
     // il suono parte quando il pezzo arriva, la partita riprende a movimento finito
     setTimeout(() => {
@@ -237,7 +258,7 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
     }
     const keep = phase === 'decide' ? moves.slice(0, -1) : moves
     if (keep.length === 0) return
-    saveGame({ botId: bot.id, color, moves: keep, retracts: retracts.current, badMoves: badMoves.current })
+    saveGame({ botId: bot.id, color, moves: keep, retracts: retracts.current, badMoves: badMoves.current, mode })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moves, phase])
 
@@ -260,7 +281,7 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
 
   /** "Cosa minaccia?": evidenzia cosa vuole fare l'avversario e lo dice a parole. Non rivela la mossa giusta. */
   const showThreats = () => {
-    if (phase !== 'player' || viewPly !== null || game.current.turn() !== color) return
+    if (!helps || phase !== 'player' || viewPly !== null || game.current.turn() !== color) return
     if (threatView) {
       setThreatView(null)
       return
@@ -289,7 +310,7 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
   }
   /** "Cosa faccio?": la routine di ogni mossa e i consigli della fase, calcolati sulla posizione. */
   const toggleAdvice = () => {
-    if (phase !== 'player' || viewPly !== null || game.current.turn() !== color) return
+    if (!helps || phase !== 'player' || viewPly !== null || game.current.turn() !== color) return
     if (advice) {
       setAdvice(null)
       return
@@ -388,7 +409,7 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
     const histBefore = g.history().slice(0, -1)
     const prevOwnJ = [...moves].reverse().find((m) => m.color === color)?.judgement
     const prevWin = prevOwnJ ? winPct(prevOwnJ.cpAfter) : undefined
-    const judgeP = settings.liveJudging ? judgeMove(fenBefore, uci, { history: histBefore, prevWin }).catch(() => undefined) : Promise.resolve(undefined)
+    const judgeP = judgeLive ? judgeMove(fenBefore, uci, { history: histBefore, prevWin }).catch(() => undefined) : Promise.resolve(undefined)
     const [botUci, j] = await Promise.all([botP, judgeP, sleep(THINK_MS)]).then(([b, jj]) => [b, jj] as const)
     if (!alive.current) return
 
@@ -412,11 +433,19 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
             mood: EVENT_MOOD[j.quality === 'blunder' ? 'blunder' : 'mistake'],
           })
         } else say(j.quality === 'blunder' ? 'blunder' : 'mistake')
-        setTakeback({ botUci, rec, tag: hang.length ? 'Pezzi lasciati in presa' : 'Mosse distratte' })
-        setQuiz(null)
-        setPhase('decide')
+        const tag = hang.length ? 'Pezzi lasciati in presa' : 'Mosse distratte'
         setShake(true)
         setTimeout(() => setShake(false), 500)
+        if (!helps) {
+          // senza rete: la mossa resta e si gioca con le conseguenze; l'errore va comunque sul quaderno
+          const draft = draftFrom(rec, tag)
+          if (draft) addToNotebook([draft])
+          applyBot(botUci)
+          return
+        }
+        setTakeback({ botUci, rec, tag })
+        setQuiz(null)
+        setPhase('decide')
         return
       }
       // un momento particolare (cattura della regina, arrocco, scacco…) rimpiazza il commento generico: Gigi non parla di più, parla meglio
@@ -538,7 +567,7 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
   }
 
   const showHint = async () => {
-    if (phase !== 'player' || viewPly !== null) return
+    if (!helps || phase !== 'player' || viewPly !== null) return
     const best = await bestMoveFor(game.current.fen())
     if (!best) return
     const { from, to } = parseUci(best)
@@ -599,17 +628,17 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
   const { tints, rings } = useMemo(() => {
     let t: Partial<Record<Square, Tint>> = {}
     let r: Square[] = []
-    if (settings.danger !== 'off') {
+    if (dangerMode !== 'off') {
       try {
         const c = new Chess(fen)
-        t = dangerTints(c, color, settings.danger)
+        t = dangerTints(c, color, dangerMode)
         r = hangingPieces(c, color).map((h) => h.square)
       } catch {
         /* fen non valido: niente overlay */
       }
     }
     return { tints: t, rings: r }
-  }, [fen, settings.danger, color])
+  }, [fen, dangerMode, color])
 
   // a partita finita: se il giudizio live era spento, Gigi riguarda in silenzio le tue mosse
   useEffect(() => {
@@ -647,7 +676,7 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
 
   // se resti fermo a lungo, Gigi si appisola (solo se tocca a te e la partita è in corso)
   useEffect(() => {
-    if (phase !== 'player') return
+    if (phase !== 'player' || silent) return
     const t = setTimeout(() => {
       if (alive.current) setCoach({ text: sayLine('idleNap', settings.tone), mood: 'sleepy' })
     }, 100_000)
@@ -757,6 +786,11 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
           <ArrowLeft size={20} weight="bold" /> Esci
         </button>
         <div className="title">Partita contro {bot.name}</div>
+        {!helps && (
+          <span className={`badge-pill mode-pill ${mode}`} title={gameModeInfo(mode).blurb}>
+            {gameModeInfo(mode).name}
+          </span>
+        )}
       </div>
 
       <div className="game-shell">
@@ -769,8 +803,8 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
             fen={shownFen}
             active={phase === 'thinking' || phase === 'reply'}
           />
-          <div className={`board-row${settings.evalBar ? ' with-eval' : ''}`}>
-            {settings.evalBar && <EvalBar fen={shownFen} orientation={color} />}
+          <div className={`board-row${showEval ? ' with-eval' : ''}`}>
+            {showEval && <EvalBar fen={shownFen} orientation={color} />}
             <Board
               fen={shownFen}
               orientation={color}
@@ -848,6 +882,11 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
                   ))}
                 </div>
               )}
+              {medalNote && (
+                <p className={`review-note medal m${gameModeInfo(mode).medal}`}>
+                  <Medal size={18} weight="fill" /> {medalNote}
+                </p>
+              )}
               {cleanNote && <p className="review-note clean">✨ Partita pulita: nessuna mossa ritirata, +15 XP. {cleanNote}</p>}
               {threatStats.current.seen > 0 && (
                 <p className="review-note">
@@ -888,7 +927,9 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
 
           {phase !== 'over' && (
             // quattro tasti sempre nello stesso posto; il resto (mappa del pericolo, resa) sta nel menu "Altro"
-            <div className="actions">
+            <div className={`actions${helps ? '' : ' bare'}`}>
+              {helps && (
+                <>
               <button className="btn" onClick={showHint} disabled={busy}>
                 <Lightbulb size={20} weight="fill" /> Aiuto{hintLevel ? ` ${hintLevel}/3` : ''}
               </button>
@@ -898,6 +939,9 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
               <button className={`btn${threatView ? ' on' : ''}`} onClick={showThreats} disabled={busy} title="Cosa minaccia l’avversario? (scorciatoia: T)">
                 <Warning size={20} weight="fill" /> Minacce <kbd className="kbd">T</kbd>
               </button>
+                </>
+              )}
+              {!silent && (
               <button
                 className="btn wide"
                 onClick={() => lastUserMove && explain(lastUserMove)}
@@ -906,6 +950,7 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
               >
                 <MagnifyingGlass size={20} weight="bold" /> Perché?
               </button>
+              )}
               <div className="more">
                 <button
                   className={`btn${menuOpen ? ' on' : ''}`}
@@ -915,17 +960,19 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
                   }}
                   aria-haspopup="menu"
                   aria-expanded={menuOpen}
-                  title="Mappa del pericolo, resa"
+                  title={helps ? 'Mappa del pericolo, resa' : 'Resa'}
                 >
                   <DotsThree size={22} weight="bold" /> Altro
                 </button>
                 {menuOpen && (
                   <div className="more-menu" role="menu">
-                    <button role="menuitem" onClick={cycleDanger}>
-                      <MapTrifold size={20} weight="duotone" />
-                      <span>Mappa del pericolo</span>
-                      <b>{DANGER_LABEL[settings.danger]}</b>
-                    </button>
+                    {helps && (
+                      <button role="menuitem" onClick={cycleDanger}>
+                        <MapTrifold size={20} weight="duotone" />
+                        <span>Mappa del pericolo</span>
+                        <b>{DANGER_LABEL[settings.danger]}</b>
+                      </button>
+                    )}
                     {resignAsk ? (
                       <div className="more-confirm">
                         <span>Ti arrendi davvero?</span>
@@ -979,13 +1026,13 @@ export function Play({ bot, color, resume, onExit, onRematch }: { bot: Bot; colo
             </div>
           )}
 
-          {settings.danger !== 'off' && phase !== 'over' && (
+          {dangerMode !== 'off' && phase !== 'over' && (
             <div className="legend">
               <span>
                 <span className="lg danger" />
                 attaccata dall’avversario
               </span>
-              {settings.danger === 'full' && (
+              {dangerMode === 'full' && (
                 <span>
                   <span className="lg safe" />
                   controllata da te

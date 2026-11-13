@@ -5,7 +5,7 @@ import { DRILLS, type Drill, type DrillGoal } from '../data/drills'
 import { BOTS, recommendedBot, starsOf, type Bot } from '../engine/bots'
 import { STYLES } from '../engine/style'
 import { BotAvatar } from '../components/BotAvatar'
-import { useApp } from '../store'
+import { GAME_MODES, gameModeInfo, medalOf, update, useApp } from '../store'
 
 function Dot({ light }: { light: boolean }) {
   return <span style={{ width: 14, height: 14, borderRadius: '50%', background: light ? '#fff' : '#1b1033', border: '2px solid #888', display: 'inline-block' }} />
@@ -27,6 +27,19 @@ function StylePill({ bot }: { bot: Bot }) {
   return (
     <span className="style-pill" title={`${STYLES[bot.style].blurb} ${STYLES[bot.style].tip}`}>
       Stile {STYLES[bot.style].label.toLowerCase()}
+    </span>
+  )
+}
+
+const MEDAL_NAME = ['', 'bronzo', 'argento', 'oro']
+const MEDAL_HOW = ['', 'Allenamento', 'Senza rete', 'Torneo']
+
+/** La medaglia migliore contro un bot: bronzo in Allenamento, argento Senza rete, oro in Torneo. */
+function MedalBadge({ level }: { level: number }) {
+  if (level < 1) return null
+  return (
+    <span className={`badge-pill medal m${level}`} title={`Battuto in ${MEDAL_HOW[level]}`}>
+      <Medal size={13} weight="fill" /> {MEDAL_NAME[level]}
     </span>
   )
 }
@@ -83,7 +96,7 @@ export function PlaySetup({
   const [colorPick, setColorPick] = useState<'w' | 'b' | 'r'>('w')
   const skill = app.progress.skill
   const rec = suggested ?? recommendedBot(skill).id
-  const beaten = app.progress.botsBeaten
+  const gameMode = gameModeInfo(app.settings.gameMode ?? 'training')
   const recBot = BOTS.find((b) => b.id === rec) ?? recommendedBot(skill)
   const start = (b: Bot) => onStart(b, colorPick === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : colorPick)
 
@@ -123,6 +136,26 @@ export function PlaySetup({
             <Shuffle size={18} weight="bold" /> Casuale
           </button>
         </div>
+        <div className="mode-pick">
+          <div className="seg">
+            {GAME_MODES.map((m) => (
+              <button
+                key={m.id}
+                className={gameMode.id === m.id ? 'on' : ''}
+                onClick={() =>
+                  update((s) => {
+                    s.settings.gameMode = m.id
+                  })
+                }
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+          <small className="mode-blurb">
+            {gameMode.blurb} Se vinci: medaglia d’{gameMode.medalName}.
+          </small>
+        </div>
         <button className="btn primary big rec-play" onClick={() => start(recBot)}>
           <Play size={22} weight="fill" /> Gioca
         </button>
@@ -140,11 +173,7 @@ export function PlaySetup({
             <StylePill bot={b} />
             <Stars bot={b} size={13} />
             <span className="ladder-state">
-              {beaten.includes(b.id) && (
-                <span className="badge-pill ok">
-                  <Check size={12} weight="bold" /> battuto
-                </span>
-              )}
+              <MedalBadge level={medalOf(app.progress, b.id)} />
               {b.id === rec && <span className="badge-pill tip">consigliato</span>}
             </span>
           </button>

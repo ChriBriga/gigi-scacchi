@@ -2,6 +2,7 @@ import { Chess, type Color } from 'chess.js'
 import type { Judgement } from './engine/analysis'
 import { botById } from './engine/bots'
 import { parseUci } from './chess/util'
+import type { GameMode } from './store'
 
 /** Una mossa della partita, con il giudizio se c'è già. */
 export interface SavedMove {
@@ -20,6 +21,8 @@ export interface SavedGame {
   moves: SavedMove[]
   retracts: number
   badMoves: number
+  /** modo di gioco (assente nelle partite salvate prima dei modi = Allenamento) */
+  mode?: GameMode
   savedAt: number
 }
 

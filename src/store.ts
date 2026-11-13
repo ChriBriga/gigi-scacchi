@@ -9,6 +9,15 @@ import type { GameRecord } from './engine/mistakes'
 
 export type DangerMode = 'off' | 'threats' | 'full'
 
+/** Come si gioca una partita: con gli aiuti, senza poter ritirare, o in silenzio fino alla fine. */
+export type GameMode = 'training' | 'nonet' | 'tournament'
+export const GAME_MODES: { id: GameMode; name: string; blurb: string; medal: 1 | 2 | 3; medalName: string }[] = [
+  { id: 'training', name: 'Allenamento', blurb: 'Il coach ti avvisa e puoi ritirare la mossa. Aiuti a disposizione.', medal: 1, medalName: 'bronzo' },
+  { id: 'nonet', name: 'Senza rete', blurb: 'Il coach ti dice se sbagli, ma la mossa resta. Niente aiuti.', medal: 2, medalName: 'argento' },
+  { id: 'tournament', name: 'Torneo', blurb: 'Silenzio totale, niente barra né aiuti. Se ne parla alla fine.', medal: 3, medalName: 'oro' },
+]
+export const gameModeInfo = (m: GameMode) => GAME_MODES.find((x) => x.id === m) ?? GAME_MODES[0]
+
 export interface Settings {
   theme: ThemeId
   tone: Tone
@@ -37,6 +46,8 @@ export interface Settings {
   avatar: string
   /** il coach che ti parla (se non è sbloccato si usa Gigi) */
   coach: CoachId
+  /** l'ultimo modo di gioco scelto (resta sul dispositivo) */
+  gameMode: GameMode
 }
 
 /** Un errore tuo segnato sul quaderno: torna come esercizio a intervalli crescenti finché non lo hai imparato. */
@@ -94,6 +105,8 @@ export interface Progress {
   games: number
   wins: number
   botsBeaten: number[]
+  /** la medaglia migliore contro ogni bot (chiave = id del bot): 1 bronzo (Allenamento), 2 argento (Senza rete), 3 oro (Torneo) */
+  medals?: Record<string, number>
   /** conteggio errori per categoria (es. "pezzo in presa") */
   mistakeTags: Record<string, number>
   /** quante volte i puzzle sono stati "azzerati" dopo averli visti tutti (serve alla sincronizzazione) */
@@ -146,7 +159,7 @@ export const todayStr = () => new Date().toLocaleDateString('sv-SE')
 const emptyDay = (): DayLog => ({ day: todayStr(), lesson: false, puzzles: 0, game: false })
 
 const defaults = (): AppState => ({
-  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, evalBar: true, outfit: {}, outfits: {}, board: 'tema', pieces: 'classico', haptics: true, volume: 0.7, nickname: '', avatar: 'gigi', coach: 'gigi' },
+  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, evalBar: true, outfit: {}, outfits: {}, board: 'tema', pieces: 'classico', haptics: true, volume: 0.7, nickname: '', avatar: 'gigi', coach: 'gigi', gameMode: 'training' },
   progress: {
     placementDone: false,
     skill: 10,
@@ -387,6 +400,9 @@ export function resolveNotebook(id: string, ok: boolean) {
 }
 
 export const dueNotebook = (p: Progress): NotebookItem[] => (p.notebook ?? []).filter((i) => i.due <= todayStr())
+
+/** La medaglia migliore contro un bot: 0 nessuna, 1 bronzo, 2 argento, 3 oro. Le vittorie di prima delle medaglie valgono bronzo. */
+export const medalOf = (p: Progress, botId: number): number => Math.max(p.medals?.[String(botId)] ?? 0, p.botsBeaten.includes(botId) ? 1 : 0)
 
 /** Aggiorna la memoria di Gigi a fine partita. */
 export function rememberGame(botId: number, outcome: 'win' | 'lose' | 'draw', retracts: number, blunders: number, first?: string) {
