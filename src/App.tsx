@@ -58,7 +58,7 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme
     const info = THEMES.find((t) => t.id === settings.theme)
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', info?.themeColor ?? '#0e0720')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', info?.themeColor ?? '#121216')
   }, [settings.theme])
 
   const [help, setHelp] = useState(false)

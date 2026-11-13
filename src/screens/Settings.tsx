@@ -14,6 +14,7 @@ import { Wardrobe } from '../components/Wardrobe'
 import { AvatarFace, PIECE_AVATARS, useProfile } from '../components/Avatar'
 import { BOTS } from '../engine/bots'
 import { sfx } from '../sound'
+import { useOnline } from '../net'
 import { signIn, signOutSync, syncNow, useSyncStatus } from '../sync/cloud'
 
 const MOODS: [Mood, string][] = [
@@ -41,6 +42,7 @@ const TABS: [Tab, string][] = [
 export function Settings() {
   const { settings, progress } = useApp()
   const profile = useProfile()
+  const online = useOnline()
   const coachNow = activeCoach(settings, progress)
   const coachName = coachInfo(coachNow).name
   const [code, setCode] = useState('')
@@ -386,6 +388,12 @@ export function Settings() {
 
       {tab === 'dati' && (
       <>
+        {!online && (
+          <p className="muted" role="status">
+            <CloudSlash size={16} weight="duotone" style={{ verticalAlign: -3, marginRight: 6 }} />
+            Sei offline: si gioca lo stesso, ma la sincronizzazione e le spiegazioni di Gemini aspettano la rete.
+          </p>
+        )}
         <section className="card">
           <h3>
             <Key size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />

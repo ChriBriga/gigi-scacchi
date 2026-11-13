@@ -4517,6 +4517,33 @@ html:not([data-fx='low']) .dlg::backdrop {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   animation: toast-in var(--dur-3) var(--ease-spring);
 }
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toast-text {
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.toast-action {
+  flex: none;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 800;
+}
+/* durante la partita l'avviso fisso aspetta: non copre scacchiera né tasti */
+.app.in-game .toast.sticky {
+  display: none;
+}
 .toast.ok {
   border-color: color-mix(in srgb, var(--good) 60%, transparent);
 }

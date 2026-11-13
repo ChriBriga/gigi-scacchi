@@ -5,6 +5,7 @@ import { Board } from '../components/Board'
 import { CoachBubble } from '../components/CoachBubble'
 import { Confetti } from '../components/GameParts'
 import { bestMoveFor, evaluate } from '../engine/analysis'
+import { toast } from '../ui/Toast'
 import { botByRank, chooseBotMove } from '../engine/bots'
 import { GOAL_TEXT, type Drill } from '../data/drills'
 import { opposite, parseUci } from '../chess/util'
@@ -167,7 +168,10 @@ export function DrillPlay({ drill, onExit, onNext }: { drill: Drill; onExit: () 
   const showHint = async () => {
     if (phase !== 'player') return
     const level = Math.min(hintLevel + 1, 2)
-    const best = await bestMoveFor(game.current.fen())
+    const best = await bestMoveFor(game.current.fen()).catch(() => {
+      toast('Il motore non risponde: niente indizio per ora.', 'bad')
+      return undefined
+    })
     if (!best || !alive.current) return
     setHintLevel(level)
     setHint({ from: best.slice(0, 2) as Square, to: level >= 2 ? (best.slice(2, 4) as Square) : undefined })

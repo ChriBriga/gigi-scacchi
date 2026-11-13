@@ -7,15 +7,16 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': il service worker nuovo aspetta; si attiva solo quando tocchi "Aggiorna"
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pieces/*.svg', 'engine/*'],
       manifest: {
         name: 'Gigi Scacchi',
         short_name: 'Gigi Scacchi',
         description: 'Impara a giocare a scacchi in fretta, con Gigi il piccione.',
         lang: 'it',
-        theme_color: '#1b1033',
-        background_color: '#1b1033',
+        theme_color: '#121216',
+        background_color: '#121216',
         display: 'standalone',
         orientation: 'any',
         start_url: './',

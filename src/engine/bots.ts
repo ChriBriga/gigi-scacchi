@@ -1,5 +1,6 @@
 import { Chess, type PieceSymbol } from 'chess.js'
 import { UciEngine } from './uci'
+import { toast } from '../ui/Toast'
 import { candidateWeights, pickIndex, type StyleId } from './style'
 
 export interface Bot {
@@ -77,9 +78,17 @@ export async function chooseBotMove(fen: string, bot: Bot): Promise<string> {
   try {
     // chi ha uno stile guarda qualche mossa in più: la preferenza si esercita fra le candidate
     const styled = bot.style !== 'balanced' || !!bot.pet
-    res = await getBotEngine().search(fen, { depth: bot.depth, multipv: styled ? Math.max(bot.multipv, 4) : bot.multipv, movetime: bot.movetime })
+    const opts = { depth: bot.depth, multipv: styled ? Math.max(bot.multipv, 4) : bot.multipv, movetime: bot.movetime }
+    try {
+      res = await getBotEngine().search(fen, opts)
+    } catch {
+      // il motore si riavvia da solo alla ricerca dopo: un secondo tentativo, con un avviso
+      toast('Il motore non risponde. Riprovo…', 'bad')
+      res = await getBotEngine().search(fen, opts)
+    }
   } catch {
-    // motore in panne: il bot gioca a caso piuttosto che bloccare la partita
+    // motore ancora in panne: il bot gioca a caso piuttosto che bloccare la partita
+    toast('Il motore non parte: l’avversario muove a caso. Prova a ricaricare la pagina.', 'bad', 6000)
     const m = legal[Math.floor(Math.random() * legal.length)]
     return m.from + m.to + (m.promotion ?? '')
   }

@@ -9,12 +9,27 @@ import { initSync } from './sync/cloud'
 import { initPerf } from './perf'
 import { ensureVoice } from './coach/lines'
 import { currentCoach } from './store'
+import { toast } from './ui/Toast'
+import { initNet } from './net'
 
 // il livello degli effetti (Leggero/Normale/Spettacolare) va applicato prima del primo disegno
 initPerf()
 
-// con registerType 'autoUpdate' la pagina si ricarica da sola quando c'è una versione nuova
-registerSW({ immediate: true })
+initNet()
+
+// con registerType 'prompt' la pagina NON si ricarica da sola: compare un avviso e si aggiorna quando vuoi
+const updateApp = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    showUpdateToast()
+  },
+  onOfflineReady() {
+    toast('Pronta anche senza rete.', 'ok', 4000)
+  },
+})
+function showUpdateToast() {
+  toast('Nuova versione pronta', 'info', 0, { label: 'Aggiorna', onClick: () => void updateApp(true) })
+}
 
 // se avevi già collegato Google, la sincronizzazione riparte da sola
 initSync()
