@@ -166,7 +166,15 @@ export function App() {
   let narrow = false
   if (overlay?.kind === 'game') {
     const g = overlay
-    content = <Play key={g.key} bot={g.bot} color={g.color} mode={g.mode} resume={g.resume} onExit={close} onRematch={() => setOverlay({ kind: 'game', bot: g.bot, color: g.color, mode: g.mode, key: Date.now() })} />
+    content = <Play key={g.key} bot={g.bot} color={g.color} mode={g.mode} resume={g.resume} onExit={close} onRematch={() => setOverlay({ kind: 'game', bot: g.bot, color: g.color, mode: g.mode, key: Date.now() })}
+        onNext={(step) => {
+          // il consiglio di fine partita porta dritto alla cosa da fare
+          if (step.kind === 'bot') setOverlay({ kind: 'game', bot: step.bot, color: g.color, mode: step.mode, key: Date.now() })
+          else if (step.kind === 'puzzles') setOverlay({ kind: 'puzzles5', key: Date.now(), themes: step.themes, title: step.puzzleTitle })
+          else if (step.kind === 'lesson') openLesson(step.lesson)
+          else setOverlay({ kind: 'notebook' })
+        }}
+      />
   }
   else if (overlay?.kind === 'lesson') content = <LessonPlayer key={overlay.lesson.id} lesson={overlay.lesson} onExit={close} />
   else if (overlay?.kind === 'drill') {

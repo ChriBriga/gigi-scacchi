@@ -4818,3 +4818,29 @@ html:not([data-fx='low']) .dlg::backdrop {
 .play-side .actions.bare .wide {
   grid-column: auto;
 }
+
+/* --- Consiglio di fine partita --- */
+.next-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px 12px 12px;
+  border-radius: var(--r-lg);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.next-tip small {
+  font-weight: 800;
+  font-size: var(--fs-xs);
+  color: var(--accent);
+}
+.next-tip strong {
+  font-size: var(--fs-md);
+}
+.next-tip p {
+  margin: 0 0 6px;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  color: var(--muted);
+}

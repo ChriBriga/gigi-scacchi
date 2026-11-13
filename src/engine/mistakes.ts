@@ -133,6 +133,10 @@ export interface GameRecord {
   kinds: Partial<Record<MistakeKind, number>>
   /** minacce dell'avversario incontrate (solo se ce ne sono state): quante, parate, ignorate, aiuti "T" usati */
   threats?: { seen: number; handled: number; missed: number; asked: number }
+  /** modo di gioco (assente nelle partite di prima dei modi = Allenamento) */
+  mode?: 'training' | 'nonet' | 'tournament'
+  /** mosse ritirate */
+  retracts?: number
 }
 
 /** Formula di Lichess: perdita media di probabilità di vittoria (punti %) → precisione. */

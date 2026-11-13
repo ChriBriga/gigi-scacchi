@@ -19,6 +19,7 @@ import { PIECE_NAME, opposite, parseUci } from '../chess/util'
 import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
 import { explainWithGemini, summarizeGameWithGemini } from '../coach/gemini'
 import { coachInfo } from '../coach/coaches'
+import { nextStep, type NextStep } from '../coach/nextStep'
 import { addGameRecord, addToNotebook, addXp, bumpMistake, currentCoach, gameModeInfo, getState, medalOf, nudgeSkill, rememberGame, todayStr, touchDay, update, useApp, type DangerMode, type GameMode, type NotebookDraft } from '../store'
 import { sfx } from '../sound'
 import { watchFrames } from '../perf'
@@ -76,7 +77,7 @@ const MODE_NOTE: Record<GameMode, string> = {
   tournament: ' Torneo: da qui in poi sto zitto. Ne parliamo alla fine.',
 }
 
-export function Play({ bot, color, mode = 'training', resume, onExit, onRematch }: { bot: Bot; color: Color; mode?: GameMode; resume?: SavedGame; onExit: () => void; onRematch?: () => void }) {
+export function Play({ bot, color, mode = 'training', resume, onExit, onRematch, onNext }: { bot: Bot; color: Color; mode?: GameMode; resume?: SavedGame; onExit: () => void; onRematch?: () => void; onNext?: (step: NextStep) => void }) {
   const app = useApp()
   const settings = app.settings
   /** Allenamento: avvisi, ritiro della mossa e aiuti. Negli altri modi la mossa resta e gli aiuti spariscono. */
@@ -123,6 +124,8 @@ export function Play({ bot, color, mode = 'training', resume, onExit, onRematch 
   const [cleanNote, setCleanNote] = useState<string | null>(null)
   /** medaglia appena conquistata (o migliorata) contro questo bot */
   const [medalNote, setMedalNote] = useState<string | null>(null)
+  /** il consiglio di fine partita: cosa fare adesso */
+  const [tip, setTip] = useState<NextStep | null>(null)
   const [notebookNote, setNotebookNote] = useState<string | null>(null)
   /** commento di fine partita di Gemini (facoltativo): 'loading' mentre scrive, poi il testo; se non arriva non si vede nulla */
   const [summary, setSummary] = useState<'loading' | string | null>(null)
@@ -695,7 +698,12 @@ export function Play({ bot, color, mode = 'training', resume, onExit, onRematch 
       const rec = buildRecord(moves, color, bot.id, result.outcome, todayStr())
       if (rec) {
         if (threatStats.current.seen > 0) rec.threats = { ...threatStats.current }
+        rec.mode = mode
+        rec.retracts = retracts.current
         addGameRecord(rec)
+      }
+      setTip(nextStep(getState().progress, { bot, mode, outcome: result.outcome, retracts: retracts.current, rec }))
+      if (rec) {
         // il commento di Gemini parte in coda: non blocca né rallenta la revisione
         if (settings.geminiKey) {
           const worst = [...reviewItems]
@@ -900,6 +908,16 @@ export function Play({ bot, color, mode = 'training', resume, onExit, onRematch 
               {notebookNote && <p className="review-note">{notebookNote}</p>}
               {summary === 'loading' && <p className="review-note">{coachInfo(currentCoach()).name} sta scrivendo il commento…</p>}
               {summary && summary !== 'loading' && <p className="review-note summary">{summary}</p>}
+              {tip && onNext && (
+                <div className="next-tip">
+                  <small>{coachInfo(currentCoach()).name} consiglia</small>
+                  <strong>{tip.title}</strong>
+                  <p>{tip.why}</p>
+                  <button className="btn" onClick={() => onNext(tip)}>
+                    {tip.cta} <ArrowRight size={18} weight="bold" />
+                  </button>
+                </div>
+              )}
               <div className="result-actions">
                 {!analysing && reviewItems.length > 0 && (
                   <button className="btn primary" onClick={() => setReviewOpen(true)}>
@@ -912,7 +930,7 @@ export function Play({ bot, color, mode = 'training', resume, onExit, onRematch 
                   </button>
                 )}
                 <div className="result-row">
-                  {onRematch && (
+                  {onRematch && !(tip && onNext && tip.kind === 'bot' && tip.bot.id === bot.id && tip.mode === mode) && (
                     <button className="btn" onClick={onRematch}>
                       <ArrowsClockwise size={18} weight="bold" /> Rivincita
                     </button>

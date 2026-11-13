@@ -44,15 +44,24 @@ L'errore fatto in "Senza rete" o "Torneo" finisce comunque nel Quaderno.
 
 Così la scala dei bot misura qualcosa di vero: oggi una vittoria con 6 mosse ritirate vale come una pulita.
 
-### 3. Gigi consiglia la prossima mossa (fuori dalla scacchiera) — `da fare` (prossimo)
+### 3. Gigi consiglia la prossima mossa (fuori dalla scacchiera) — `fatto`
 
-Dopo ogni partita, un solo consiglio con il motivo, calcolato dallo storico (`progress.history`), senza bisogno di Gemini:
+Nel riquadro di fine partita, un solo consiglio con il motivo e un tasto che ci porta dritto. Calcolato dallo storico, senza Gemini (`src/coach/nextStep.ts`). Regole, in ordine:
 
-- 2 vittorie di fila contro lo stesso bot con precisione alta → "sali al prossimo"
-- vittoria solo con tante mosse ritirate → "rigiocalo Senza rete"
-- 3 sconfitte di fila o precisione in calo → "scendi di uno" oppure "5 puzzle sul tuo punto debole"
-- stesso tipo di errore in 3 partite → lezione o puzzle su quel tema
-- errori del Quaderno in scadenza → ripasso prima di giocare
+Se hai vinto:
+- in Allenamento ritirando 2 o più mosse → rigioca lo stesso bot Senza rete
+- Senza rete o Torneo con precisione sotto il 70% → un'altra contro lo stesso bot, per conferma
+- altrimenti → sali al bot successivo, nello stesso modo
+- contro l'ultimo bot → riprovaci in Torneo per l'oro
+
+Se hai perso o pareggiato:
+- 3 sconfitte di fila → scendi di un bot
+- stesso tipo di errore 2 volte nella partita, o in 3 partite di fila → lezione su quel tema (se non l'hai fatta) oppure 5 puzzle
+- errori del Quaderno in scadenza → ripasso
+- Senza rete o Torneo con precisione sotto il 60% → rigioca lo stesso bot in Allenamento
+- altrimenti → rivincita
+
+Da valutare più avanti: usare lo stesso consiglio anche nella Home (oggi lì il bot consigliato segue solo il livello stimato).
 
 ### 4. Bot in categorie + punteggio del giocatore — `da decidere`
 
@@ -83,7 +92,7 @@ Allenamento contro le sviste: posizione + mossa proposta, il giocatore dice "sic
 ## Ordine consigliato
 
 1. ~~Modi di gioco + medaglie (1 e 2)~~ fatto
-2. Consiglio dopo la partita (3)
+2. ~~Consiglio dopo la partita (3)~~ fatto
 3. Categorie e punteggio (4), dopo aver deciso
 4. "Questa mossa è sicura?" (5)
 5. Statistiche (6)
