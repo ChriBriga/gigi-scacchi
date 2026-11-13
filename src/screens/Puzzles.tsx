@@ -10,6 +10,7 @@ import { parseUci } from '../chess/util'
 import { EVENT_MOOD, pieceWithArticle, sayLine, type CoachEvent, type Mood } from '../coach/lines'
 import { addXp, dueNotebook, getState, nudgeSkill, touchDay, update, useApp, type Progress } from '../store'
 import { sfx } from '../sound'
+import { EmptyState } from '../ui/EmptyState'
 
 export interface Puzzle {
   id: string
@@ -282,6 +283,17 @@ export function PuzzleRunner({
       </div>
       <div className="game-shell">
         <div className="game-main">
+          <div className={`turn-row${solved ? ' done' : ''}`} aria-live="polite">
+            {solved ? (
+              <>
+                <Check size={16} weight="bold" /> Risolto
+              </>
+            ) : (
+              <>
+                <i className={`turn-dot ${turn}`} /> Tocca al {turn === 'w' ? 'Bianco' : 'Nero'}
+              </>
+            )}
+          </div>
           <Board fen={fen} orientation={turn} movable={solved ? null : turn} onMove={onMove} lastMove={lastMove} hint={hintInfo} shake={shake} arrows={solved && puzzle.threat ? [[puzzle.threat.slice(0, 2) as Square, puzzle.threat.slice(2, 4) as Square, '#ff5a36']] : undefined} />
         </div>
         <div className="game-side">
@@ -332,13 +344,15 @@ export function Puzzles({ onExit, onNotebook }: { onExit: () => void; onNotebook
     )
   }
   return (
-    <div className="screen">
+    <div className="screen puzzle-home">
       <h2>Puzzle</h2>
       <p className="sub">Trovare la mossa giusta in pochi secondi: l’allenamento più veloce che esista.</p>
+      <div className="puzzle-home-grid">
+      <div className="puzzle-home-col">
       <button className="btn primary big" style={{ maxWidth: 460 }} onClick={() => setStarted(true)}>
         <PuzzlePiece size={24} weight="fill" /> Inizia ad allenarti
       </button>
-      <div className="card" style={{ maxWidth: 640 }}>
+      <div className="card">
         <h3>
           <Notebook size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
           Quaderno degli errori
@@ -346,22 +360,30 @@ export function Puzzles({ onExit, onNotebook }: { onExit: () => void; onNotebook
         <p className="muted" style={{ marginTop: 0 }}>
           Gli errori che fai in partita tornano come esercizio dopo 1, 3, 7, 14 e 30 giorni, finché non li hai imparati.
         </p>
-        <div className="stats">
-          <div className="stat">
-            <b>{notebookSize}</b> sul quaderno
-          </div>
-          <div className="stat">
-            <b>{notebookDue}</b> da ripassare
-          </div>
-          <div className="stat">
-            <b>{learned}</b> imparati
-          </div>
-        </div>
-        <button className="btn" style={{ marginTop: 12 }} onClick={onNotebook} disabled={notebookSize === 0}>
-          <Notebook size={20} weight="bold" /> {notebookDue > 0 ? 'Ripassa ora' : notebookSize ? 'Niente da ripassare oggi' : 'Ancora vuoto'}
-        </button>
+        {notebookSize === 0 ? (
+          <EmptyState text="Il quaderno è vuoto. Gioca una partita: gli errori che contano finiscono qui." mood="thinking" />
+        ) : (
+          <>
+            <div className="stats">
+              <div className="stat">
+                <b>{notebookSize}</b> sul quaderno
+              </div>
+              <div className="stat">
+                <b>{notebookDue}</b> da ripassare
+              </div>
+              <div className="stat">
+                <b>{learned}</b> imparati
+              </div>
+            </div>
+            <button className="btn" style={{ marginTop: 12 }} onClick={onNotebook} disabled={notebookDue === 0}>
+              <Notebook size={20} weight="bold" /> {notebookDue > 0 ? 'Ripassa ora' : 'Niente da ripassare oggi'}
+            </button>
+          </>
+        )}
       </div>
-      <div className="card" style={{ maxWidth: 640 }}>
+      </div>
+      <div className="puzzle-home-col">
+      <div className="card">
         <h3>I tuoi temi</h3>
         {(Object.keys(THEME_INFO) as Puzzle['theme'][]).map((t) => {
           const st = stats[t] ?? { ok: 0, fail: 0 }
@@ -377,6 +399,8 @@ export function Puzzles({ onExit, onNotebook }: { onExit: () => void; onNotebook
             </div>
           )
         })}
+      </div>
+      </div>
       </div>
       <button className="ghost" onClick={onExit}>
         <ArrowLeft size={18} weight="bold" /> Torna alla home

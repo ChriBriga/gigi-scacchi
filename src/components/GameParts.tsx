@@ -145,7 +145,7 @@ export function MoveList({ moves, current, onSelect }: { moves: MoveRow[]; curre
     )
   return (
     <div className="move-list" ref={box}>
-      {rows.length === 0 && <p className="muted">Le mosse compariranno qui.</p>}
+      {rows.length === 0 && <p className="move-empty">Le mosse compariranno qui.</p>}
       {rows.map((r) => (
         <div className="mv-row" key={r.n}>
           <span className="mv-n">{r.n}.</span>

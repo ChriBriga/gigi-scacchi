@@ -318,8 +318,8 @@ export function GameReplay({
             </div>
             <div className="rs-pills">
               {QUALITY_ORDER.filter((q) => (summary.q[q] ?? 0) > 0).map((q) => (
-                <button key={q} className="chip rs-pill" style={{ background: QUALITY_INFO[q].color }} onClick={() => jumpQuality(q)} title={`Vai alle mosse: ${QUALITY_INFO[q].label}`}>
-                  <QualityIcon q={q} /> {QUALITY_INFO[q].label} <b>{summary.q[q]}</b>
+                <button key={q} className="chip rs-pill" style={{ background: QUALITY_INFO[q].color }} onClick={() => jumpQuality(q)} title={`Vai alle mosse: ${QUALITY_INFO[q].label}`} aria-label={`${QUALITY_INFO[q].label}: ${summary.q[q]}`}>
+                  <QualityIcon q={q} /> <span className="rs-label">{QUALITY_INFO[q].label}</span> <b>{summary.q[q]}</b>
                 </button>
               ))}
             </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ArrowsClockwise, ChalkboardTeacher, Check, Checkerboard, CloudCheck, CloudSlash, Download, Eye, EyeSlash, Export, GoogleLogo, Key, Lightning, Lock, PlugsConnected, Palette, Smiley, SpeakerHigh, UserCircle } from '@phosphor-icons/react'
 import { FX_LABEL, setFxPref, useFx, type FxPref } from '../perf'
 import { BOARD_STYLES, PIECE_SETS, pieceUrl } from '../chess/look'
@@ -13,6 +13,7 @@ import { THEMES, type ThemeId } from '../themes'
 import { Wardrobe } from '../components/Wardrobe'
 import { AvatarFace, PIECE_AVATARS, useProfile } from '../components/Avatar'
 import { BOTS } from '../engine/bots'
+import { sfx } from '../sound'
 import { signIn, signOutSync, syncNow, useSyncStatus } from '../sync/cloud'
 
 const MOODS: [Mood, string][] = [
@@ -28,6 +29,15 @@ const MOODS: [Mood, string][] = [
   ['sleepy', 'Assonnato'],
 ]
 
+type Tab = 'profilo' | 'aspetto' | 'coach' | 'partita' | 'dati'
+const TABS: [Tab, string][] = [
+  ['profilo', 'Profilo'],
+  ['aspetto', 'Aspetto'],
+  ['coach', 'Coach'],
+  ['partita', 'Partita'],
+  ['dati', 'Dati'],
+]
+
 export function Settings() {
   const { settings, progress } = useApp()
   const profile = useProfile()
@@ -41,6 +51,14 @@ export function Settings() {
   const sync = useSyncStatus()
   const fx = useFx()
   const [hotMood, setHotMood] = useState<Mood | null>(null)
+  const [tab, setTab] = useState<Tab>('profilo')
+  const top = useRef<HTMLDivElement>(null)
+  const goTab = (t: Tab) => {
+    setTab(t)
+    // il contenitore che scorre è <main>: si torna in cima
+    top.current?.closest('main')?.scrollTo(0, 0)
+  }
+  const vol = settings.sound ? Math.round((settings.volume ?? 0.7) * 100) : 0
 
   const set = <K extends keyof typeof settings>(k: K, v: (typeof settings)[K]) =>
     update((s) => {
@@ -54,8 +72,18 @@ export function Settings() {
   ]
 
   return (
-    <div className="screen">
+    <div className="screen" ref={top}>
       <h2>Impostazioni</h2>
+
+      <div className="seg set-tabs" role="tablist" aria-label="Sezioni delle impostazioni">
+        {TABS.map(([t, l]) => (
+          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => goTab(t)}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'profilo' && (
 
       <section className="card">
         <h3>
@@ -110,7 +138,10 @@ export function Settings() {
         </div>
         <p className="muted" style={{ marginBottom: 0 }}>Gli avversari battuti diventano avatar.</p>
       </section>
+      )}
 
+      {tab === 'aspetto' && (
+      <>
       <section className="card">
         <h3>
           <Palette size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
@@ -206,7 +237,11 @@ export function Settings() {
           </label>
         )}
       </section>
+      </>
+      )}
 
+      {tab === 'coach' && (
+      <>
       <section className="card">
         <h3>
           <ChalkboardTeacher size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
@@ -259,8 +294,7 @@ export function Settings() {
 
       <Wardrobe />
 
-      <div className="settings-grid">
-        <section className="card">
+      <section className="card">
           <h3>
             <Smiley size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
             Come ti tratta {coachName}
@@ -285,7 +319,10 @@ export function Settings() {
             ))}
           </div>
         </section>
+      </>
+      )}
 
+      {tab === 'partita' && (
         <section className="card">
           <h3>
             <Eye size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
@@ -315,15 +352,40 @@ export function Settings() {
             <span>Barra di valutazione accanto alla scacchiera</span>
             <input type="checkbox" checked={settings.evalBar} onChange={(e) => set('evalBar', e.target.checked)} />
           </label>
-          <label className="switch">
-            <span>
+          <div className="vol-row">
+            <label htmlFor="vol">
               <SpeakerHigh size={18} weight="duotone" style={{ verticalAlign: -3, marginRight: 6 }} />
               Suoni
-            </span>
-            <input type="checkbox" checked={settings.sound} onChange={(e) => set('sound', e.target.checked)} />
-          </label>
+            </label>
+            <input
+              id="vol"
+              className="vol"
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={vol}
+              style={{ ['--v' as string]: `${vol}%` }}
+              aria-valuetext={vol === 0 ? 'Muto' : `${vol}%`}
+              onChange={(e) => {
+                const n = Number(e.target.value)
+                update((st) => {
+                  st.settings.volume = n / 100
+                  st.settings.sound = n > 0
+                })
+              }}
+              onPointerUp={() => sfx.move()}
+              onKeyUp={(e) => {
+                if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End') sfx.move()
+              }}
+            />
+            <output htmlFor="vol">{vol}%</output>
+          </div>
         </section>
+      )}
 
+      {tab === 'dati' && (
+      <>
         <section className="card">
           <h3>
             <Key size={20} weight="duotone" style={{ verticalAlign: -4, marginRight: 6 }} />
@@ -437,7 +499,8 @@ export function Settings() {
           <textarea className="text" rows={3} value={code} onChange={(e) => setCode(e.target.value)} placeholder="Codice di sincronizzazione" />
           {msg && <p className="muted">{msg}</p>}
         </section>
-      </div>
+      </>
+      )}
     </div>
   )
 }

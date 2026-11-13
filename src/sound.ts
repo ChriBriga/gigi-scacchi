@@ -7,12 +7,20 @@ import { buzz } from './haptics'
  */
 let ctx: AudioContext | null = null
 let noise: AudioBuffer | null = null
+let master: GainNode | null = null
 
 function audio(): AudioContext | null {
   if (!getState().settings.sound) return null
   try {
     ctx ??= new AudioContext()
     if (ctx.state === 'suspended') void ctx.resume()
+    if (!master) {
+      master = ctx.createGain()
+      master.connect(ctx.destination)
+    }
+    // il volume si applica qui, in un punto solo: tutti i suoni passano da questo nodo
+    const v = getState().settings.volume
+    master.gain.value = Math.max(0, Math.min(1, typeof v === 'number' ? v : 0.7))
     return ctx
   } catch {
     return null
@@ -42,7 +50,7 @@ function knock(when: number, opts: { freq: number; q: number; dur: number; vol: 
   const g = c.createGain()
   g.gain.setValueAtTime(opts.vol, t0)
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + opts.dur)
-  src.connect(bp).connect(g).connect(c.destination)
+  src.connect(bp).connect(g).connect(master!)
   src.start(t0, Math.random() * 0.3)
   src.stop(t0 + opts.dur + 0.02)
   if (opts.body) {
@@ -53,7 +61,7 @@ function knock(when: number, opts: { freq: number; q: number; dur: number; vol: 
     o.frequency.exponentialRampToValueAtTime(opts.body * 0.55, t0 + opts.dur)
     og.gain.setValueAtTime(opts.vol * 0.9, t0)
     og.gain.exponentialRampToValueAtTime(0.0001, t0 + opts.dur * 1.1)
-    o.connect(og).connect(c.destination)
+    o.connect(og).connect(master!)
     o.start(t0)
     o.stop(t0 + opts.dur * 1.2)
   }
@@ -76,7 +84,7 @@ function chime(freq: number, when: number, dur = 0.5, vol = 0.12) {
     g.gain.setValueAtTime(0.0001, t0)
     g.gain.exponentialRampToValueAtTime(v, t0 + 0.012)
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
-    o.connect(g).connect(c.destination)
+    o.connect(g).connect(master!)
     o.start(t0)
     o.stop(t0 + dur + 0.05)
   }
@@ -97,7 +105,7 @@ function thud(freq: number, when: number, dur = 0.3, vol = 0.18) {
   lp.frequency.value = 700
   g.gain.setValueAtTime(vol, t0)
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
-  o.connect(lp).connect(g).connect(c.destination)
+  o.connect(lp).connect(g).connect(master!)
   o.start(t0)
   o.stop(t0 + dur + 0.05)
 }

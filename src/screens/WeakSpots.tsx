@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { ArrowLeft, Binoculars, BookOpen, Flag, Notebook as NotebookIcon, PuzzlePiece } from '@phosphor-icons/react'
 import { CoachBubble } from '../components/CoachBubble'
+import { EmptyState } from '../ui/EmptyState'
 import { LESSONS, type Lesson } from '../data/lessons'
 import { botById } from '../engine/bots'
 import { MISTAKE_INFO, weakSpots, type GameRecord } from '../engine/mistakes'
@@ -108,20 +109,21 @@ export function WeakSpots({
     return (
       <div className="screen">
         {header}
-        <div className="hero">
-          <CoachBubble
+        <div className="card">
+          <EmptyState
             text={
               history.length === 0
                 ? 'Non ho ancora abbastanza partite per dirti dove perdi punti. Gioca un paio di partite con il giudizio acceso e torna qui.'
                 : 'Una partita sola non basta per capire un andamento. Giocane ancora una e ti dico cosa non va.'
             }
             mood="thinking"
-            size={96}
+            action={
+              <button className="btn primary" onClick={onExit}>
+                Va bene
+              </button>
+            }
           />
         </div>
-        <button className="btn primary big" onClick={onExit}>
-          Va bene
-        </button>
       </div>
     )
   }

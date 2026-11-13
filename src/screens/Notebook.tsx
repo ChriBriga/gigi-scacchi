@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { ArrowLeft, Notebook as NotebookIcon } from '@phosphor-icons/react'
-import { CoachBubble } from '../components/CoachBubble'
+import { EmptyState } from '../ui/EmptyState'
 import { GameReview, type ReviewItem } from '../components/GameReview'
 import { dueNotebook, getState, notebookId, resolveNotebook, useApp, type NotebookItem } from '../store'
 
@@ -45,16 +45,17 @@ export function NotebookSession({ onExit }: { onExit: () => void }) {
             <NotebookIcon size={24} weight="duotone" /> Quaderno degli errori
           </div>
         </div>
-        <div className="hero">
-          <CoachBubble
+        <div className="card">
+          <EmptyState
             text={total ? 'Per oggi niente da ripassare. Gli errori sul quaderno tornano quando è il momento giusto.' : 'Il quaderno è vuoto. Gioca una partita: gli errori che contano finiscono qui.'}
             mood="cool"
-            size={96}
+            action={
+              <button className="btn primary" onClick={onExit}>
+                Va bene
+              </button>
+            }
           />
         </div>
-        <button className="btn primary big" onClick={onExit}>
-          Va bene
-        </button>
       </div>
     )
   }

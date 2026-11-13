@@ -29,6 +29,8 @@ export interface Settings {
   pieces: string
   /** vibrazione sul telefono (resta sul dispositivo, non si sincronizza) */
   haptics: boolean
+  /** volume dei suoni 0-1 (resta sul dispositivo; `sound` false = muto) */
+  volume: number
   /** nome mostrato nel profilo (vuoto = quello dell'account Google) */
   nickname: string
   /** avatar scelto: 'gigi', 'google', 'piece:wN', 'bot:3', 'coach:gufo' */
@@ -144,7 +146,7 @@ export const todayStr = () => new Date().toLocaleDateString('sv-SE')
 const emptyDay = (): DayLog => ({ day: todayStr(), lesson: false, puzzles: 0, game: false })
 
 const defaults = (): AppState => ({
-  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, evalBar: true, outfit: {}, outfits: {}, board: 'tema', pieces: 'classico', haptics: true, nickname: '', avatar: 'gigi', coach: 'gigi' },
+  settings: { theme: 'notte', tone: 'spicy', danger: 'threats', sound: true, geminiKey: '', liveJudging: true, evalBar: true, outfit: {}, outfits: {}, board: 'tema', pieces: 'classico', haptics: true, volume: 0.7, nickname: '', avatar: 'gigi', coach: 'gigi' },
   progress: {
     placementDone: false,
     skill: 10,

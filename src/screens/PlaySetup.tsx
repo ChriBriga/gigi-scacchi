@@ -112,7 +112,7 @@ export function PlaySetup({
             <StylePill bot={recBot} />
           </span>
         </div>
-        <div className="seg">
+        <div className="seg rec-seg">
           <button className={colorPick === 'w' ? 'on' : ''} onClick={() => setColorPick('w')}>
             <Dot light /> Bianco
           </button>
@@ -123,7 +123,7 @@ export function PlaySetup({
             <Shuffle size={18} weight="bold" /> Casuale
           </button>
         </div>
-        <button className="btn primary big" onClick={() => start(recBot)}>
+        <button className="btn primary big rec-play" onClick={() => start(recBot)}>
           <Play size={22} weight="fill" /> Gioca
         </button>
       </div>
