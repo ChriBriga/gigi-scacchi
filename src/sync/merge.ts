@@ -65,6 +65,8 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
   return {
     placementDone: a.placementDone || b.placementDone,
     skill: newer.skill,
+    rating: newer.rating ?? a.rating ?? b.rating,
+    ratedGames: Math.max(a.ratedGames ?? 0, b.ratedGames ?? 0),
     xp: Math.max(a.xp, b.xp),
     streak: laterDay.streak,
     lastActiveDay: laterDay.lastActiveDay,

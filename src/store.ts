@@ -12,9 +12,9 @@ export type DangerMode = 'off' | 'threats' | 'full'
 /** Come si gioca una partita: con gli aiuti, senza poter ritirare, o in silenzio fino alla fine. */
 export type GameMode = 'training' | 'nonet' | 'tournament'
 export const GAME_MODES: { id: GameMode; name: string; blurb: string; medal: 1 | 2 | 3; medalName: string }[] = [
-  { id: 'training', name: 'Allenamento', blurb: 'Il coach ti avvisa e puoi ritirare la mossa. Aiuti a disposizione.', medal: 1, medalName: 'bronzo' },
-  { id: 'nonet', name: 'Senza rete', blurb: 'Il coach ti dice se sbagli, ma la mossa resta. Niente aiuti.', medal: 2, medalName: 'argento' },
-  { id: 'tournament', name: 'Torneo', blurb: 'Silenzio totale, niente barra né aiuti. Se ne parla alla fine.', medal: 3, medalName: 'oro' },
+  { id: 'training', name: 'Allenamento', blurb: 'Il coach ti avvisa e puoi ritirare la mossa. Aiuti a disposizione.', medal: 1, medalName: 'di bronzo' },
+  { id: 'nonet', name: 'Senza rete', blurb: 'Il coach ti dice se sbagli, ma la mossa resta. Niente aiuti.', medal: 2, medalName: 'd’argento' },
+  { id: 'tournament', name: 'Torneo', blurb: 'Silenzio totale, niente barra né aiuti. Se ne parla alla fine.', medal: 3, medalName: 'd’oro' },
 ]
 export const gameModeInfo = (m: GameMode) => GAME_MODES.find((x) => x.id === m) ?? GAME_MODES[0]
 
@@ -107,6 +107,10 @@ export interface Progress {
   botsBeaten: number[]
   /** la medaglia migliore contro ogni bot (chiave = id del bot): 1 bronzo (Allenamento), 2 argento (Senza rete), 3 oro (Torneo) */
   medals?: Record<string, number>
+  /** il punteggio del giocatore sulla scala dei bot: si muove solo con le partite Senza rete e Torneo (assente = ancora stimato) */
+  rating?: number
+  /** quante partite hanno già mosso il punteggio */
+  ratedGames?: number
   /** conteggio errori per categoria (es. "pezzo in presa") */
   mistakeTags: Record<string, number>
   /** quante volte i puzzle sono stati "azzerati" dopo averli visti tutti (serve alla sincronizzazione) */
@@ -294,6 +298,27 @@ export function addGameRecord(rec: GameRecord) {
     list.sort((a, b) => a.id - b.id)
     if (list.length > HISTORY_MAX) list.splice(0, list.length - HISTORY_MAX)
   })
+}
+
+/** Il punteggio da mostrare: quello vero se hai già giocato partite che contano, altrimenti una stima dal livello. */
+export const ratingOf = (p: Progress): number => Math.round(p.rating ?? 400 + p.skill * 15)
+
+/**
+ * Aggiorna il punteggio dopo una partita che conta (Senza rete o Torneo), con la formula dell'Elo:
+ * battere chi ha più punti vale tanto, perdere con chi ne ha meno costa tanto. Le prime 10 partite pesano di più.
+ */
+export function rateGame(botPoints: number, outcome: 'win' | 'lose' | 'draw'): { before: number; after: number } {
+  const p = state.progress
+  const before = ratingOf(p)
+  const expected = 1 / (1 + 10 ** ((botPoints - before) / 400))
+  const k = (p.ratedGames ?? 0) < 10 ? 40 : 24
+  const score = outcome === 'win' ? 1 : outcome === 'draw' ? 0.5 : 0
+  const after = Math.max(100, Math.round(before + k * (score - expected)))
+  update((s) => {
+    s.progress.rating = after
+    s.progress.ratedGames = (s.progress.ratedGames ?? 0) + 1
+  })
+  return { before, after }
 }
 
 export function nudgeSkill(delta: number) {

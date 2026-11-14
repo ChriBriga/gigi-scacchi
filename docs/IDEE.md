@@ -63,13 +63,15 @@ Se hai perso o pareggiato:
 
 Da valutare più avanti: usare lo stesso consiglio anche nella Home (oggi lì il bot consigliato segue solo il livello stimato).
 
-### 4. Bot in categorie + punteggio del giocatore — `da decidere`
+### 4. Bot in categorie + punteggio del giocatore — `fatto`
 
-- **Categorie**: 4 gruppi da 4 (es. Parco, Circolo, Torneo, Leggende), l'ultimo di ogni gruppo è il "boss".
-- **Sblocco**: sconsigliato il blocco rigido. Meglio tutto aperto, con il gruppo successivo "consigliato" quando hai almeno l'argento sul boss.
-- **Elo**: i bot non sono tarati su un Elo vero, quindi un numero tipo "1200" sarebbe inventato. Alternativa onesta: un **punteggio interno** (i bot hanno un valore fisso sulla scala, il giocatore sale e scende come con l'Elo, contano solo le partite Senza rete e Torneo). Dà il numero che dice "sto migliorando?" senza fingere che sia l'Elo di chess.com. Le stelline spariscono.
+Deciso il 13/11/2026: sì a entrambi (sostituisce la vecchia scelta "niente Elo").
 
-Nota: in passato la scelta era "8 livelli senza mostrare Elo". Va riconfermata o cambiata.
+- **Categorie**: 4 gruppi da 4 (Il parco, Il circolo, I maestri, Le leggende), l'ultimo di ogni gruppo è il "boss". Tutto aperto, nessun blocco.
+- **Punti dei bot**: da 400 a 1900, cento per gradino, al posto delle stelline. È una scala interna dell'app, non un Elo vero.
+- **Punteggio del giocatore**: sale e scende con la formula dell'Elo, solo nelle partite Senza rete e Torneo (anche la resa conta). Finché non ne hai giocate è una stima dal livello ("~483 stimato"). Le prime 10 partite pesano di più.
+
+Da valutare più avanti: grafico del punteggio nel tempo (ogni partita nello storico lo ricorda già), punteggio mostrato anche in Home/profilo, bot consigliato in base al punteggio invece che al livello stimato.
 
 ### 5. "Questa mossa è sicura?" — `da fare` (priorità 3)
 
@@ -93,6 +95,6 @@ Allenamento contro le sviste: posizione + mossa proposta, il giocatore dice "sic
 
 1. ~~Modi di gioco + medaglie (1 e 2)~~ fatto
 2. ~~Consiglio dopo la partita (3)~~ fatto
-3. Categorie e punteggio (4), dopo aver deciso
+3. ~~Categorie e punteggio (4)~~ fatto
 4. "Questa mossa è sicura?" (5)
 5. Statistiche (6)

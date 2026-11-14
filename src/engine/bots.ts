@@ -6,7 +6,7 @@ import { candidateWeights, pickIndex, type StyleId } from './style'
 export interface Bot {
   /** identità stabile: salvata nei progressi, non va mai cambiata */
   id: number
-  /** posizione nella scala di difficoltà (1 = il più facile); le stelle sono rank / 2 */
+  /** posizione nella scala di difficoltà (1 = il più facile); da qui vengono i punti (vedi botPoints) e il gruppo */
   rank: number
   name: string
   tagline: string
@@ -49,8 +49,20 @@ export const BOTS: Bot[] = [
 export const botById = (id: number): Bot | undefined => BOTS.find((b) => b.id === id)
 export const botByRank = (rank: number): Bot => BOTS[Math.max(1, Math.min(BOTS.length, Math.round(rank))) - 1]
 export const rankOfId = (id: number): number => botById(id)?.rank ?? 0
-/** Le stelle mostrate: un gradino della scala = mezza stella. */
-export const starsOf = (b: Bot): number => b.rank / 2
+/**
+ * I punti di forza di un bot sulla scala interna dell'app (400-1900, cento per gradino).
+ * Non sono un Elo vero: servono a far salire e scendere il punteggio del giocatore.
+ */
+export const botPoints = (b: Bot): number => 300 + b.rank * 100
+
+/** La scala divisa in quattro gruppi da quattro: l'ultimo di ogni gruppo è il boss. */
+export const BOT_GROUPS: { name: string; blurb: string; bots: Bot[] }[] = [
+  { name: 'Il parco', blurb: 'Per cominciare: sbagliano spesso, basta non regalare pezzi.' },
+  { name: 'Il circolo', blurb: 'Qui le sviste si pagano quasi sempre.' },
+  { name: 'I maestri', blurb: 'Pochi errori: serve un piano, non solo attenzione.' },
+  { name: 'Le leggende', blurb: 'Il gradino più alto. Non fanno regali.' },
+].map((g, i) => ({ ...g, bots: BOTS.slice(i * 4, i * 4 + 4) }))
+export const isBoss = (b: Bot): boolean => b.rank % 4 === 0
 
 /** L'avversario consigliato per un certo livello di abilità (0-100). */
 export function recommendedBot(skill: number): Bot {

@@ -4781,7 +4781,7 @@ html:not([data-fx='low']) .dlg::backdrop {
   color: var(--muted);
   font-size: var(--fs-sm);
   line-height: 1.35;
-  min-height: calc(1.35em * 2);
+  min-height: calc(1.35em * 3);
 }
 .badge-pill.medal,
 .review-note.medal {
@@ -4843,4 +4843,85 @@ html:not([data-fx='low']) .dlg::backdrop {
   font-size: var(--fs-sm);
   line-height: 1.35;
   color: var(--muted);
+}
+
+/* --- Gruppi di bot e punteggio --- */
+.bot-points {
+  flex: none;
+  font-family: 'Fredoka Variable', sans-serif;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.ladder-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 0 -4px;
+}
+.ladder-head .ladder-title {
+  margin: 0;
+}
+.my-rating {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.my-rating b {
+  font-family: 'Fredoka Variable', sans-serif;
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  color: var(--accent);
+  margin-left: 4px;
+}
+.ladder-group {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 0 4px;
+}
+.ladder-group:first-child {
+  margin-top: 0;
+}
+.ladder-group strong {
+  font-family: 'Fredoka Variable', sans-serif;
+  font-weight: 600;
+  font-size: var(--fs-lg);
+}
+.ladder-group small {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ladder-group-count {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 800;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.boss-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  vertical-align: 1px;
+  color: #ffcf40;
+  background: color-mix(in srgb, #ffcf40 18%, transparent);
+}
+.review-note.rating b.up {
+  color: var(--good);
+}
+.review-note.rating b.down {
+  color: #ff6b7a;
 }

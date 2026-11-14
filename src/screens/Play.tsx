@@ -10,7 +10,7 @@ import { CoachBubble } from '../components/CoachBubble'
 import { GameReview, pickReviewItems } from '../components/GameReview'
 import { GameReplay } from '../components/GameReplay'
 import { MISTAKE_INFO, buildRecord, classifyMistake } from '../engine/mistakes'
-import { chooseBotMove, type Bot } from '../engine/bots'
+import { botPoints, chooseBotMove, type Bot } from '../engine/bots'
 import { STYLES } from '../engine/style'
 import { QUALITY_INFO, bestMoveFor, evaluate, judgeMove, winPct, type Quality } from '../engine/analysis'
 import { adviceFor, type Advice } from '../chess/advice'
@@ -20,7 +20,7 @@ import { EVENT_MOOD, sayLine, type CoachEvent, type Mood } from '../coach/lines'
 import { explainWithGemini, summarizeGameWithGemini } from '../coach/gemini'
 import { coachInfo } from '../coach/coaches'
 import { nextStep, type NextStep } from '../coach/nextStep'
-import { addGameRecord, addToNotebook, addXp, bumpMistake, currentCoach, gameModeInfo, getState, medalOf, nudgeSkill, rememberGame, todayStr, touchDay, update, useApp, type DangerMode, type GameMode, type NotebookDraft } from '../store'
+import { addGameRecord, addToNotebook, addXp, bumpMistake, currentCoach, gameModeInfo, getState, medalOf, nudgeSkill, rateGame, rememberGame, todayStr, touchDay, update, useApp, type DangerMode, type GameMode, type NotebookDraft } from '../store'
 import { sfx } from '../sound'
 import { watchFrames } from '../perf'
 import { clearSavedGame, replayMoves, saveGame, type SavedGame, type SavedMove } from '../savedGame'
@@ -124,6 +124,8 @@ export function Play({ bot, color, mode = 'training', resume, onExit, onRematch,
   const [cleanNote, setCleanNote] = useState<string | null>(null)
   /** medaglia appena conquistata (o migliorata) contro questo bot */
   const [medalNote, setMedalNote] = useState<string | null>(null)
+  /** come si è mosso il punteggio (solo Senza rete e Torneo) */
+  const [rated, setRated] = useState<{ before: number; after: number } | null>(null)
   /** il consiglio di fine partita: cosa fare adesso */
   const [tip, setTip] = useState<NextStep | null>(null)
   const [notebookNote, setNotebookNote] = useState<string | null>(null)
@@ -184,7 +186,9 @@ export function Play({ bot, color, mode = 'training', resume, onExit, onRematch,
       setCleanNote(sayLine('cleanGame', settings.tone))
     }
     const medal = gameModeInfo(mode)
-    if (outcome === 'win' && medal.medal > medalOf(before, bot.id)) setMedalNote(`Medaglia d’${medal.medalName} contro ${bot.name}: vittoria in ${medal.name}.`)
+    // il punteggio si muove solo quando gli errori restano: in Allenamento non cambia
+    if (!helps) setRated(rateGame(botPoints(bot), outcome))
+    if (outcome === 'win' && medal.medal > medalOf(before, bot.id)) setMedalNote(`Medaglia ${medal.medalName} contro ${bot.name}: vittoria in ${medal.name}.`)
     update((s) => {
       const p = s.progress
       touchDay(p)
@@ -700,6 +704,7 @@ export function Play({ bot, color, mode = 'training', resume, onExit, onRematch,
         if (threatStats.current.seen > 0) rec.threats = { ...threatStats.current }
         rec.mode = mode
         rec.retracts = retracts.current
+        if (rated) rec.rating = rated.after
         addGameRecord(rec)
       }
       setTip(nextStep(getState().progress, { bot, mode, outcome: result.outcome, retracts: retracts.current, rec }))
@@ -893,6 +898,15 @@ export function Play({ bot, color, mode = 'training', resume, onExit, onRematch,
               {medalNote && (
                 <p className={`review-note medal m${gameModeInfo(mode).medal}`}>
                   <Medal size={18} weight="fill" /> {medalNote}
+                </p>
+              )}
+              {rated && (
+                <p className="review-note rating">
+                  Punteggio {rated.after}{' '}
+                  <b className={rated.after >= rated.before ? 'up' : 'down'}>
+                    {rated.after >= rated.before ? '+' : '−'}
+                    {Math.abs(rated.after - rated.before)}
+                  </b>
                 </p>
               )}
               {cleanNote && <p className="review-note clean">✨ Partita pulita: nessuna mossa ritirata, +15 XP. {cleanNote}</p>}

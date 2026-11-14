@@ -1,23 +1,21 @@
 import { useState } from 'react'
 import type { Color } from 'chess.js'
-import { Check, Crown, Handshake, Medal, Play, Shuffle, Star, StarHalf, type Icon } from '@phosphor-icons/react'
+import { Check, Crown, Handshake, Medal, Play, Shuffle, type Icon } from '@phosphor-icons/react'
 import { DRILLS, type Drill, type DrillGoal } from '../data/drills'
-import { BOTS, recommendedBot, starsOf, type Bot } from '../engine/bots'
+import { BOTS, BOT_GROUPS, botPoints, isBoss, recommendedBot, type Bot } from '../engine/bots'
 import { STYLES } from '../engine/style'
 import { BotAvatar } from '../components/BotAvatar'
-import { GAME_MODES, gameModeInfo, medalOf, update, useApp } from '../store'
+import { GAME_MODES, gameModeInfo, medalOf, ratingOf, update, useApp } from '../store'
 
 function Dot({ light }: { light: boolean }) {
   return <span style={{ width: 14, height: 14, borderRadius: '50%', background: light ? '#fff' : '#1b1033', border: '2px solid #888', display: 'inline-block' }} />
 }
 
-function Stars({ bot, size }: { bot: Bot; size: number }) {
+/** I punti di forza del bot sulla scala interna (non è un Elo vero). */
+function Points({ bot }: { bot: Bot }) {
   return (
-    <span className="stars" title={`${starsOf(bot)} stelle`}>
-      {Array.from({ length: Math.floor(starsOf(bot)) }, (_, i) => (
-        <Star key={i} size={size} weight="fill" />
-      ))}
-      {starsOf(bot) % 1 !== 0 && <StarHalf size={size} weight="fill" />}
+    <span className="bot-points" title="Punti di forza sulla scala di Gigi Scacchi: più sono, più è forte">
+      {botPoints(bot)}
     </span>
   )
 }
@@ -98,6 +96,8 @@ export function PlaySetup({
   const rec = suggested ?? recommendedBot(skill).id
   const gameMode = gameModeInfo(app.settings.gameMode ?? 'training')
   const recBot = BOTS.find((b) => b.id === rec) ?? recommendedBot(skill)
+  const myRating = ratingOf(app.progress)
+  const rated = (app.progress.ratedGames ?? 0) > 0
   const start = (b: Bot) => onStart(b, colorPick === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : colorPick)
 
   return (
@@ -120,7 +120,7 @@ export function PlaySetup({
           <BotAvatar id={recBot.id} size={88} />
           <span className="rec-info">
             <strong>{recBot.name}</strong>
-            <Stars bot={recBot} size={16} />
+            <Points bot={recBot} />
             <small>{recBot.tagline}</small>
             <StylePill bot={recBot} />
           </span>
@@ -153,31 +153,49 @@ export function PlaySetup({
             ))}
           </div>
           <small className="mode-blurb">
-            {gameMode.blurb} Se vinci: medaglia d’{gameMode.medalName}.
+            {gameMode.blurb} Se vinci: medaglia {gameMode.medalName}. {gameMode.id === 'training' ? 'Non muove il tuo punteggio.' : 'Conta per il tuo punteggio.'}
           </small>
         </div>
         <button className="btn primary big rec-play" onClick={() => start(recBot)}>
           <Play size={22} weight="fill" /> Gioca
         </button>
       </div>
-      <h3 className="ladder-title">Tutti gli avversari</h3>
+      <div className="ladder-head">
+        <h3 className="ladder-title">Tutti gli avversari</h3>
+        <span className="my-rating" title="Sale e scende solo con le partite Senza rete e Torneo. È una scala interna dell’app, non un Elo.">
+          Il tuo punteggio <b>{rated ? myRating : `~${myRating}`}</b>
+          {!rated && <small> stimato</small>}
+        </span>
+      </div>
       <div className="ladder">
-        {BOTS.map((b) => (
+        {BOT_GROUPS.map((grp) => [
+          <div key={grp.name} className="ladder-group">
+            <strong>{grp.name}</strong>
+            <small>{grp.blurb}</small>
+            <span className="ladder-group-count">
+              <Medal size={13} weight="fill" /> {grp.bots.filter((b) => medalOf(app.progress, b.id) > 0).length}/{grp.bots.length}
+            </span>
+          </div>,
+          ...grp.bots.map((b) => (
           <button key={b.id} className={`ladder-row${b.id === rec ? ' rec' : ''}`} onClick={() => start(b)}>
             <span className="ladder-rank">{b.rank}</span>
             <BotAvatar id={b.id} size={40} />
             <span className="ladder-name">
-              <strong>{b.name}</strong>
+              <strong>
+                {b.name}
+                {isBoss(b) && <span className="boss-tag">boss</span>}
+              </strong>
               <small>{b.tagline}</small>
             </span>
             <StylePill bot={b} />
-            <Stars bot={b} size={13} />
+            <Points bot={b} />
             <span className="ladder-state">
               <MedalBadge level={medalOf(app.progress, b.id)} />
               {b.id === rec && <span className="badge-pill tip">consigliato</span>}
             </span>
           </button>
-        ))}
+          )),
+        ])}
       </div>
         </>
       )}

@@ -137,6 +137,8 @@ export interface GameRecord {
   mode?: 'training' | 'nonet' | 'tournament'
   /** mosse ritirate */
   retracts?: number
+  /** il punteggio del giocatore dopo questa partita (solo se contava) */
+  rating?: number
 }
 
 /** Formula di Lichess: perdita media di probabilità di vittoria (punti %) → precisione. */
