@@ -12,22 +12,22 @@ import { dueNotebook, useApp } from '../store'
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0)
 
 /** La precisione delle ultime partite come linea (una partita = un punto). */
-function AccuracyChart({ history }: { history: GameRecord[] }) {
+function AccuracyChart({ history, pick = (g) => g.acc, lo = 0, hi = 100, label = 'Precisione delle ultime partite' }: { history: GameRecord[]; pick?: (g: GameRecord) => number; lo?: number; hi?: number; label?: string }) {
   const pts = history.slice(-15)
   const W = 320
   const H = 90
   const x = (i: number) => (pts.length === 1 ? W / 2 : 14 + (i / (pts.length - 1)) * (W - 28))
-  const y = (a: number) => H - 10 - (a / 100) * (H - 20)
-  const d = pts.map((g, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(g.acc).toFixed(1)}`).join(' ')
+  const y = (a: number) => H - 10 - ((a - lo) / Math.max(1, hi - lo)) * (H - 20)
+  const d = pts.map((g, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(pick(g)).toFixed(1)}`).join(' ')
   return (
-    <svg className="win-graph acc-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Precisione delle ultime partite">
+    <svg className="win-graph acc-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
       <rect x="0" y="0" width={W} height={H} rx="10" className="wg-bg" />
-      {[25, 50, 75].map((v) => (
+      {[0.25, 0.5, 0.75].map((f) => lo + (hi - lo) * f).map((v) => (
         <line key={v} x1="0" x2={W} y1={y(v)} y2={y(v)} className="wg-mid" />
       ))}
       {pts.length > 1 && <path d={d} className="wg-line" />}
       {pts.map((g, i) => (
-        <circle key={g.id} cx={x(i)} cy={y(g.acc)} r="4" className={`acc-dot ${g.outcome}`} />
+        <circle key={g.id} cx={x(i)} cy={y(pick(g))} r="4" className={`acc-dot ${g.outcome}`} />
       ))}
     </svg>
   )
@@ -92,6 +92,33 @@ export function WeakSpots({
       t.asked += g.threats.asked
     }
     return t.seen >= 3 ? t : null
+  }, [history])
+
+  // statistiche più ricche: vantaggio sprecato, rimonte, fasi, colore, punteggio (solo le partite che hanno i dati)
+  const stats = useMemo(() => {
+    const withPeak = history.filter((g) => g.peak !== undefined && g.low !== undefined)
+    const wasted = withPeak.filter((g) => g.peak! >= 80 && g.outcome !== 'win')
+    const comebacks = withPeak.filter((g) => g.low! <= 20 && g.outcome === 'win')
+    const winning = withPeak.filter((g) => g.peak! >= 80)
+    const avgPhase = (k: 'o' | 'm' | 'e') => {
+      const v = history.map((g) => g.ph?.[k]).filter((x): x is number => x !== undefined)
+      return v.length >= 2 ? Math.round(mean(v)) : null
+    }
+    const color = (c: 'w' | 'b') => {
+      const gs = history.filter((g) => g.color === c)
+      return gs.length >= 2 ? { n: gs.length, acc: Math.round(mean(gs.map((g) => g.acc))), wins: gs.filter((g) => g.outcome === 'win').length } : null
+    }
+    const rated = history.filter((g) => g.rating !== undefined)
+    return {
+      games: withPeak.length,
+      wasted: wasted.length,
+      winning: winning.length,
+      comebacks: comebacks.length,
+      phases: { o: avgPhase('o'), m: avgPhase('m'), e: avgPhase('e') },
+      w: color('w'),
+      b: color('b'),
+      rated,
+    }
   }, [history])
 
   const header = (
@@ -203,6 +230,75 @@ export function WeakSpots({
           <AccuracyChart history={history} />
           <small className="muted">Ogni punto è una partita (verde vittoria, rosso sconfitta). La precisione dice quanto vicino alle mosse migliori hai giocato.</small>
         </div>
+
+        {stats.games >= 3 && (
+          <div className="card">
+            <h3>Vantaggi e rimonte</h3>
+            <div className="stats">
+              <div className="stat">
+                <b>{stats.wasted}</b> vantaggi sprecati
+              </div>
+              <div className="stat">
+                <b>{stats.comebacks}</b> {stats.comebacks === 1 ? 'rimonta' : 'rimonte'}
+              </div>
+            </div>
+            <small className="muted">
+              {stats.winning > 0
+                ? `Su ${stats.winning} ${stats.winning === 1 ? 'partita' : 'partite'} in cui eri in netto vantaggio, ${stats.winning - stats.wasted} ${stats.winning - stats.wasted === 1 ? 'è finita' : 'sono finite'} con una vittoria.`
+                : 'Non sei ancora stato in netto vantaggio in queste partite.'}
+              {stats.wasted > 0 ? ' Per trasformare un vantaggio in vittoria, allenati sui finali contro il bot.' : ''}
+            </small>
+          </div>
+        )}
+
+        {(stats.phases.o !== null || stats.phases.m !== null || stats.phases.e !== null) && (
+          <div className="card">
+            <h3>Per fase e per colore</h3>
+            <div className="weak-bars">
+              {([['o', 'Apertura'], ['m', 'Mediogioco'], ['e', 'Finale']] as const).map(([k, name]) =>
+                stats.phases[k] === null ? null : (
+                  <div className="weak-row" key={k}>
+                    <span className="weak-label">{name}</span>
+                    <span className="weak-track">
+                      <i style={{ width: `${Math.max(6, stats.phases[k]!)}%` }} />
+                    </span>
+                    <b>{stats.phases[k]}%</b>
+                  </div>
+                ),
+              )}
+              {([['w', 'Con il bianco'], ['b', 'Con il nero']] as const).map(([k, name]) =>
+                stats[k] === null ? null : (
+                  <div className="weak-row" key={k}>
+                    <span className="weak-label">{name}</span>
+                    <span className="weak-track">
+                      <i style={{ width: `${Math.max(6, stats[k]!.acc)}%` }} />
+                    </span>
+                    <b>{stats[k]!.acc}%</b>
+                  </div>
+                ),
+              )}
+              <small className="muted">precisione media; apertura = mosse 1-10, mediogioco 11-25, finale dalla 26ª</small>
+            </div>
+          </div>
+        )}
+
+        {stats.rated.length >= 2 && (
+          <div className="card">
+            <h3>Punteggio nel tempo</h3>
+            <div className="acc-head">
+              <b className="acc-big">{stats.rated[stats.rated.length - 1].rating}</b>
+              <span className="muted">dopo {stats.rated.length} partite valide</span>
+            </div>
+            <AccuracyChart
+              history={stats.rated}
+              pick={(g) => g.rating!}
+              lo={Math.min(...stats.rated.slice(-15).map((g) => g.rating!)) - 20}
+              hi={Math.max(...stats.rated.slice(-15).map((g) => g.rating!)) + 20}
+              label="Punteggio delle ultime partite"
+            />
+            <small className="muted">Conta solo Senza rete e Torneo. È un punteggio interno di Gigi, non un Elo vero.</small>
+          </div>
+        )}
 
         {threats && (
           <div className="card">

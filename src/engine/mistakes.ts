@@ -1,5 +1,5 @@
 import { Chess, type Color, type PieceSymbol, type Square } from 'chess.js'
-import type { Judgement, Quality } from './analysis'
+import { winPct, type Judgement, type Quality } from './analysis'
 import type { Puzzle } from '../screens/Puzzles'
 import { hangingPieces } from '../chess/danger'
 import { VALUE, parseUci } from '../chess/util'
@@ -139,7 +139,15 @@ export interface GameRecord {
   retracts?: number
   /** il punteggio del giocatore dopo questa partita (solo se contava) */
   rating?: number
+  /** il massimo e il minimo di probabilità di vittoria (0-100, per te) toccati dopo una tua mossa */
+  peak?: number
+  low?: number
+  /** precisione per fase: apertura (mosse 1-10), mediogioco (11-25), finale (26+); assente se le mosse giudicate sono meno di 3 */
+  ph?: { o?: number; m?: number; e?: number }
 }
+
+export type Phase = 'o' | 'm' | 'e'
+export const phaseOf = (moveNo: number): Phase => (moveNo <= 10 ? 'o' : moveNo <= 25 ? 'm' : 'e')
 
 /** Formula di Lichess: perdita media di probabilità di vittoria (punti %) → precisione. */
 export function accuracyFrom(avgLoss: number): number {
@@ -161,6 +169,9 @@ export function summarizeOwn(moves: JudgedMove[], color: Color) {
   let loss = 0
   let judged = 0
   let own = 0
+  let peak = -1
+  let low = 101
+  const phases: Record<Phase, { loss: number; n: number }> = { o: { loss: 0, n: 0 }, m: { loss: 0, n: 0 }, e: { loss: 0, n: 0 } }
   moves.forEach((m, i) => {
     if (m.color !== color) return
     own++
@@ -168,6 +179,12 @@ export function summarizeOwn(moves: JudgedMove[], color: Color) {
     if (!j) return
     judged++
     loss += j.loss
+    const w = winPct(j.cpAfter)
+    peak = Math.max(peak, w)
+    low = Math.min(low, w)
+    const ph = phases[phaseOf(Math.floor(i / 2) + 1)]
+    ph.loss += j.loss
+    ph.n++
     q[j.quality] = (q[j.quality] ?? 0) + 1
     if (isMistake(j)) {
       const k = classifyMistake(m.fenBefore, m.uci, j, Math.floor(i / 2) + 1)
@@ -175,14 +192,16 @@ export function summarizeOwn(moves: JudgedMove[], color: Color) {
     }
   })
   const acc = judged >= 4 ? Math.round(accuracyFrom(loss / judged)) : null
-  return { own, judged, acc, q, kinds }
+  const ph: NonNullable<GameRecord['ph']> = {}
+  for (const k of ['o', 'm', 'e'] as Phase[]) if (phases[k].n >= 3) ph[k] = Math.round(accuracyFrom(phases[k].loss / phases[k].n))
+  return { own, judged, acc, q, kinds, peak: judged ? Math.round(peak) : undefined, low: judged ? Math.round(low) : undefined, ph }
 }
 
 /** Riassume una partita. Restituisce null se ci sono troppe poche mosse giudicate per dirne qualcosa. */
 export function buildRecord(moves: JudgedMove[], color: Color, bot: number, outcome: GameRecord['outcome'], day: string): GameRecord | null {
-  const { own, judged, acc, q, kinds } = summarizeOwn(moves, color)
+  const { own, judged, acc, q, kinds, peak, low, ph } = summarizeOwn(moves, color)
   if (own < 5 || judged < 4 || acc === null) return null
-  return { id: Date.now(), day, bot, color, outcome, moves: own, acc, q, kinds }
+  return { id: Date.now(), day, bot, color, outcome, moves: own, acc, q, kinds, peak, low, ph }
 }
 
 export interface WeakSpot {

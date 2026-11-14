@@ -77,7 +77,7 @@ Da valutare più avanti: grafico del punteggio nel tempo (ogni partita nello sto
 
 Allenamento contro le sviste: posizione + mossa proposta, il giocatore dice "sicura" o "errore" e, se errore, indica cosa si perde. È l'esercizio più mirato per chi ritira spesso la mossa dopo l'avviso. Le posizioni si generano dai propri errori (Quaderno) e dai puzzle.
 
-### 6. Statistiche più ricche — `da fare`
+### 6. Statistiche più ricche — `fatto` (dentro "Il tuo punto debole"; valgono per le partite giocate da ora in poi)
 
 - **Vantaggio sprecato**: partite in cui eri in netto vantaggio e non hai vinto → porta ai finali.
 - **Rimonte**: partite recuperate da posizione persa.
@@ -97,4 +97,4 @@ Allenamento contro le sviste: posizione + mossa proposta, il giocatore dice "sic
 2. ~~Consiglio dopo la partita (3)~~ fatto
 3. ~~Categorie e punteggio (4)~~ fatto
 4. ~~"Questa mossa è sicura?" (5)~~ fatto (dalla scheda Puzzle, usa gli errori del Quaderno)
-5. Statistiche (6)
+5. ~~Statistiche (6)~~ fatto
