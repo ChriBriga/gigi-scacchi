@@ -26,6 +26,7 @@ const Puzzles = lazy(() => import('./screens/Puzzles').then((m) => ({ default: m
 const DailyPuzzles = lazy(() => import('./screens/DailyPuzzles').then((m) => ({ default: m.DailyPuzzles })))
 const PlacementTest = lazy(() => import('./screens/Test').then((m) => ({ default: m.PlacementTest })))
 const WeakSpots = lazy(() => import('./screens/WeakSpots').then((m) => ({ default: m.WeakSpots })))
+const SafeMove = lazy(() => import('./screens/SafeMove').then((m) => ({ default: m.SafeMove })))
 const NotebookSession = lazy(() => import('./screens/Notebook').then((m) => ({ default: m.NotebookSession })))
 
 export type Tab = 'home' | 'play' | 'puzzles' | 'learn' | 'settings'
@@ -46,6 +47,7 @@ type Overlay =
   | { kind: 'weak' }
   | { kind: 'test' }
   | { kind: 'notebook' }
+  | { kind: 'safe' }
 
 export function App() {
   const [tab, setTab] = useState<Tab>('home')
@@ -184,6 +186,7 @@ export function App() {
   } else if (overlay?.kind === 'puzzles5') content = <DailyPuzzles key={overlay.key} onClose={close} themes={overlay.themes} title={overlay.title} />
   else if (overlay?.kind === 'test') content = <PlacementTest onExit={close} startGame={startGame} />
   else if (overlay?.kind === 'notebook') content = <NotebookSession onExit={close} />
+  else if (overlay?.kind === 'safe') content = <SafeMove onExit={close} />
   else if (overlay?.kind === 'weak')
     content = (
       <WeakSpots
@@ -216,7 +219,7 @@ export function App() {
       />
     )
   else if (tab === 'play') content = <PlaySetup onStart={startGame} onDrill={(d) => setOverlay({ kind: 'drill', drill: d })} mode={playMode} onMode={setPlayMode} />
-  else if (tab === 'puzzles') content = <Puzzles onExit={() => setTab('home')} onNotebook={() => setOverlay({ kind: 'notebook' })} />
+  else if (tab === 'puzzles') content = <Puzzles onExit={() => setTab('home')} onNotebook={() => setOverlay({ kind: 'notebook' })} onSafe={() => setOverlay({ kind: 'safe' })} />
   else if (tab === 'learn') content = <Learn onOpen={openLesson} />
   else {
     content = <Settings />

@@ -326,7 +326,7 @@ export function PuzzleRunner({
   )
 }
 
-export function Puzzles({ onExit, onNotebook }: { onExit: () => void; onNotebook: () => void }) {
+export function Puzzles({ onExit, onNotebook, onSafe }: { onExit: () => void; onNotebook: () => void; onSafe: () => void }) {
   const { progress } = useApp()
   const notebookSize = progress.notebook?.length ?? 0
   const notebookDue = dueNotebook(progress).length
@@ -377,6 +377,9 @@ export function Puzzles({ onExit, onNotebook }: { onExit: () => void; onNotebook
             </div>
             <button className="btn" style={{ marginTop: 12 }} onClick={onNotebook} disabled={notebookDue === 0}>
               <Notebook size={20} weight="bold" /> {notebookDue > 0 ? 'Ripassa ora' : 'Niente da ripassare oggi'}
+            </button>
+            <button className="btn" style={{ marginTop: 8 }} onClick={onSafe}>
+              Questa mossa è sicura?
             </button>
           </>
         )}
